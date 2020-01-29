@@ -72,7 +72,9 @@ class Flatten():
         if not path.exists(self.path_content):  # do we need to retrieve it?
             dict_data = contentai.get_extractor_results("gcp_videointelligence_shot_change", "data.json")
         else:
-            dict_data = json_load(self.path_content)
+            dict_data = json_load(path.join(self.path_content, "gcp_videointelligence_shot_change", "data.json"))
+            if not dict_data:
+                dict_data = json_load(path.join(self.path_content, "gcp_videointelligence_shot_change", "data.json.gz"))
 
         if "annotationResults" not in dict_data:
             logger.critical(f"Missing nested 'annotationResults' from metadata file '{self.path_content}'")
@@ -118,8 +120,7 @@ def main():
         makedirs(contentai.result_path)
 
     flatten = Flatten(contentai.content_path)
-    for extractor_name in ["gcp_videointelligence_shot_change", 
-                            "aws_rekognition_video_celebs", 
+    for extractor_name in [ "aws_rekognition_video_celebs", 
                             "aws_rekognition_video_content_moderation", 
                             "aws_rekognition_video_faces", 
                             "aws_rekognition_video_labels", 
@@ -141,8 +142,10 @@ def main():
                 input_vars.update(contentai.metadata)
             logger.info(f"ContentAI argments: {input_vars}")
             func(input_vars)
-        except:
+        except AttributeError as e:
             logger.info(f"Flatten function for '{extractor_name}' not found, skipping")
+        except Exception as e:
+            raise e
         pass
 
 
