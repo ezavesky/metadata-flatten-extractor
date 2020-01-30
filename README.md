@@ -12,9 +12,12 @@ workflows within the [ContentAI Platform](https://www.contentai.io).
 This library is used as a [single-run executable](#contentai-standalone).  
 Runtime parameters can be passed
 for processing that configure the returned results and can be examined in more detail 
-in the [process](process.py) script.
+in the [main](main.py) script.  
 
-(future)
+**NOTE: Not all flattening functions will respect/obey properties defined here.**
+
+(in progress)
+* `force_overwrite` - *(bool)* - force existing files to be overwritten
 * `threshold_value` - *(float)* - the top N results (by min threshold) for each model  (default=0.5)
 
 To install package dependencies in a fresh system, the recommended technique is a set of  
