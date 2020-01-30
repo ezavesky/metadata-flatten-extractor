@@ -51,14 +51,26 @@ contentai data wHaT3ver1t1s --dir data
 - add documentation (standard)
 
 
-### ContentAI Deploy and run
+### ContentAI Deploy 
+
+Deployment is easy and follows standard ContentAI steps.
 
 ```shell
-contentai deploy metadata-flatten
+contentai deploy --cpu 256 --memory 512 metadata-flatten
 Deploying...
 writing workflow.dot
 done
 ```
+
+Alternatively, you can pass an image name to reduce rebuilding a docker instance.
+
+```shell
+docker build -t metadata-deploy
+contentai deploy metadata-flatten --cpu 256 --memory 512 -i metadata-deploy
+```
+
+### ContentAI Run
+
 
 ```shell
 contentai run s3://bucket/video.mp4 -w 'digraph { <my_extractor> }' --watch --tasks
