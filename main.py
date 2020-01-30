@@ -59,29 +59,87 @@ def json_load(path_file):
     return {}
 
 class Flatten():
+    # https://cloud.google.com/video-intelligence/docs/reference/reast/Shared.Types/Likelihood
+    GCP_LIKELIHOOD_MAP = { "LIKELIHOOD_UNSPECIFIED": 0.0, "VERY_UNLIKELY": 0.1, "UNLIKELY": 0.25,
+                           "POSSIBLE": 0.5, "LIKELY": 0.75, "VERY_LIKELY": 0.9 }
     def __init__(self, path_content):
         super().__init__()
         self.path_content = path_content
 
+    def flatten_gcp_videointelligence_explicit_content(self, run_options):
+        """Flatten GCP Explicit Annotation 
+            - https://cloud.google.com/video-intelligence/docs/analyze-safesearch
+            - https://cloud.google.com/video-intelligence/docs/reference/rest/Shared.Types/Likelihood
+
+        :param: run_options (dict): specific runtime information (here, just 'path_result' for directory output)
+        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        """
+        # read data.json
+        #   "annotationResults": [ "explicitAnnotation": [ { "frames": [ {
+        #     "timeOffset": "0s",
+        #     "pornographyLikelihood": "VERY_UNLIKELY"
+        #   }, ...
+        dict_data = contentai.get_extractor_results("gcp_videointelligence_explicit_content", "data.json")
+        if not dict_data:  # do we need to load it locally?
+            path_content = path.join(self.path_content, "gcp_videointelligence_explicit_content", "data.json")
+            dict_data = json_load(path_content)
+            if not dict_data:
+                path_content += ".gz"
+                dict_data = json_load(path_content)
+        if "annotationResults" not in dict_data:
+            logger.critical(f"Missing nested 'annotationResults' from metadata file '{path_content}'")
+            return False
+        path_result = run_options['path_result']
+
+        re_time_clean = re.compile(r"s$")
+        for annotation_obj in dict_data["annotationResults"]:  # traverse items
+            if "explicitAnnotation" in annotation_obj:  # validate object
+                if "frames" not in annotation_obj["explicitAnnotation"]:  # validate object
+                    logger.critical(f"Missing nested 'frames' in shot chunk '{explicit_item}'")
+                    return False
+                list_items = []
+                for frame_item in annotation_obj["explicitAnnotation"]["frames"]:
+                    if "timeOffset" in frame_item:
+                        time_clean = float(re_time_clean.sub('', frame_item["timeOffset"]))
+                        dict_scores = {n:n.split("Likelihood")[0] for n in frame_item.keys() if not n.startswith("time") }
+                        for n in dict_scores:  # a little bit of a dance, but flexiblity for future explicit types
+                            list_items.append( {"time_start": time_clean, "source_event": "image",
+                                "time_end": time_clean, "time_event": time_clean, "tag": dict_scores[n],                   
+                                "score": Flatten.GCP_LIKELIHOOD_MAP[frame_item[n]], "details": "",
+                                "extractor": "gcp_videointelligence_explicit_content"})
+                df = pd.DataFrame(list_items)
+                df.to_csv(path_result, index=False)
+                logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
+                return True
+
+        logger.critical(f"Missing nested 'explicitAnnotation' from metadata file '{path_content}'")
+        return False
+
     def flatten_gcp_videointelligence_shot_change(self, run_options):
+        """Flatten GCP Shot Change Detection - https://cloud.google.com/video-intelligence/docs/analyze-shots
+
+        :param: run_options (dict): specific runtime information (here, just 'path_result' for directory output)
+        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        """
         # read data.json
         #   "annotationResults": [ "shotAnnotations": [ {
         #     "startTimeOffset": "0s",
         #     "endTimeOffset": "19.285933s"
         #   }, ...
-        if not path.exists(self.path_content):  # do we need to retrieve it?
-            dict_data = contentai.get_extractor_results("gcp_videointelligence_shot_change", "data.json")
-        else:
-            dict_data = json_load(path.join(self.path_content, "gcp_videointelligence_shot_change", "data.json"))
+        dict_data = contentai.get_extractor_results("gcp_videointelligence_shot_change", "data.json")
+        if not dict_data:  # do we need to load it locally?
+            path_content = path.join(self.path_content, "gcp_videointelligence_shot_change", "data.json")
+            dict_data = json_load(path_content)
             if not dict_data:
-                dict_data = json_load(path.join(self.path_content, "gcp_videointelligence_shot_change", "data.json.gz"))
+                path_content += ".gz"
+                dict_data = json_load(path_content)
 
         if "annotationResults" not in dict_data:
-            logger.critical(f"Missing nested 'annotationResults' from metadata file '{self.path_content}'")
+            logger.critical(f"Missing nested 'annotationResults' from metadata file '{path_content}'")
             return False
         path_result = run_options['path_result']
 
-        reClean = re.compile(r"s$")
+        re_time_clean = re.compile(r"s$")
         for annotation_obj in dict_data["annotationResults"]:  # traverse items
             if "shotAnnotations" in annotation_obj:  # validate object
                 list_items = []
@@ -89,9 +147,9 @@ class Flatten():
                     if "startTimeOffset" not in shot_item:
                         logger.critical(f"Missing nested 'startTimeOffset' in shot chunk '{shot_item}'")
                         return False
-                    list_items.append( {"time_start": float(reClean.sub('', shot_item["startTimeOffset"])), 
-                        "time_end": float(reClean.sub('', shot_item["endTimeOffset"])), 
-                        "time_event": float(reClean.sub('', shot_item["startTimeOffset"])), 
+                    list_items.append( {"time_start": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
+                        "time_end": float(re_time_clean.sub('', shot_item["endTimeOffset"])), 
+                        "time_event": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
                         "source_event": "video", "tag": "shot", "score": 1.0, "details": "",
                         "extractor": "gcp_videointelligence_shot_change"})
                 df = pd.DataFrame(list_items)
@@ -99,7 +157,7 @@ class Flatten():
                 logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
                 return True
 
-        logger.critical(f"Missing nested 'shotAnnotations' from metadata file '{self.path_content}'")
+        logger.critical(f"Missing nested 'shotAnnotations' from metadata file '{path_content}'")
         return False
 
 
