@@ -116,3 +116,4 @@ Job complete in 4m58.265737799s
 ### 0.2.0
 * add initial package, requirements, docker image
 * add basic readme for usage example
+* processes types `gcp_videointelligence_label`, `gcp_videointelligence_shot_change`, `gcp_videointelligence_explicit_content`, `gcp_videointelligence_speech_transcription`

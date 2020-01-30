@@ -62,6 +62,7 @@ class Flatten():
     # https://cloud.google.com/video-intelligence/docs/reference/reast/Shared.Types/Likelihood
     GCP_LIKELIHOOD_MAP = { "LIKELIHOOD_UNSPECIFIED": 0.0, "VERY_UNLIKELY": 0.1, "UNLIKELY": 0.25,
                            "POSSIBLE": 0.5, "LIKELY": 0.75, "VERY_LIKELY": 0.9 }
+    TAG_TRANSCRIPT = "_transcript_"
     def __init__(self, path_content):
         super().__init__()
         self.path_content = path_content
@@ -243,7 +244,74 @@ class Flatten():
         logger.critical(f"Missing nested 'explicitAnnotation' from metadata file '{path_content}'")
         return False
 
+    def flatten_gcp_videointelligence_speech_transcription(self, run_options):
+        """Flatten GCP Speech Recognition 
+            - https://cloud.google.com/video-intelligence/docs/transcription
 
+        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
+        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        """
+        # read data.json
+        #   "annotationResults": [ {  "speechTranscriptions": [ {
+        #       "alternatives": [ { "transcript": "Play Super Bowl 50 for here tonight. ", "confidence": 0.8140063881874084,
+        #       "words": [ { "startTime": "0s", "endTime": "0.400s", "word": "Play", "confidence": 0.9128385782241821 },
+        path_result = run_options['path_result']
+        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
+            return True
+
+        dict_data = contentai.get_extractor_results("gcp_videointelligence_speech_transcription", "data.json")
+        if not dict_data:  # do we need to load it locally?
+            path_content = path.join(self.path_content, "gcp_videointelligence_speech_transcription", "data.json")
+            dict_data = json_load(path_content)
+            if not dict_data:
+                path_content += ".gz"
+                dict_data = json_load(path_content)
+        if "annotationResults" not in dict_data:
+            logger.critical(f"Missing nested 'annotationResults' from metadata file '{path_content}'")
+            return False
+
+        re_time_clean = re.compile(r"s$")
+        for annotation_obj in dict_data["annotationResults"]:  # traverse items
+            if "speechTranscriptions" not in annotation_obj:  # validate object
+                logger.critical(f"Missing nested 'speechTranscriptions' in annotation chunk '{annotation_obj}'")
+                return False
+            list_items = []
+            for speech_obj in annotation_obj["speechTranscriptions"]:  # walk through all parts
+                if "alternatives" not in speech_obj:
+                    logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunk '{speech_obj}'")
+                    return False
+                for alt_obj in speech_obj["alternatives"]:   # walk through speech parts
+                    time_end = 0
+                    time_begin = 1e200
+                    num_words = 0
+                    if "words" in alt_obj:  # parse all words for this transcript chunk
+                        for word_obj in alt_obj["words"]:  # walk through all words
+                            # {  "startTime": "0.400s",  "endTime": "0.700s",  "word": "Super", "confidence": 0.9128385782241821 }
+                            time_begin_clean = float(re_time_clean.sub('', word_obj["startTime"]))
+                            time_end_clean = float(re_time_clean.sub('', word_obj["endTime"]))
+                            time_begin = min(time_begin, time_begin_clean)
+                            time_end = max(time_end, time_end_clean)
+                            # add new item for this word
+                            list_items.append( {"time_start": time_begin_clean, "source_event": "speech",
+                                "time_end": time_end_clean, "time_event": time_begin_clean, "tag": word_obj["word"],
+                                "score": float(word_obj["confidence"]), "details": "",
+                                "extractor": "gcp_videointelligence_speech_transcription"})
+                            num_words += 1
+
+                        if "transcript" in alt_obj:  # generate top-level transcript item, after going through all words
+                            list_items.append( {"time_start": time_begin, "source_event": "speech",
+                                "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
+                                "score": float(alt_obj["confidence"]), 
+                                "details": json.dumps({"words": num_words, "transcript": alt_obj["transcript"]}),
+                                "extractor": "gcp_videointelligence_speech_transcription"})
+
+            df = pd.DataFrame(list_items).sort_values("time_start")
+            df.to_csv(path_result, index=False)
+            logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
+            return True
+
+        logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunks from metadata file '{path_content}'")
+        return False
 
 def main():
     # check for a single argument as input for the path as an override
