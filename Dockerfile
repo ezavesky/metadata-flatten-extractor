@@ -12,14 +12,13 @@ COPY . $WORKDIR
 RUN python -V \
     # create user ID and run mode
     # && groupadd -g $gid $user && useradd -m -u $uid -g $gid $user \
-    && apt-get update \
-    # need to build something?
-    && apt-get -y install git vim \
+    # && apt-get update \
+    # && apt-get -y install git vim \
     && pip install $PYPI_INSTALL --no-cache-dir -r $WORKDIR/requirements.txt \
-    # clean up mess from gcc
+    # clean up mess from other apt-actions
     && apt-get -qq -y remove \
     && apt-get -qq -y autoremove \
-    && apt-get autoclean \
+    && apt-get autoclean 
 
 
 EXPOSE 9101
