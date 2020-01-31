@@ -71,12 +71,9 @@ class Flatten():
         """Flatten GCP Content Labels 
             - https://cloud.google.com/video-intelligence/docs/analyze-labels
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
 
         # read data.json
         dict_data = contentai.get_extractor_results("gcp_videointelligence_label", "data.json")
@@ -88,7 +85,7 @@ class Flatten():
                 dict_data = json_load(path_content)
         if "annotationResults" not in dict_data:
             logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_label'")
-            return False
+            return None
         path_result = run_options['path_result']
 
         # return details from a local entity
@@ -136,29 +133,22 @@ class Flatten():
                                 "details": str_json, "extractor": "gcp_videointelligence_label",
                                 "tag": tag_name})
             # convert list to a dataframe
-            df = pd.DataFrame(list_items).sort_values("time_start")
-            df.to_csv(path_result, index=False)
-            logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-            return True
+            return pd.DataFrame(list_items)
 
         logger.critical(f"Missing nested knowns 'segmentLabelAnnotations' and 'shotLabelAnnotations' from source 'gcp_videointelligence_label'")
-        return False
+        return None
 
     def flatten_gcp_videointelligence_shot_change(self, run_options):
         """Flatten GCP Shot Change Detection - https://cloud.google.com/video-intelligence/docs/analyze-shots
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information 
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         # read data.json
         #   "annotationResults": [ "shotAnnotations": [ {
         #     "startTimeOffset": "0s",
         #     "endTimeOffset": "19.285933s"
         #   }, ...
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
-
         dict_data = contentai.get_extractor_results("gcp_videointelligence_shot_change", "data.json")
         if not dict_data:  # do we need to load it locally?
             path_content = path.join(self.path_content, "gcp_videointelligence_shot_change", "data.json")
@@ -169,7 +159,7 @@ class Flatten():
 
         if "annotationResults" not in dict_data:
             logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_shot_change'")
-            return False
+            return None
 
         re_time_clean = re.compile(r"s$")
         for annotation_obj in dict_data["annotationResults"]:  # traverse items
@@ -178,37 +168,30 @@ class Flatten():
                 for shot_item in annotation_obj["shotAnnotations"]:
                     if "startTimeOffset" not in shot_item:
                         logger.critical(f"Missing nested 'startTimeOffset' in shot chunk '{shot_item}'")
-                        return False
+                        return None
                     list_items.append( {"time_start": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
                         "time_end": float(re_time_clean.sub('', shot_item["endTimeOffset"])), 
                         "time_event": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
                         "source_event": "video", "tag": "shot", "score": 1.0, "details": "",
                         "extractor": "gcp_videointelligence_shot_change"})
-                df = pd.DataFrame(list_items).sort_values("time_start")
-                df.to_csv(path_result, index=False)
-                logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-                return True
+                return pd.DataFrame(list_items)
 
         logger.critical(f"Missing nested 'shotAnnotations' from source 'gcp_videointelligence_shot_change'")
-        return False
+        return None
 
     def flatten_gcp_videointelligence_explicit_content(self, run_options):
         """Flatten GCP Explicit Annotation 
             - https://cloud.google.com/video-intelligence/docs/analyze-safesearch
             - https://cloud.google.com/video-intelligence/docs/reference/rest/Shared.Types/Likelihood
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         # read data.json
         #   "annotationResults": [ "explicitAnnotation": [ { "frames": [ {
         #     "timeOffset": "0s",
         #     "pornographyLikelihood": "VERY_UNLIKELY"
         #   }, ...
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
-
         dict_data = contentai.get_extractor_results("gcp_videointelligence_explicit_content", "data.json")
         if not dict_data:  # do we need to load it locally?
             path_content = path.join(self.path_content, "gcp_videointelligence_explicit_content", "data.json")
@@ -219,14 +202,14 @@ class Flatten():
 
         if "annotationResults" not in dict_data:
             logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_explicit_content'")
-            return False
+            return None
 
         re_time_clean = re.compile(r"s$")
         for annotation_obj in dict_data["annotationResults"]:  # traverse items
             if "explicitAnnotation" in annotation_obj:  # validate object
                 if "frames" not in annotation_obj["explicitAnnotation"]:  # validate object
                     logger.critical(f"Missing nested 'frames' in shot chunk '{explicit_item}'")
-                    return False
+                    return None
                 list_items = []
                 for frame_item in annotation_obj["explicitAnnotation"]["frames"]:
                     if "timeOffset" in frame_item:
@@ -237,29 +220,22 @@ class Flatten():
                                 "time_end": time_clean, "time_event": time_clean, "tag": dict_scores[n],                   
                                 "score": Flatten.GCP_LIKELIHOOD_MAP[frame_item[n]], "details": "",
                                 "extractor": "gcp_videointelligence_explicit_content"})
-                df = pd.DataFrame(list_items).sort_values("time_start")
-                df.to_csv(path_result, index=False)
-                logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-                return True
+                return pd.DataFrame(list_items)
 
         logger.critical(f"Missing nested 'explicitAnnotation' from source 'gcp_videointelligence_explicit_content'")
-        return False
+        return None
 
     def flatten_gcp_videointelligence_speech_transcription(self, run_options):
         """Flatten GCP Speech Recognition 
             - https://cloud.google.com/video-intelligence/docs/transcription
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information 
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         # read data.json
         #   "annotationResults": [ {  "speechTranscriptions": [ {
         #       "alternatives": [ { "transcript": "Play Super Bowl 50 for here tonight. ", "confidence": 0.8140063881874084,
         #       "words": [ { "startTime": "0s", "endTime": "0.400s", "word": "Play", "confidence": 0.9128385782241821 },
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
-
         dict_data = contentai.get_extractor_results("gcp_videointelligence_speech_transcription", "data.json")
         if not dict_data:  # do we need to load it locally?
             path_content = path.join(self.path_content, "gcp_videointelligence_speech_transcription", "data.json")
@@ -270,18 +246,18 @@ class Flatten():
 
         if "annotationResults" not in dict_data:
             logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_speech_transcription'")
-            return False
+            return None
 
         re_time_clean = re.compile(r"s$")
         for annotation_obj in dict_data["annotationResults"]:  # traverse items
             if "speechTranscriptions" not in annotation_obj:  # validate object
                 logger.critical(f"Missing nested 'speechTranscriptions' in annotation chunk '{annotation_obj}'")
-                return False
+                return None
             list_items = []
             for speech_obj in annotation_obj["speechTranscriptions"]:  # walk through all parts
                 if "alternatives" not in speech_obj:
                     logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunk '{speech_obj}'")
-                    return False
+                    return None
                 for alt_obj in speech_obj["alternatives"]:   # walk through speech parts
                     time_end = 0
                     time_begin = 1e200
@@ -306,30 +282,22 @@ class Flatten():
                                 "score": float(alt_obj["confidence"]), 
                                 "details": json.dumps({"words": num_words, "transcript": alt_obj["transcript"]}),
                                 "extractor": "gcp_videointelligence_speech_transcription"})
-
-            df = pd.DataFrame(list_items).sort_values("time_start")
-            df.to_csv(path_result, index=False)
-            logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-            return True
+            return pd.DataFrame(list_items)
 
         logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunks from source 'gcp_videointelligence_speech_transcription'")
-        return False
+        return None
 
     def flatten_aws_rekognition_video_celebs(self, run_options):
         """Flatten AWS Rekognition celebrities
             - https://docs.aws.amazon.com/rekognition/latest/dg/celebrities-procedure-image.html
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
-
         list_items = []
-        last_loud_idx = 0
-        while last_loud_idx >= 0:
-            file_search = f"result{last_loud_idx}.json"
+        last_load_idx = 0
+        while last_load_idx >= 0:
+            file_search = f"result{last_load_idx}.json"
             dict_data = contentai.get_extractor_results("aws_rekognition_video_celebs", file_search)
             if not dict_data:  # do we need to load it locally?
                 path_content = path.join(self.path_content, "aws_rekognition_video_celebs", file_search)
@@ -339,19 +307,16 @@ class Flatten():
                     dict_data = json_load(path_content)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
-                    df = pd.DataFrame(list_items).sort_values("time_start")
-                    df.to_csv(path_result, index=False)
-                    logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-                    return True
+                    return pd.DataFrame(list_items)
                 else:
-                    last_loud_idx = -1
+                    last_load_idx = -1
                     break
 
             logger.info(f"... parsing aws_rekognition_video_celebs/{file_search} ")
 
             if "Celebrities" not in dict_data:
                 logger.critical(f"Missing nested 'Celebrities' from source 'aws_rekognition_video_celebs' ({file_search})")
-                return False
+                return None
 
             for celebrity_obj in dict_data["Celebrities"]:  # traverse items
                 if "Celebrity" in celebrity_obj:  # validate object
@@ -371,26 +336,22 @@ class Flatten():
                         "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                         "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_celebs"})
-            last_loud_idx += 1
+            last_load_idx += 1
 
         logger.critical(f"No celebrity enties found in source 'aws_rekognition_video_celebs' ({file_search}'")
-        return False
+        return None
 
     def flatten_aws_rekognition_video_content_moderation(self, run_options):
         """Flatten AWS Rekognition Moderatioon
             - https://docs.aws.amazon.com/rekognition/latest/dg/API_GetContentModeration.html
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
-
         list_items = []
-        last_loud_idx = 0
-        while last_loud_idx >= 0:
-            file_search = f"result{last_loud_idx}.json"
+        last_load_idx = 0
+        while last_load_idx >= 0:
+            file_search = f"result{last_load_idx}.json"
             dict_data = contentai.get_extractor_results("aws_rekognition_video_content_moderation", file_search)
             if not dict_data:  # do we need to load it locally?
                 path_content = path.join(self.path_content, "aws_rekognition_video_content_moderation", file_search)
@@ -400,19 +361,16 @@ class Flatten():
                     dict_data = json_load(path_content)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
-                    df = pd.DataFrame(list_items).sort_values("time_start")
-                    df.to_csv(path_result, index=False)
-                    logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-                    return True
+                    return pd.DataFrame(list_items)
                 else:
-                    last_loud_idx = -1
+                    last_load_idx = -1
                     break
 
             logger.info(f"... parsing aws_rekognition_video_content_moderation/{file_search} ")
 
             if "ModerationLabels" not in dict_data:
                 logger.critical(f"Missing nested 'ModerationLabels' from source 'aws_rekognition_video_content_moderation' ({file_search})")
-                return False
+                return None
 
             for celebrity_obj in dict_data["ModerationLabels"]:  # traverse items
                 if "ModerationLabel" in celebrity_obj:  # validate object
@@ -427,26 +385,26 @@ class Flatten():
                             "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                             "score": score_frame, "details": json.dumps(details_obj),
                             "extractor": "aws_rekognition_video_content_moderation"})
-            last_loud_idx += 1
+            last_load_idx += 1
 
         logger.critical(f"No moderation enties found in source 'aws_rekognition_video_content_moderation' ({file_search}'")
-        return False
+        return None
 
     def flatten_aws_rekognition_video_labels(self, run_options):
         """Flatten AWS Video Labels
             - https://docs.aws.amazon.com/rekognition/latest/dg/labels-detecting-labels-video.html
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         path_result = run_options['path_result']
         if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
             return True
 
         list_items = []
-        last_loud_idx = 0
-        while last_loud_idx >= 0:
-            file_search = f"result{last_loud_idx}.json"
+        last_load_idx = 0
+        while last_load_idx >= 0:
+            file_search = f"result{last_load_idx}.json"
             dict_data = contentai.get_extractor_results("aws_rekognition_video_labels", file_search)
             if not dict_data:  # do we need to load it locally?
                 path_content = path.join(self.path_content, "aws_rekognition_video_labels", file_search)
@@ -456,19 +414,16 @@ class Flatten():
                     dict_data = json_load(path_content)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
-                    df = pd.DataFrame(list_items).sort_values("time_start")
-                    df.to_csv(path_result, index=False)
-                    logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-                    return True
+                    return pd.DataFrame(list_items)
                 else:
-                    last_loud_idx = -1
+                    last_load_idx = -1
                     break
 
             logger.info(f"... parsing aws_rekognition_video_labels/{file_search} ")
 
             if "Labels" not in dict_data:
                 logger.critical(f"Missing nested 'Labels' from source 'aws_rekognition_video_labels' ({file_search})")
-                return False
+                return None
 
             for celebrity_obj in dict_data["Labels"]:  # traverse items
                 if "Label" in celebrity_obj:  # validate object
@@ -494,17 +449,17 @@ class Flatten():
                         "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                         "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_labels"})
-            last_loud_idx += 1
+            last_load_idx += 1
 
         logger.critical(f"No moderation enties found in source 'aws_rekognition_video_labels' ({file_search}'")
-        return False
+        return None
 
     def flatten_aws_rekognition_video_faces(self, run_options):
         """Flatten AWS Rekognition Faces
             - https://docs.aws.amazon.com/rekognition/latest/dg/faces.html
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information 
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         path_result = run_options['path_result']
         if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
@@ -513,9 +468,9 @@ class Flatten():
         face_feats = ['AgeRange', 'Smile', 'Eyeglasses', 'Sunglasses', 'Gender', 'Beard', 'Mustache', 
                      'EyesOpen', 'MouthOpen', 'Pose']  # , 'Landmarks', 'Quality']  -- propose we skip these (emz 1/30
         
-        last_loud_idx = 0
-        while last_loud_idx >= 0:
-            file_search = f"result{last_loud_idx}.json"
+        last_load_idx = 0
+        while last_load_idx >= 0:
+            file_search = f"result{last_load_idx}.json"
             dict_data = contentai.get_extractor_results("aws_rekognition_video_faces", file_search)
             if not dict_data:  # do we need to load it locally?
                 path_content = path.join(self.path_content, "aws_rekognition_video_faces", file_search)
@@ -525,12 +480,9 @@ class Flatten():
                     dict_data = json_load(path_content)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
-                    df = pd.DataFrame(list_items).sort_values("time_start")
-                    df.to_csv(path_result, index=False)
-                    logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-                    return True
+                    return pd.DataFrame(list_items)
                 else:
-                    last_loud_idx = -1
+                    last_load_idx = -1
                     break
 
             logger.info(f"... parsing aws_rekognition_video_faces/{file_search} ")
@@ -573,26 +525,23 @@ class Flatten():
                         "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_faces"})
 
-            last_loud_idx += 1
+            last_load_idx += 1
 
         logger.critical(f"No faces found in source 'aws_rekognition_video_faces' ({file_search}'")
-        return False    
+        return None    
 
     def flatten_aws_rekognition_video_person_tracking(self, run_options):
         """Flatten AWS Rekognition Person Tracking
             - https://docs.aws.amazon.com/rekognition/latest/dg/persons.html
 
-        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
-        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        :param: run_options (dict): specific runtime information
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
         list_items = []
         
-        last_loud_idx = 0
-        while last_loud_idx >= 0:
-            file_search = f"result{last_loud_idx}.json"
+        last_load_idx = 0
+        while last_load_idx >= 0:
+            file_search = f"result{last_load_idx}.json"
             dict_data = contentai.get_extractor_results("aws_rekognition_video_person_tracking", file_search)
             if not dict_data:  # do we need to load it locally?
                 path_content = path.join(self.path_content, "aws_rekognition_video_person_tracking", file_search)
@@ -602,12 +551,9 @@ class Flatten():
                     dict_data = json_load(path_content)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
-                    df = pd.DataFrame(list_items).sort_values("time_start")
-                    df.to_csv(path_result, index=False)
-                    logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
-                    return True
+                    return pd.DataFrame(list_items)
                 else:
-                    last_loud_idx = -1
+                    last_load_idx = -1
                     break
 
             logger.info(f"... parsing aws_rekognition_video_person_tracking/{file_search} ")
@@ -637,10 +583,10 @@ class Flatten():
                         "tag": person_idx, "score": 1.0, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_person_tracking"})
 
-            last_loud_idx += 1
+            last_load_idx += 1
 
         logger.critical(f"No people found in source 'aws_rekognition_video_person_tracking' ({file_search}'")
-        return False
+        return None
 
 def main():
     # check for a single argument as input for the path as an override
@@ -679,8 +625,15 @@ def main():
             input_vars = {'path_result': path_output, "force_overwrite": True}
             if contentai.metadata is not None:  # see README.md for more info
                 input_vars.update(contentai.metadata)
-            logger.info(f"ContentAI argments: {input_vars}")
-            func(input_vars)
+
+            if path.exists(input_vars['path_result']) and input_vars['force_overwrite']:
+                logger.info(f"Skipping re-process of {input_vars['path_result']}...")
+            else:
+                logger.info(f"ContentAI argments: {input_vars}")
+                df = func(input_vars)  # attempt to process
+                df.sort_values("time_start").to_csv(input_vars['path_result'], index=False)
+                logger.info(f"Wrote {len(df)} items to result file '{input_vars['path_result']}'")
+
         except AttributeError as e:
             logger.info(f"Flatten function for '{extractor_name}' not found, skipping")
         except Exception as e:
