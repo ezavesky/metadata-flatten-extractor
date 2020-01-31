@@ -499,6 +499,77 @@ class Flatten():
         logger.critical(f"No moderation enties found in source 'aws_rekognition_video_labels' ({file_search}'")
         return False
 
+    def flatten_aws_rekognition_video_faces(self, run_options):
+        """Flatten AWS Rekognition Faces
+            - https://docs.aws.amazon.com/rekognition/latest/dg/faces.html
+
+        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
+        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        """
+        path_result = run_options['path_result']
+        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
+            return True
+        list_items = []
+        
+        last_loud_idx = 0
+        while last_loud_idx >= 0:
+            file_search = f"result{last_loud_idx}.json"
+            dict_data = contentai.get_extractor_results("aws_rekognition_video_faces", file_search)
+            if not dict_data:  # do we need to load it locally?
+                path_content = path.join(self.path_content, "aws_rekognition_video_faces", file_search)
+                dict_data = json_load(path_content)
+                if not dict_data:
+                    path_content += ".gz"
+                    dict_data = json_load(path_content)
+            if not dict_data:  # couldn't load anything else...
+                if list_items:
+                    df = pd.DataFrame(list_items).sort_values("time_start")
+                    df.to_csv(path_result, index=False)
+                    logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
+                    return True
+                else:
+                    last_loud_idx = -1
+                    break
+
+            logger.info(f"... parsing aws_rekognition_video_faces/{file_search} ")
+
+            for face_obj in dict_data["Faces"]:  # traverse items
+                if "Face" in face_obj:  # validate object
+                    local_obj = face_obj["Face"]
+                    time_frame = float(face_obj["Timestamp"])/1000
+                    details_obj = {}
+                    if "BoundingBox" in local_obj:
+                        details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], 4), 
+                            'h': round(local_obj['BoundingBox']['Height'], 4),
+                            'l': round(local_obj['BoundingBox']['Left'], 4), 
+                            't': round(local_obj['BoundingBox']['Top'], 4) }
+                    score_frame = round(float(local_obj["Confidence"])/100, 4)
+
+                    list_items.append({"time_start": time_frame, "source_event": "image",
+                        "time_end": time_frame, "time_event": time_frame,
+                        "score": score_frame, "details": json.dumps(details_obj),
+                        "ageRange": local_obj["AgeRange"],
+                        "smile": local_obj["Smile"],
+                        "eyeglasses": local_obj["Eyeglasses"],
+                        "sunglasses": local_obj["Sunglasses"],
+                        "gender": local_obj["Gender"],
+                        "beard": local_obj["Beard"],
+                        "mustache": local_obj["Mustache"],
+                        "eyesOpen": local_obj["EyesOpen"],
+                        "mouthOpen": local_obj["MouthOpen"],
+                        "emotions": local_obj["Emotions"],
+                        "landmarks": local_obj["Landmarks"],
+                        "pose": local_obj["Pose"],
+                        "quality": local_obj["Quality"],                                       
+                        "extractor": "aws_rekognition_video_faces"})
+
+            last_loud_idx += 1
+
+        logger.critical(f"No faces found in source 'aws_rekognition_video_faces' ({file_search}'")
+        return False    
+
+
+
 def main():
     # check for a single argument as input for the path as an override
     if len(sys.argv) > 1:
