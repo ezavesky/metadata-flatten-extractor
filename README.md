@@ -4,8 +4,10 @@ A method to flatten generated JSON data into timed CSV events in support of anal
 workflows within the [ContentAI Platform](https://www.contentai.io).
 
 1. [Getting Started](#getting-started)
-2. [Testing](#testing)
-3. [Changes](#changes)
+2. [Execution](#execution-and-deployment)
+3. [Testing](#testing)
+4. [Changes](#changes)
+4. [Future Development](#future-development)
 
 # Getting Started
 
@@ -16,9 +18,28 @@ in the [main](main.py) script.
 
 **NOTE: Not all flattening functions will respect/obey properties defined here.**
 
-(in progress)
 * `force_overwrite` - *(bool)* - force existing files to be overwritten
+* `compressed` - *(bool)* - compress output CSVs instead of raw write (e.g. append '.gz')
+
+(in progress)
 * `threshold_value` - *(float)* - the top N results (by min threshold) for each model  (default=0.5)
+
+## generated insights
+
+The output of this flattening will be a set of CSV files, one for each extractor.  the standard
+schema for these CSV files has the following fields.
+
+* `time_begin` = time in seconds of event start
+* `time_end` = time in seconds of end (may be equal to time_start if instantaneous)
+* `time_event` = exact time in seconds (may be equal to time_start if instantaneous)
+* `source_event` =  source media for event to add granularity for event inpact (e.g. face, video, audio, speech, image)
+* `tag` = simple text word or phrase
+* `tag_type` = descriptor for type of tag; e.g. tag=concept/label, shot=segment, explicit=moderation, word=text/speech word, phrase=long utterance, face=face emotion/properties, identity=face recognition, person=person objects
+* `score` = score/probability
+* `details` = possible bounding box or other long-form (JSON-encoded) details
+* `extractor` = name of extractor (from below)
+
+## dependencies
 
 To install package dependencies in a fresh system, the recommended technique is a set of  
 vanilla pip packages.  The latest requirements should be validated from the `requirements.txt` file
@@ -27,6 +48,9 @@ but at time of writing, they were the following.
 ```shell 
 pip install --no-cache-dir -r requirements.txt 
 ```
+
+# Execution and Deployment
+This package is meant to be run as a one-off processing tool that aggregates the insights of other extractors.
 
 ## command-line standalone
 
@@ -115,6 +139,11 @@ Job complete in 4m58.265737799s
 # Changes
 
 ## 0.2
+
+### 0.2.1
+* schema change for verb/action consistency `time_start` -> `time_begin`
+* add additional row field `tag_type` to describe type of tag (see [generated-insights](#generated-insights))
+
 
 ### 0.2.0
 * add initial package, requirements, docker image
