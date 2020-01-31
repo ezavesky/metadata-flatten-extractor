@@ -116,10 +116,10 @@ class Flatten():
                     if "segments" in segment_item:   # parsing segments
                         for local_seg in segment_item["segments"]:
                             list_items.append({"source_event": "video", "score": float(local_seg["confidence"]),
-                                "time_start": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
+                                "time_begin": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
                                 "time_end": float(re_time_clean.sub('', local_seg["segment"]["endTimeOffset"])),
                                 "time_event": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
-                                "details": str_json, "extractor": "gcp_videointelligence_label",
+                                "details": str_json, "extractor": "gcp_videointelligence_label", "tag_type": "tag",
                                 "tag": tag_name})
             if "shotLabelAnnotations" in annotation_obj:  # validate object
                 for segment_item in annotation_obj["shotLabelAnnotations"]:  # shots
@@ -127,10 +127,10 @@ class Flatten():
                     if "segments" in segment_item:  # parsing segments
                         for local_seg in segment_item["segments"]:
                             list_items.append({"source_event": "image", "score": float(local_seg["confidence"]),
-                                "time_start": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
+                                "time_begin": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
                                 "time_end": float(re_time_clean.sub('', local_seg["segment"]["endTimeOffset"])),
                                 "time_event": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
-                                "details": str_json, "extractor": "gcp_videointelligence_label",
+                                "details": str_json, "extractor": "gcp_videointelligence_label", "tag_type": "tag",
                                 "tag": tag_name})
             # convert list to a dataframe
             return pd.DataFrame(list_items)
@@ -169,10 +169,10 @@ class Flatten():
                     if "startTimeOffset" not in shot_item:
                         logger.critical(f"Missing nested 'startTimeOffset' in shot chunk '{shot_item}'")
                         return None
-                    list_items.append( {"time_start": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
+                    list_items.append( {"time_begin": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
                         "time_end": float(re_time_clean.sub('', shot_item["endTimeOffset"])), 
                         "time_event": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
-                        "source_event": "video", "tag": "shot", "score": 1.0, "details": "",
+                        "source_event": "video", "tag": "shot", "score": 1.0, "details": "", "tag_type": "shot",
                         "extractor": "gcp_videointelligence_shot_change"})
                 return pd.DataFrame(list_items)
 
@@ -216,7 +216,7 @@ class Flatten():
                         time_clean = float(re_time_clean.sub('', frame_item["timeOffset"]))
                         dict_scores = {n:n.split("Likelihood")[0] for n in frame_item.keys() if not n.startswith("time") }
                         for n in dict_scores:  # a little bit of a dance, but flexiblity for future explicit types
-                            list_items.append( {"time_start": time_clean, "source_event": "image",
+                            list_items.append( {"time_begin": time_clean, "source_event": "image",  "tag_type": "explicit",
                                 "time_end": time_clean, "time_event": time_clean, "tag": dict_scores[n],                   
                                 "score": Flatten.GCP_LIKELIHOOD_MAP[frame_item[n]], "details": "",
                                 "extractor": "gcp_videointelligence_explicit_content"})
@@ -270,14 +270,14 @@ class Flatten():
                             time_begin = min(time_begin, time_begin_clean)
                             time_end = max(time_end, time_end_clean)
                             # add new item for this word
-                            list_items.append( {"time_start": time_begin_clean, "source_event": "speech",
+                            list_items.append( {"time_begin": time_begin_clean, "source_event": "speech", "tag_type": "word",
                                 "time_end": time_end_clean, "time_event": time_begin_clean, "tag": word_obj["word"],
                                 "score": float(word_obj["confidence"]), "details": "",
                                 "extractor": "gcp_videointelligence_speech_transcription"})
                             num_words += 1
 
                         if "transcript" in alt_obj:  # generate top-level transcript item, after going through all words
-                            list_items.append( {"time_start": time_begin, "source_event": "speech",
+                            list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "transcript",
                                 "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
                                 "score": float(alt_obj["confidence"]), 
                                 "details": json.dumps({"words": num_words, "transcript": alt_obj["transcript"]}),
@@ -332,7 +332,7 @@ class Flatten():
                         details_obj['urls'] = ",".join(local_obj["Urls"])
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
 
-                    list_items.append({"time_start": time_frame, "source_event": "image",
+                    list_items.append({"time_begin": time_frame, "source_event": "image", "tag_type": "identity",
                         "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                         "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_celebs"})
@@ -381,7 +381,7 @@ class Flatten():
                         time_frame = float(celebrity_obj["Timestamp"])/1000
                         details_obj = {'category': local_obj["ParentName"]}
                         score_frame = round(float(local_obj["Confidence"])/100, 4)
-                        list_items.append({"time_start": time_frame, "source_event": "image",
+                        list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "explicit",
                             "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                             "score": score_frame, "details": json.dumps(details_obj),
                             "extractor": "aws_rekognition_video_content_moderation"})
@@ -445,7 +445,7 @@ class Flatten():
                             't': round(box['BoundingBox']['Top'], 4) })
 
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
-                    list_items.append({"time_start": time_frame, "source_event": "image",
+                    list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "tag",
                         "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                         "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_labels"})
@@ -520,8 +520,8 @@ class Flatten():
                                 details_obj[f] = local_obj[f]
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
 
-                    list_items.append({"time_start": time_frame, "source_event": "image",
-                        "time_end": time_frame, "time_event": time_frame,
+                    list_items.append({"time_begin": time_frame, "source_event": "image", "tag_type": "face",
+                        "time_end": time_frame, "time_event": time_frame, "type_event": "face",
                         "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_faces"})
 
@@ -578,8 +578,8 @@ class Flatten():
                                 'l': round(face_obj['BoundingBox']['Left'], 4), 
                                 't': round(face_obj['BoundingBox']['Top'], 4) }
 
-                    list_items.append({"time_start": time_frame, "source_event": "image",
-                        "time_end": time_frame, "time_event": time_frame,
+                    list_items.append({"time_begin": time_frame, "source_event": "image",
+                        "time_end": time_frame, "time_event": time_frame,  "tag_type": "person",
                         "tag": person_idx, "score": 1.0, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_person_tracking"})
 
@@ -622,16 +622,19 @@ def main():
             path_output = path.join(contentai.result_path, extractor_name + ".csv")
 
             # allow injection of parameters from environment
-            input_vars = {'path_result': path_output, "force_overwrite": True}
+            input_vars = {'path_result': path_output, "force_overwrite": True, "compressed": True}
             if contentai.metadata is not None:  # see README.md for more info
                 input_vars.update(contentai.metadata)
+
+            if "compressed" in input_vars and input_vars["compressed"]:  # allow compressed version
+                input_vars["path_result"] += ".gz"
 
             if path.exists(input_vars['path_result']) and input_vars['force_overwrite']:
                 logger.info(f"Skipping re-process of {input_vars['path_result']}...")
             else:
                 logger.info(f"ContentAI argments: {input_vars}")
                 df = func(input_vars)  # attempt to process
-                df.sort_values("time_start").to_csv(input_vars['path_result'], index=False)
+                df.sort_values("time_begin").to_csv(input_vars['path_result'], index=False)
                 logger.info(f"Wrote {len(df)} items to result file '{input_vars['path_result']}'")
 
         except AttributeError as e:
