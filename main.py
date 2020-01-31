@@ -499,6 +499,149 @@ class Flatten():
         logger.critical(f"No moderation enties found in source 'aws_rekognition_video_labels' ({file_search}'")
         return False
 
+    def flatten_aws_rekognition_video_faces(self, run_options):
+        """Flatten AWS Rekognition Faces
+            - https://docs.aws.amazon.com/rekognition/latest/dg/faces.html
+
+        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
+        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        """
+        path_result = run_options['path_result']
+        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
+            return True
+        list_items = []
+        face_feats = ['AgeRange', 'Smile', 'Eyeglasses', 'Sunglasses', 'Gender', 'Beard', 'Mustache', 
+                     'EyesOpen', 'MouthOpen', 'Pose']  # , 'Landmarks', 'Quality']  -- propose we skip these (emz 1/30
+        
+        last_loud_idx = 0
+        while last_loud_idx >= 0:
+            file_search = f"result{last_loud_idx}.json"
+            dict_data = contentai.get_extractor_results("aws_rekognition_video_faces", file_search)
+            if not dict_data:  # do we need to load it locally?
+                path_content = path.join(self.path_content, "aws_rekognition_video_faces", file_search)
+                dict_data = json_load(path_content)
+                if not dict_data:
+                    path_content += ".gz"
+                    dict_data = json_load(path_content)
+            if not dict_data:  # couldn't load anything else...
+                if list_items:
+                    df = pd.DataFrame(list_items).sort_values("time_start")
+                    df.to_csv(path_result, index=False)
+                    logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
+                    return True
+                else:
+                    last_loud_idx = -1
+                    break
+
+            logger.info(f"... parsing aws_rekognition_video_faces/{file_search} ")
+
+            for face_obj in dict_data["Faces"]:  # traverse items
+                if "Face" in face_obj:  # validate object
+                    local_obj = face_obj["Face"]
+                    time_frame = float(face_obj["Timestamp"])/1000
+                    details_obj = {}
+                    if "BoundingBox" in local_obj:
+                        details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], 4), 
+                            'h': round(local_obj['BoundingBox']['Height'], 4),
+                            'l': round(local_obj['BoundingBox']['Left'], 4), 
+                            't': round(local_obj['BoundingBox']['Top'], 4) }
+                    if "Emotions" in local_obj and local_obj["Emotions"]:
+                        emotion_obj = {}
+                        for emo_obj in local_obj["Emotions"]:
+                            score_emo = round(float(emo_obj["Confidence"])/100, 4)
+                            # if score_emo > 0.05   # consider a threshold?
+                            emotion_obj[emo_obj["Type"]] = score_emo
+                        details_obj['Emotions'] = emotion_obj
+                    for f in face_feats:   # go through all face features
+                        if f in local_obj and local_obj[f]:
+                            if "Value" in local_obj[f]:
+                                score_feat = round(float(local_obj[f]["Confidence"])/100, 4)
+                                if local_obj[f]["Value"] == "Male":  # special case for 'male' gender
+                                    details_obj["Male"] = score_feat
+                                elif local_obj[f]["Value"] == "Female":  # special case for 'female' gender
+                                    details_obj["Female"] = score_feat
+                                else:  # normal valued item, use here
+                                    if local_obj[f]["Value"] == False:
+                                        score_feat = 1 - score_feat
+                                    details_obj[f] = score_feat
+                            else:  # don't match a condition above
+                                details_obj[f] = local_obj[f]
+                    score_frame = round(float(local_obj["Confidence"])/100, 4)
+
+                    list_items.append({"time_start": time_frame, "source_event": "image",
+                        "time_end": time_frame, "time_event": time_frame,
+                        "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
+                        "extractor": "aws_rekognition_video_faces"})
+
+            last_loud_idx += 1
+
+        logger.critical(f"No faces found in source 'aws_rekognition_video_faces' ({file_search}'")
+        return False    
+
+    def flatten_aws_rekognition_video_person_tracking(self, run_options):
+        """Flatten AWS Rekognition Person Tracking
+            - https://docs.aws.amazon.com/rekognition/latest/dg/persons.html
+
+        :param: run_options (dict): specific runtime information ('path_result' for directory output, 'force_overwrite' True/False)
+        :returns: (bool): True on successful decoding and export, False (or exception) otherwise
+        """
+        path_result = run_options['path_result']
+        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
+            return True
+        list_items = []
+        
+        last_loud_idx = 0
+        while last_loud_idx >= 0:
+            file_search = f"result{last_loud_idx}.json"
+            dict_data = contentai.get_extractor_results("aws_rekognition_video_person_tracking", file_search)
+            if not dict_data:  # do we need to load it locally?
+                path_content = path.join(self.path_content, "aws_rekognition_video_person_tracking", file_search)
+                dict_data = json_load(path_content)
+                if not dict_data:
+                    path_content += ".gz"
+                    dict_data = json_load(path_content)
+            if not dict_data:  # couldn't load anything else...
+                if list_items:
+                    df = pd.DataFrame(list_items).sort_values("time_start")
+                    df.to_csv(path_result, index=False)
+                    logger.info(f"Wrote {len(df)} items to result file '{path_result}'")
+                    return True
+                else:
+                    last_loud_idx = -1
+                    break
+
+            logger.info(f"... parsing aws_rekognition_video_person_tracking/{file_search} ")
+
+            for face_obj in dict_data["Persons"]:  # traverse items
+                if "Person" in face_obj:  # validate object
+                    local_obj = face_obj["Person"]
+                    time_frame = float(face_obj["Timestamp"])/1000
+                    details_obj = {}
+                    if "BoundingBox" in local_obj:
+                        details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], 4), 
+                            'h': round(local_obj['BoundingBox']['Height'], 4),
+                            'l': round(local_obj['BoundingBox']['Left'], 4), 
+                            't': round(local_obj['BoundingBox']['Top'], 4) }
+                    person_idx = "person_" + str(local_obj["Index"])
+
+                    if "Face" in local_obj and local_obj["Face"]:
+                        face_obj = local_obj["Face"]   # skip Pose, Quality, Landmarks
+                        if "BoundingBox" in face_obj:
+                            details_obj['Face'] = {'w': round(face_obj['BoundingBox']['Width'], 4), 
+                                'h': round(face_obj['BoundingBox']['Height'], 4),
+                                'l': round(face_obj['BoundingBox']['Left'], 4), 
+                                't': round(face_obj['BoundingBox']['Top'], 4) }
+
+                    list_items.append({"time_start": time_frame, "source_event": "image",
+                        "time_end": time_frame, "time_event": time_frame,
+                        "tag": person_idx, "score": 1.0, "details": json.dumps(details_obj),
+                        "extractor": "aws_rekognition_video_person_tracking"})
+
+            last_loud_idx += 1
+
+        logger.critical(f"No people found in source 'aws_rekognition_video_person_tracking' ({file_search}'")
+        return False
+
 def main():
     # check for a single argument as input for the path as an override
     if len(sys.argv) > 1:
