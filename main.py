@@ -510,8 +510,8 @@ class Flatten():
         if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
             return True
         list_items = []
-        face_feats = ['AgeRange', 'Smile', 'Eyeglasses', 'Sunglasses', 'Gender', 'Beard', 'Mustache', 'EyesOpen', 'MouthOpen', 
-                'Emotions', 'Landmarks', 'Pose', 'Quality']
+        face_feats = ['AgeRange', 'Smile', 'Eyeglasses', 'Sunglasses', 'Gender', 'Beard', 'Mustache', 
+                     'EyesOpen', 'MouthOpen', 'Pose']  # , 'Landmarks', 'Quality']  -- propose we skip these (emz 1/30
         
         last_loud_idx = 0
         while last_loud_idx >= 0:
@@ -545,17 +545,32 @@ class Flatten():
                             'h': round(local_obj['BoundingBox']['Height'], 4),
                             'l': round(local_obj['BoundingBox']['Left'], 4), 
                             't': round(local_obj['BoundingBox']['Top'], 4) }
-                    if "Urls" in local_obj and local_obj["Urls"]:
-                        details_obj['urls'] = ",".join(local_obj["Urls"])
-                    for f in face_feats:
+                    if "Emotions" in local_obj and local_obj["Emotions"]:
+                        emotion_obj = {}
+                        for emo_obj in local_obj["Emotions"]:
+                            score_emo = round(float(emo_obj["Confidence"])/100, 4)
+                            # if score_emo > 0.05   # consider a threshold?
+                            emotion_obj[emo_obj["Type"]] = score_emo
+                        details_obj['Emotions'] = emotion_obj
+                    for f in face_feats:   # go through all face features
                         if f in local_obj and local_obj[f]:
-                            details_obj[f] = local_obj[f]
+                            if "Value" in local_obj[f]:
+                                score_feat = round(float(local_obj[f]["Confidence"])/100, 4)
+                                if local_obj[f]["Value"] == "Male":  # special case for 'male' gender
+                                    details_obj["Male"] = score_feat
+                                elif local_obj[f]["Value"] == "Female":  # special case for 'female' gender
+                                    details_obj["Female"] = score_feat
+                                else:  # normal valued item, use here
+                                    if local_obj[f]["Value"] == False:
+                                        score_feat = 1 - score_feat
+                                    details_obj[f] = score_feat
+                            else:  # don't match a condition above
+                                details_obj[f] = local_obj[f]
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
 
                     list_items.append({"time_start": time_frame, "source_event": "image",
                         "time_end": time_frame, "time_event": time_frame,
-                        "tag": "Face",
-                        "score": score_frame, "details": json.dumps(details_obj),                                 
+                        "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_faces"})
 
             last_loud_idx += 1
@@ -610,18 +625,21 @@ class Flatten():
                     person_idx = "person_" + str(local_obj["Index"])
 
                     if "Face" in local_obj and local_obj["Face"]:
-                        details_obj['face'] = local_obj["Face"]
+                        face_obj = local_obj["Face"]   # skip Pose, Quality, Landmarks
+                        if "BoundingBox" in face_obj:
+                            details_obj['Face'] = {'w': round(face_obj['BoundingBox']['Width'], 4), 
+                                'h': round(face_obj['BoundingBox']['Height'], 4),
+                                'l': round(face_obj['BoundingBox']['Left'], 4), 
+                                't': round(face_obj['BoundingBox']['Top'], 4) }
 
                     list_items.append({"time_start": time_frame, "source_event": "image",
                         "time_end": time_frame, "time_event": time_frame,
-                        "tag": person_idx,
-                        "score": 1.0,
-                        "details": json.dumps(details_obj)
-                        })
+                        "tag": person_idx, "score": 1.0, "details": json.dumps(details_obj),
+                        "extractor": "aws_rekognition_video_person_tracking"})
 
             last_loud_idx += 1
 
-        logger.critical(f"No faces found in source 'aws_rekognition_video_faces' ({file_search}'")
+        logger.critical(f"No people found in source 'aws_rekognition_video_person_tracking' ({file_search}'")
         return False
 
 def main():
