@@ -183,7 +183,7 @@ class Flatten():
     def flatten_gcp_videointelligence_logo_recognition(self, run_options):
         """Flatten GCP Logo Recognition - https://cloud.google.com/video-intelligence/docs/logo-recognition?
 
-        :param: run_options (dict): specific runtime information 
+        :param: run_options (dict): specific runtime information ('all_frames'=True/False for all logo mapping)
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         # read data.json
@@ -216,17 +216,22 @@ class Flatten():
                     details_obj["entity"] = logo_item["entity"]["entityId"]
                     if "tracks" in logo_item:   # validate data 
                         for track_item in logo_item["tracks"]:
-                            idx_center = math.floor(len(track_item["timestampedObjects"]) // 2)
-                            timestamped_item = track_item["timestampedObjects"][idx_center]  # roughly grab center item
-                            if "normalizedBoundingBox" in timestamped_item:   # pull box for one item
-                                details_obj['box'] = {'w': round(timestamped_item['normalizedBoundingBox']['right'], 4), 
-                                    'h': round(timestamped_item['normalizedBoundingBox']['bottom'], 4),
-                                    'l': round(timestamped_item['normalizedBoundingBox']['left'], 4), 
-                                    't': round(timestamped_item['normalizedBoundingBox']['top'], 4) }
-                                details_obj['box']['w'] -= details_obj['box']['l']
-                                details_obj['box']['h'] -= details_obj['box']['t']
-                            elif 'box' in details_obj:  # delete old box if no new one is found
-                                del details_obj['box']
+                            idx_boxes = [math.floor(len(track_item["timestampedObjects"]) // 2)]   # roughly grab center item
+                            if 'all_frames' in run_options and run_options['all_frames']:  # save all instead of single frame?
+                                idx_boxes = range(len(track_item["timestampedObjects"]))
+                            details_obj['box'] = []
+                            for timestamp_idx in idx_boxes:
+                                timestamped_item = track_item["timestampedObjects"][timestamp_idx] 
+                                if "normalizedBoundingBox" in timestamped_item and \
+                                        'left' in timestamped_item['normalizedBoundingBox'] and \
+                                        'top' in timestamped_item['normalizedBoundingBox']:   # pull box for one item
+                                    local_box = {'w': round(timestamped_item['normalizedBoundingBox']['right'], 4), 
+                                        'h': round(timestamped_item['normalizedBoundingBox']['bottom'], 4),
+                                        'l': round(timestamped_item['normalizedBoundingBox']['left'], 4), 
+                                        't': round(timestamped_item['normalizedBoundingBox']['top'], 4) }
+                                    local_box['w'] -= local_box['l']
+                                    local_box['h'] -= local_box['t']
+                                    details_obj['box'].append(local_box)
                             if "confidence" in track_item:
                                 list_items.append( {"time_begin": float(re_time_clean.sub('', track_item["segment"]["startTimeOffset"])), 
                                     "time_end": float(re_time_clean.sub('', track_item["segment"]["endTimeOffset"])), 
@@ -683,7 +688,8 @@ def main():
             path_output = path.join(contentai.result_path, extractor_name + ".csv")
 
             # allow injection of parameters from environment
-            input_vars = {'path_result': path_output, "force_overwrite": True, "compressed": True}
+            input_vars = {'path_result': path_output, "force_overwrite": True, 
+                          "compressed": True, 'all_frames': False}
             if contentai.metadata is not None:  # see README.md for more info
                 input_vars.update(contentai.metadata)
 
