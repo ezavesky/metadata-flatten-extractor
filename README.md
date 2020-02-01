@@ -19,10 +19,8 @@ in the [main](main.py) script.
 **NOTE: Not all flattening functions will respect/obey properties defined here.**
 
 * `force_overwrite` - *(bool)* - force existing files to be overwritten
-* `compressed` - *(bool)* - compress output CSVs instead of raw write (e.g. append '.gz')
-
-(in progress)
-* `threshold_value` - *(float)* - the top N results (by min threshold) for each model  (default=0.5)
+* `compressed` - *(bool)* - compress output CSVs instead of raw write (*default=True*, e.g. append '.gz')
+* `all_frames` - *(bool)* - for video-based events, log all instances in box or just the center (*default=False*)
 
 ## generated insights
 
@@ -138,12 +136,20 @@ Job complete in 4m58.265737799s
 
 # Changes
 
+## 0.3
+
+### 0.3.0
+* added new [streamlit](https://www.streamlit.io/) code for [data explorer interface](app)
+  * be sure to install extra packages if using this app
+
+
 ## 0.2
 
 ### 0.2.1
 * schema change for verb/action consistency `time_start` -> `time_begin`
 * add additional row field `tag_type` to describe type of tag (see [generated-insights](#generated-insights))
 * add processing type `gcp_videointelligence_logo_recognition`
+* allow compression as a requirement/input for generated files (`compressed` as input)
 
 
 ### 0.2.0
@@ -154,5 +160,4 @@ Job complete in 4m58.265737799s
 
 # Future Development
 
-* allow compression as a requirement/input for generated files?
 * the remaining known extractors... `azure_videoindexer`, `pyscenedetect`, `yolo3`, `openpose`
