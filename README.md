@@ -143,6 +143,7 @@ Job complete in 4m58.265737799s
 ### 0.2.1
 * schema change for verb/action consistency `time_start` -> `time_begin`
 * add additional row field `tag_type` to describe type of tag (see [generated-insights](#generated-insights))
+* add processing type `gcp_videointelligence_logo_recognition`
 
 
 ### 0.2.0

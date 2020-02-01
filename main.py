@@ -24,6 +24,7 @@ import sys
 import gzip
 import json
 import re
+import math
 
 import pandas as pd
 from os import path, system, makedirs
@@ -178,6 +179,65 @@ class Flatten():
 
         logger.critical(f"Missing nested 'shotAnnotations' from source 'gcp_videointelligence_shot_change'")
         return None
+
+    def flatten_gcp_videointelligence_logo_recognition(self, run_options):
+        """Flatten GCP Logo Recognition - https://cloud.google.com/video-intelligence/docs/logo-recognition?
+
+        :param: run_options (dict): specific runtime information 
+        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
+        """
+        # read data.json
+        #   "annotationResults": [ "logoRecognitionAnnotations": [ {
+        #    "entity": { "entityId": "/m/01_8w2", "description": "CBS News",  "languageCode": "en-US" },
+        #    "tracks": [ { "segment": { "startTimeOffset": "168s",  "endTimeOffset": "171.600s" },
+        #     "timestampedObjects": [ { "normalizedBoundingBox": { "left": 0.439,
+        #     "top": 0.717, "right": 0.482, "bottom": 0.822  },  "timeOffset": "168s"}, ...
+        dict_data = contentai.get_extractor_results("gcp_videointelligence_logo_recognition", "data.json")
+        if not dict_data:  # do we need to load it locally?
+            path_content = path.join(self.path_content, "gcp_videointelligence_logo_recognition", "data.json")
+            dict_data = json_load(path_content)
+            if not dict_data:
+                path_content += ".gz"
+                dict_data = json_load(path_content)
+
+        if "annotationResults" not in dict_data:
+            logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_logo_recognition'")
+            return None
+
+        re_time_clean = re.compile(r"s$")
+        for annotation_obj in dict_data["annotationResults"]:  # traverse items
+            if "logoRecognitionAnnotations" in annotation_obj:  # validate object
+                list_items = []
+                for logo_item in annotation_obj["logoRecognitionAnnotations"]:
+                    details_obj = {}
+                    if "entity" not in logo_item:
+                        logger.critical(f"Missing nested 'entity' in logo chunk '{logo_item}'")
+                        return None
+                    details_obj["entity"] = logo_item["entity"]["entityId"]
+                    if "tracks" in logo_item:   # validate data 
+                        for track_item in logo_item["tracks"]:
+                            idx_center = math.floor(len(track_item["timestampedObjects"]) // 2)
+                            timestamped_item = track_item["timestampedObjects"][idx_center]  # roughly grab center item
+                            if "normalizedBoundingBox" in timestamped_item:   # pull box for one item
+                                details_obj['box'] = {'w': round(timestamped_item['normalizedBoundingBox']['right'], 4), 
+                                    'h': round(timestamped_item['normalizedBoundingBox']['bottom'], 4),
+                                    'l': round(timestamped_item['normalizedBoundingBox']['left'], 4), 
+                                    't': round(timestamped_item['normalizedBoundingBox']['top'], 4) }
+                                details_obj['box']['w'] -= details_obj['box']['l']
+                                details_obj['box']['h'] -= details_obj['box']['t']
+                            elif 'box' in details_obj:  # delete old box if no new one is found
+                                del details_obj['box']
+                            if "confidence" in track_item:
+                                list_items.append( {"time_begin": float(re_time_clean.sub('', track_item["segment"]["startTimeOffset"])), 
+                                    "time_end": float(re_time_clean.sub('', track_item["segment"]["endTimeOffset"])), 
+                                    "time_event": float(re_time_clean.sub('', timestamped_item["timeOffset"])), 
+                                    "source_event": "video", "tag": logo_item["entity"]["description"], "tag_type": "logo",
+                                    "score": round(track_item["confidence"], 4), "details": json.dumps(details_obj), 
+                                    "extractor": "gcp_videointelligence_logo_recognition"})
+                return pd.DataFrame(list_items)
+
+        logger.critical(f"Missing nested 'logoRecognitionAnnotations' from source 'gcp_videointelligence_logo_recognition'")
+        return None        
 
     def flatten_gcp_videointelligence_explicit_content(self, run_options):
         """Flatten GCP Explicit Annotation 
@@ -521,7 +581,7 @@ class Flatten():
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
 
                     list_items.append({"time_begin": time_frame, "source_event": "image", "tag_type": "face",
-                        "time_end": time_frame, "time_event": time_frame, "type_event": "face",
+                        "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
                         "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_faces"})
 
@@ -614,7 +674,8 @@ def main():
                             "gcp_videointelligence_explicit_content", 
                             "gcp_videointelligence_label", 
                             "gcp_videointelligence_shot_change", 
-                            "gcp_videointelligence_speech_transcription"]:
+                            "gcp_videointelligence_speech_transcription",
+                            "gcp_videointelligence_logo_recognition"]:
         # attempt to get the flatten function
         try:
             func = getattr(flatten, f"flatten_{extractor_name}")
