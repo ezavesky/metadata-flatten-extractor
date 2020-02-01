@@ -130,11 +130,18 @@ def data_load(stem_datafile, allow_cache=True):
     # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
     # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
     path_new = path.join(data_dir, f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
+    path_backup = None
+    for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
+        path_backup = filepath
+        break
 
     # see if checksum matches the datafile (plus stem)
-    if allow_cache and path.exists(path_new):
-        # if so, load old datafile, skip reload
-        return pd.read_pickle(path_new)
+    if allow_cache and (path.exists(path_new) or path_backup is not None):
+        if path.exists(path_new):  # if so, load old datafile, skip reload
+            return pd.read_pickle(path_new)
+        else:
+            st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
+            return pd.read_pickle(path_backup)
     
     # time_init = pd.Timestamp('2010-01-01T00')  # not used any more
     ux_report = st.empty()

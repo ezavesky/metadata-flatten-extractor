@@ -140,7 +140,8 @@ Job complete in 4m58.265737799s
 
 ### 0.3.0
 * added new [streamlit](https://www.streamlit.io/) code for [data explorer interface](app)
-  * be sure to install extra packages if using this app
+  * be sure to install extra packages if using this app and starting from scratch (e.g. new flattened files)
+  * if you're working from a cached model, you can also drop it in from a friend
 
 
 ## 0.2

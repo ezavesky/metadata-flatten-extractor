@@ -67,6 +67,17 @@ tasks.
 Once complete, a cached ingested data file will be created and stored
 as [described above](#Execution-and-Deployment).
 
+## Datafile Warning
+
+I'm seeing a strange warning like this, what gives? *(added v0.3.1)*
+
+```shell
+Warning: Using datafile data_bundle.49212d06.pkl.gz with no grounded reference. Version skew may occur.
+```
+
+You're running with a precomputed/cached data file but the source data wasn't available to check against.
+A simple way to get past it is just refresh the web page, but you should note that it means some
+code may have changed (possibly resulting in an app breakage) between the live and historical versions.
 
 # Future Development
 
