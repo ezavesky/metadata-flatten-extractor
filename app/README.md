@@ -10,10 +10,19 @@ analytics events flattened with this package.
 # Getting Started
 
 This wev app runs in python via a light-weight wrapper and the streamlit 
-package. At this time there are no run-time options and the app will auto-load
+package. It has the capability to show these event insights out-of-the-box.
+
+* select by score/confidence
+* select by time/position in an asset or duration of containing shot
+* show the top N tags for a filtered set
+* show a time line of top M tags for a filtered set (plus an additional user-input/search)
+* a free form dataframe exploration tool
+
+At this time there are no run-time options and the app will auto-load
 with a few assumptions.
 
-(demo screenshot to be included here)
+![Explorer Demo Image](explorer-teaser.jpg)
+figure: demo interface reviewing a recent popular football game
 
 
 ## Installation

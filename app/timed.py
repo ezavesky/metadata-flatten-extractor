@@ -1,3 +1,23 @@
+#! python
+# ===============LICENSE_START=======================================================
+# vinyl-tools Apache-2.0
+# ===================================================================================
+# Copyright (C) 2017-2020 AT&T Intellectual Property. All rights reserved.
+# ===================================================================================
+# This software file is distributed by AT&T 
+# under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ===============LICENSE_END=========================================================
+# -*- coding: utf-8 -*-
+
 # Imports
 import streamlit as st
 import pandas as pd
@@ -24,7 +44,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 NLP_TOKENIZE = True
 TOP_HISTOGRAM_N = 20
-SAMPLE_N = 100
+TOP_LINE_N = 5
+SAMPLE_N = 250
 
 def main_page():
     # read in version information
@@ -50,15 +71,34 @@ def main_page():
 
     # logger.info(list(df.columns))
 
+    def quick_hist(df_live, tag_name):
+        """Helper function to draw aggregate histograms of tags"""
+        df_sub = df_live[df_live["tag_type"]==tag_name].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
+        df_sub.index.name = "count"
+        st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+        return df_sub
+
+    def quick_timeseries(df_live, df_sub, tag_name, use_line=True):
+        """Helper function to draw a timeseries for a few top selected tags..."""
+        add_tag = st.selectbox("Additional Review Tag", list(df_live[df_live["tag_type"]==tag_name]["tag"].unique()))
+        tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
+
+        df_sub = df_live[(df_live["tag_type"]==tag_name) & (df_live["tag"].isin(tag_top))]    # filter top
+        df_sub = df_sub[["tag", "score"]]   # select only score and tag name
+        df_sub.index = df_sub.index.round('1T')
+        list_resampled = [df_sub[df_sub["tag"] == n].resample('1T', base=0).mean()["score"] for n in tag_top]   # resample each top tag
+        df_scored = pd.concat(list_resampled, axis=1).fillna(0)
+        df_scored.columns = tag_top
+        df_scored.index = df_scored.index.seconds // 60
+        if use_line:
+            st.line_chart(df_scored)
+        else:
+            st.area_chart(df_scored)
+
     # frequency bar chart for found labels / tags
     st.markdown("### popular visual tags")
-    df_sub = df_live[df_live["tag_type"]=="tag"].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
-    df_sub.index.name = "count"
-    st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
-
-    # time chart of top N 
-    # tag_top = list(df_sub["tag"].head(5))
-    # df_sub = df_live[(df_live["tag_type"]=="tag") & (df_live["tag"].isin(tag_top))]
+    df_sub = quick_hist(df_live, "tag")  # quick tag hist
+    quick_timeseries(df_live, df_sub, "tag")      # time chart of top N 
 
     # frequency bar chart for types of faces
 
@@ -77,30 +117,18 @@ def main_page():
 
     # frequency bar chart for logos
     st.markdown("### popular logos")
-    df_sub = df_live[df_live["tag_type"]=="logo"].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
-    df_sub.index.name = "count"
-    st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+    df_sub = quick_hist(df_live, "logo")
+    quick_timeseries(df_live, df_sub, "logo", False)      # time chart of top N 
 
     # frequency bar chart for emotions
 
     # frequency bar chart for celebrities
     st.markdown("### popular celebrities")
-    df_sub = df_live[df_live["tag_type"]=="identity"].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
-    df_sub.index.name = "count"
-    st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+    df_sub = quick_hist(df_live, "identity")
+    quick_timeseries(df_live, df_sub, "identity", False)      # time chart of top N 
     
-
-    # df_poptag = df_live.groupby(["tag", "source_event"]).count().sort_values(by="source_event", ascending=False)
-    # logger.info(df_poptag.head(10))
-
-
-    # st.write(df_live.groupby("tag")["source_event"].count())
-    # st.write(df_live.groupby("source_event").count())
-    # st.write(df_live.resample("30S").groupby("tag").count())
-
-    # hist_event = df.hist(column="tim  e_event", bins=100)
-    # st.write(hist_event)
-    st.markdown("### filtered exploration (100 events)")
+    # plunk down a dataframe for people to explore as they want
+    st.markdown(f"### filtered exploration ({SAMPLE_N} events)")
     filter_tag = st.selectbox("Inspect Tag Type", ["All"] + list(df_live["tag_type"].unique()))
     order_tag = st.selectbox("Sort Metric", ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
                                          "duration - ascending", "duration - descending"])
