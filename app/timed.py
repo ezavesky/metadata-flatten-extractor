@@ -74,12 +74,17 @@ def main_page():
     def quick_hist(df_live, tag_name):
         """Helper function to draw aggregate histograms of tags"""
         df_sub = df_live[df_live["tag_type"]==tag_name].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
+        if len(df_sub) == 0:
+            st.markdown("*Sorry, the active filters removed all events for this display.*")
+            return None
         df_sub.index.name = "count"
         st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
         return df_sub
 
     def quick_timeseries(df_live, df_sub, tag_name, use_line=True):
         """Helper function to draw a timeseries for a few top selected tags..."""
+        if df_sub is None:
+            return
         add_tag = st.selectbox("Additional Review Tag", list(df_live[df_live["tag_type"]==tag_name]["tag"].unique()))
         tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
 
@@ -313,14 +318,12 @@ def draw_sidebar(df, sort_list=None):
     # extract faces (emotion)
 
     # Filter by slider inputs to only show relevant events
-    delta_range = (pd.to_timedelta(time_bound[0], unit='min'),
-                    pd.to_timedelta(time_bound[1], unit='min'))
-    df_filter_time = df.loc[delta_range[0]:delta_range[1]]
-    df_filter = df_filter_time[
-                    (df_filter_time['duration'] >= duration_bound[0]) 
-                    & (df_filter_time['duration'] <= duration_bound[1])
-                    & (df_filter_time['score'] >= score_bound[0]) 
-                    & (df_filter_time['score'] <= score_bound[1])
+    df_filter = df[(df['time_begin'] >= pd.to_timedelta(time_bound[0], unit='min')) 
+                    & (df['time_end'] <= pd.to_timedelta(time_bound[1], unit='min'))
+                    & (df['duration'] >= duration_bound[0]) 
+                    & (df['duration'] <= duration_bound[1])
+                    & (df['score'] >= score_bound[0]) 
+                    & (df['score'] <= score_bound[1])
     ]
 
 
