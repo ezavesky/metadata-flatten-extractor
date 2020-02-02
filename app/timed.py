@@ -23,7 +23,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import ast
-from os import path
+from os import path, system
 from pathlib import Path
 import re
 import hashlib
@@ -46,6 +46,10 @@ NLP_TOKENIZE = True
 TOP_HISTOGRAM_N = 20
 TOP_LINE_N = 5
 SAMPLE_N = 250
+MP4FILE = path.join(data_dir, "superbowl2019.mp4") # master video, expected in "results" directory, along with data_buncle
+TMP_MP4FILE = path.join(data_dir, "tmp.mp4") # scratch file for clips
+DEFAULT_REWIND = 5 # how early to start clip from max score
+DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
 
 def main_page():
     # read in version information
@@ -100,6 +104,16 @@ def main_page():
         else:
             st.area_chart(df_scored)
 
+    def create_videoclip(mp4file, start, duration):
+        """Helper function to create video clip"""
+        system(f"rm -f {TMP_MP4FILE}")
+        if (system("which ffmpeg")==0):  # ffmpeg is in path
+            cmd = f"ffmpeg -i {mp4file} -ss {start}  -t {duration} -c copy {TMP_MP4FILE}"
+            return system(cmd)
+        else:
+            return -1
+
+
     # frequency bar chart for found labels / tags
     st.markdown("### popular visual tags")
     df_sub = quick_hist(df_live, "tag")  # quick tag hist
@@ -147,6 +161,29 @@ def main_page():
     else:
         df_sub = df_sub.sort_values(order_sort, ascending=order_ascend).head(SAMPLE_N)
     st.write(df_sub)
+
+    # celebrity viewing
+    st.write("") 
+    st.markdown(f"### watch clips containing your favorite celebrities")
+
+    df_celeb = df_live[df_live["tag_type"]=="identity"]
+    celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique()))
+    df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag]
+    time_begin = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]['time_begin']/1e9
+
+    if st.button("Play Clip"):
+        status = create_videoclip(MP4FILE, int(time_begin-DEFAULT_REWIND), DEFAULT_CLIPLEN)
+        if status == 0: # play clio
+            video_file = open(TMP_MP4FILE, 'rb')
+            video_bytes = video_file.read()
+            st.video(video_bytes)
+        elif status == -1:
+            st.write("ffmpeg not found in path. Cannot create video clip")
+        else:
+            st.write("Error creating video clip")
+    
+
+   
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
