@@ -31,6 +31,8 @@ import glob
 import math
 import json
 
+import altair as alt
+
 data_dir = path.join("..", "results")
 version_path = path.join("..", "_version.py")
 re_issue = re.compile(r"[^0-9A-Za-z]+")
@@ -43,8 +45,9 @@ from sys import stdout as STDOUT
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 NLP_TOKENIZE = True
-TOP_HISTOGRAM_N = 20
+TOP_HISTOGRAM_N = 15
 TOP_LINE_N = 5
+NLP_FILTER = 0.025
 SAMPLE_N = 250
 
 def main_page():
@@ -71,24 +74,45 @@ def main_page():
 
     # logger.info(list(df.columns))
 
-    def quick_hist(df_live, tag_name):
+    def _aggregate_tags(df_live, tag_type, field_group="tag"):
+        df_sub = df_live[df_live["tag_type"]==tag_type].groupby(field_group)["score"] \
+                    .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
+                    .sort_values(["count", "mean"], ascending=False)
+        df_sub[["mean", "min", "max"]] = df_sub[["mean", "min", "max"]].apply(lambda x: round(x, 3))
+        return df_sub
+
+    def _quick_sorted_barchart(df_sub):
+        """Create bar chart (e.g. histogram) with no axis sorting..."""
+        if False:   #  https://github.com/streamlit/streamlit/issues/385
+            st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+        else:
+            # https://github.com/streamlit/streamlit/blob/5e8e0ec1b46ac0b322dc48d27494be674ad238fa/lib/streamlit/DeltaGenerator.py
+            st.write(alt.Chart(df_sub.head(TOP_HISTOGRAM_N)).mark_bar().encode(
+                x=alt.X('count', sort=None),
+                y=alt.Y('tag', sort=None),
+                tooltip=['tag', 'count', 'mean', 'min']
+            ))
+
+
+    def quick_hist(df_live, tag_type, show_hist=True):
         """Helper function to draw aggregate histograms of tags"""
-        df_sub = df_live[df_live["tag_type"]==tag_name].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
+        df_sub = _aggregate_tags(df_live, tag_type)
         if len(df_sub) == 0:
             st.markdown("*Sorry, the active filters removed all events for this display.*")
             return None
-        df_sub.index.name = "count"
-        st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+        # unfortunately, a bug currently overrides sort order
+        if show_hist:
+            _quick_sorted_barchart(df_sub)
         return df_sub
 
-    def quick_timeseries(df_live, df_sub, tag_name, use_line=True):
+    def quick_timeseries(df_live, df_sub, tag_type, use_line=True):
         """Helper function to draw a timeseries for a few top selected tags..."""
         if df_sub is None:
             return
-        add_tag = st.selectbox("Additional Review Tag", list(df_live[df_live["tag_type"]==tag_name]["tag"].unique()))
+        add_tag = st.selectbox("Additional Timeline Tag", list(df_live[df_live["tag_type"]==tag_type]["tag"].unique()))
         tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
 
-        df_sub = df_live[(df_live["tag_type"]==tag_name) & (df_live["tag"].isin(tag_top))]    # filter top
+        df_sub = df_live[(df_live["tag_type"]==tag_type) & (df_live["tag"].isin(tag_top))]    # filter top
         df_sub = df_sub[["tag", "score"]]   # select only score and tag name
         df_sub.index = df_sub.index.round('1T')
         list_resampled = [df_sub[df_sub["tag"] == n].resample('1T', base=0).mean()["score"] for n in tag_top]   # resample each top tag
@@ -109,16 +133,20 @@ def main_page():
 
     # frequency bar chart for keywords
     st.markdown("### popular textual keywords")
-    df_sub = df_live[df_live["tag_type"]=="word"].groupby("details").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
+    df_sub = _aggregate_tags(df_live, "word", "details")
     if not NLP_TOKENIZE or len(df_sub) < 5:   # old method before NLP stop word removal
-        df_sub = df_live[df_live["tag_type"]=="word"].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
-        df_sub = df_sub.iloc[math.floor(len(df_sub) * 0.03):]
-        num_clip = df_sub.head(1).index[0]
-        st.markdown(f"*Note: The top 3% of scoring events (more than {num_clip} instances) have been dropped.*")
+        df_sub = _aggregate_tags(df_live, "word", "tag")
+        df_sub = df_sub.iloc[math.floor(len(df_sub) * NLP_FILTER):]
+        num_clip = list(df_sub["count"])[0]
+        st.markdown(f"*Note: The top {round(NLP_FILTER * 100, 1)}% of most frequent events (more than {num_clip} instances) have been dropped.*")
     else:
         st.markdown(f"*Note: Results after stop word removal.*")
         df_sub.rename({"details":"tag"})
-    st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+    _quick_sorted_barchart(df_sub)
+
+    # frequency bar chart for found labels / tags
+    st.markdown("### popular textual named entities")
+    df_sub = quick_hist(df_live, "entity")  # quick tag hist
 
     # frequency bar chart for logos
     st.markdown("### popular logos")
@@ -132,9 +160,14 @@ def main_page():
     df_sub = quick_hist(df_live, "identity")
     quick_timeseries(df_live, df_sub, "identity", False)      # time chart of top N 
     
+    # frequency bar chart for celebrities
+    st.markdown("### explicit events timeline")
+    df_sub = quick_hist(df_live, "explicit", False)
+    quick_timeseries(df_live, df_sub, "explicit", False)      # time chart of top N 
+    
     # plunk down a dataframe for people to explore as they want
     st.markdown(f"### filtered exploration ({SAMPLE_N} events)")
-    filter_tag = st.selectbox("Inspect Tag Type", ["All"] + list(df_live["tag_type"].unique()))
+    filter_tag = st.selectbox("Tag Type for Exploration", ["All"] + list(df_live["tag_type"].unique()))
     order_tag = st.selectbox("Sort Metric", ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
                                          "duration - ascending", "duration - descending"])
     order_ascend = order_tag.split('-')[-1].strip() == "ascending"  # eval to true/false
