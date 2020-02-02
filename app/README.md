@@ -45,24 +45,35 @@ python -m spacy download en_core_web_sm
 # Execution and Deployment
 
 To execute, you will need to bring your own pre-processed flattened metadata and
-specifically place them into the `../results` directory.
+specifically place them into the `data_dir` directory.  You can configure 
+this option from the command-line when the application is run. *(v 0.3.2)*
 
-* Currently, the app expects these to be installed a directory called `results` 
-  in the parent of this directory (e.g. ../results).  It also expects these files
+To execute, change to this directory and run the below command.  Please verify that 
+all arguments must be after the 
+double-dash to guarantee that they are sent to this app and not to streamlit.
+
+```shell
+streamlit run timed.py -- <options>
+
+(options below)
+  -d DATA_DIR, --data_dir DATA_DIR
+                        specify the source directory for flattened metadata
+  -m MEDIA_FILE, --media_file MEDIA_FILE
+                        specific media file for extracting clips (empty=no clips)
+```
+
+* Currently, the app expects these to be installed in `data_dir`; by default this is
+  a directory called `results` in the parent of this directory (e.g. ../results).  
+* The app expects files in the `data_dir`
   to be `.csv` or `.csv.gz` and the output of the `main.py` script in the 
   parent directory.  
 * Upon completion of [data ingestion](#Data-Ingest), the application will
   create a compressed data file in this directory.  If you delete this file or the directory
   is not accessble, the app may not function properly or will need to regenerate it.
 
-*NOTE* All input files (by file extension) under the `results` directory will be 
+*NOTE* All input files (by file extension) under the `data_dir` directory will be 
 ingested, so make note that only relevant file from a single asset are included.
 
-To execute, change to this directory and run the below command.
-
-```shell
-streamlit run timed.py
-```
 
 ## Data Ingest
 
