@@ -33,7 +33,6 @@ import json
 
 import altair as alt
 
-data_dir = path.join("..", "results")
 version_path = path.join("..", "_version.py")
 re_issue = re.compile(r"[^0-9A-Za-z]+")
 presence_bars = False  # toggle to show presence indicators as a graph
@@ -50,7 +49,8 @@ TOP_LINE_N = 5
 NLP_FILTER = 0.025
 SAMPLE_N = 250
 
-def main_page():
+def main_page(data_dir=None, media_file=None):
+    """Main page for execution"""
     # read in version information
     version_dict = {}
     with open(version_path) as file:
@@ -60,7 +60,15 @@ def main_page():
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    df = data_load("data_bundle", True)
+    if data_dir is None:
+        data_dir = path.join(path.dirname(version_path), "results")
+    if media_file is None:
+        media_file = path.join(data_dir, "videohd.mp4")
+
+    df = data_load("data_bundle", data_dir, True)
+    if df is None:
+        st.error("No data could be loaded, please check configuration options.")
+        return
     df_live = draw_sidebar(df)
 
     # Create the runtime info
@@ -183,7 +191,7 @@ def main_page():
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
-def data_load(stem_datafile, allow_cache=True):
+def data_load(stem_datafile, data_dir, allow_cache=True):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
 
     # generate a checksum of the input files
@@ -192,6 +200,9 @@ def data_load(stem_datafile, allow_cache=True):
     for filepath in Path(data_dir).rglob(f'*.csv*'):
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
+    if not list_files:
+        logger.critical(f"Sorry, no flattened files found, check '{data_dir}'...")
+        return None 
 
     # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
     # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
@@ -366,10 +377,30 @@ def draw_sidebar(df, sort_list=None):
     # otherwise apply sorting right now
     return df_filter.sort_values(by=[v[0] for v in sort_list], 
                                        ascending=[v[1] for v in sort_list])
-    
 
+def main(args=None):
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="""A script run the data explorer.""",
+        epilog="""Process TBD...
+            # specify the input media file 
+            streamlit run timed.py -- -m video.mp4
+    """, formatter_class=argparse.RawTextHelpFormatter)
+    submain = parser.add_argument_group('main execution')
+    submain.add_argument('-d', '--data_dir', dest='data_dir', type=str, default='../results', help='specify the source directory for flattened metadata')
+    submain.add_argument('-m', '--media_file', dest='media_file', type=str, default='', help='specific media file for extracting clips (empty=no clips)')
+
+    if args is None:
+        config_defaults = vars(parser.parse_args())
+    else:
+        config_defaults = vars(parser.parse_args(args))
+    print(f"Runtime Configuration {config_defaults}")
+
+    main_page(**config_defaults)
 
 
 # main block run by code
 if __name__ == '__main__':
-    main_page()
+    """ Main page for streamlit timed data explorer """
+    main()
