@@ -46,15 +46,17 @@ from sys import stdout as STDOUT
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 NLP_TOKENIZE = True
-TOP_HISTOGRAM_N = 20
+TOP_HISTOGRAM_N = 15
 TOP_LINE_N = 5
+NLP_FILTER = 0.025
 SAMPLE_N = 250
 MP4FILE = path.join(video_dir, "superbowl2019.mp4") # master video, expected in "results" directory, along with data_buncle
 TMP_MP4FILE = path.join(video_dir, "tmp.mp4") # scratch file for clips
 DEFAULT_REWIND = 5 # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
 
-def main_page():
+def main_page(data_dir=None, media_file=None):
+    """Main page for execution"""
     # read in version information
     version_dict = {}
     with open(version_path) as file:
@@ -63,7 +65,15 @@ def main_page():
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    df = data_load("data_bundle", True)
+    if data_dir is None:
+        data_dir = path.join(path.dirname(version_path), "results")
+    if media_file is None:
+        media_file = path.join(data_dir, "videohd.mp4")
+
+    df = data_load("data_bundle", data_dir, True)
+    if df is None:
+        st.error("No data could be loaded, please check configuration options.")
+        return
     df_live = draw_sidebar(df)
 
     # Create the runtime info
@@ -77,24 +87,45 @@ def main_page():
 
     # logger.info(list(df.columns))
 
-    def quick_hist(df_live, tag_name):
+    def _aggregate_tags(df_live, tag_type, field_group="tag"):
+        df_sub = df_live[df_live["tag_type"]==tag_type].groupby(field_group)["score"] \
+                    .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
+                    .sort_values(["count", "mean"], ascending=False)
+        df_sub[["mean", "min", "max"]] = df_sub[["mean", "min", "max"]].apply(lambda x: round(x, 3))
+        return df_sub
+
+    def _quick_sorted_barchart(df_sub):
+        """Create bar chart (e.g. histogram) with no axis sorting..."""
+        if False:   #  https://github.com/streamlit/streamlit/issues/385
+            st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+        else:
+            # https://github.com/streamlit/streamlit/blob/5e8e0ec1b46ac0b322dc48d27494be674ad238fa/lib/streamlit/DeltaGenerator.py
+            st.write(alt.Chart(df_sub.head(TOP_HISTOGRAM_N)).mark_bar().encode(
+                x=alt.X('count', sort=None),
+                y=alt.Y('tag', sort=None),
+                tooltip=['tag', 'count', 'mean', 'min']
+            ))
+
+
+    def quick_hist(df_live, tag_type, show_hist=True):
         """Helper function to draw aggregate histograms of tags"""
-        df_sub = df_live[df_live["tag_type"]==tag_name].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
+        df_sub = _aggregate_tags(df_live, tag_type)
         if len(df_sub) == 0:
             st.markdown("*Sorry, the active filters removed all events for this display.*")
             return None
-        df_sub.index.name = "count"
-        st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+        # unfortunately, a bug currently overrides sort order
+        if show_hist:
+            _quick_sorted_barchart(df_sub)
         return df_sub
 
-    def quick_timeseries(df_live, df_sub, tag_name, use_line=True):
+    def quick_timeseries(df_live, df_sub, tag_type, use_line=True):
         """Helper function to draw a timeseries for a few top selected tags..."""
         if df_sub is None:
             return
-        add_tag = st.selectbox("Additional Review Tag", list(df_live[df_live["tag_type"]==tag_name]["tag"].unique()))
+        add_tag = st.selectbox("Additional Timeline Tag", list(df_live[df_live["tag_type"]==tag_type]["tag"].unique()))
         tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
 
-        df_sub = df_live[(df_live["tag_type"]==tag_name) & (df_live["tag"].isin(tag_top))]    # filter top
+        df_sub = df_live[(df_live["tag_type"]==tag_type) & (df_live["tag"].isin(tag_top))]    # filter top
         df_sub = df_sub[["tag", "score"]]   # select only score and tag name
         df_sub.index = df_sub.index.round('1T')
         list_resampled = [df_sub[df_sub["tag"] == n].resample('1T', base=0).mean()["score"] for n in tag_top]   # resample each top tag
@@ -124,16 +155,20 @@ def main_page():
 
     # frequency bar chart for keywords
     st.markdown("### popular textual keywords")
-    df_sub = df_live[df_live["tag_type"]=="word"].groupby("details").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
+    df_sub = _aggregate_tags(df_live, "word", "details")
     if not NLP_TOKENIZE or len(df_sub) < 5:   # old method before NLP stop word removal
-        df_sub = df_live[df_live["tag_type"]=="word"].groupby("tag").count().reset_index(drop=False).set_index("shot").sort_index(ascending=False)
-        df_sub = df_sub.iloc[math.floor(len(df_sub) * 0.03):]
-        num_clip = df_sub.head(1).index[0]
-        st.markdown(f"*Note: The top 3% of scoring events (more than {num_clip} instances) have been dropped.*")
+        df_sub = _aggregate_tags(df_live, "word", "tag")
+        df_sub = df_sub.iloc[math.floor(len(df_sub) * NLP_FILTER):]
+        num_clip = list(df_sub["count"])[0]
+        st.markdown(f"*Note: The top {round(NLP_FILTER * 100, 1)}% of most frequent events (more than {num_clip} instances) have been dropped.*")
     else:
         st.markdown(f"*Note: Results after stop word removal.*")
         df_sub.rename({"details":"tag"})
-    st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
+    _quick_sorted_barchart(df_sub)
+
+    # frequency bar chart for found labels / tags
+    st.markdown("### popular textual named entities")
+    df_sub = quick_hist(df_live, "entity")  # quick tag hist
 
     # frequency bar chart for logos
     st.markdown("### popular logos")
@@ -147,9 +182,14 @@ def main_page():
     df_sub = quick_hist(df_live, "identity")
     quick_timeseries(df_live, df_sub, "identity", False)      # time chart of top N 
     
+    # frequency bar chart for celebrities
+    st.markdown("### explicit events timeline")
+    df_sub = quick_hist(df_live, "explicit", False)
+    quick_timeseries(df_live, df_sub, "explicit", False)      # time chart of top N 
+    
     # plunk down a dataframe for people to explore as they want
     st.markdown(f"### filtered exploration ({SAMPLE_N} events)")
-    filter_tag = st.selectbox("Inspect Tag Type", ["All"] + list(df_live["tag_type"].unique()))
+    filter_tag = st.selectbox("Tag Type for Exploration", ["All"] + list(df_live["tag_type"].unique()))
     order_tag = st.selectbox("Sort Metric", ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
                                          "duration - ascending", "duration - descending"])
     order_ascend = order_tag.split('-')[-1].strip() == "ascending"  # eval to true/false
@@ -187,7 +227,7 @@ def main_page():
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
-def data_load(stem_datafile, allow_cache=True):
+def data_load(stem_datafile, data_dir, allow_cache=True):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
 
     # generate a checksum of the input files
@@ -197,6 +237,9 @@ def data_load(stem_datafile, allow_cache=True):
     for filepath in Path(data_dir).rglob(f'*.csv*'):
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
+    if not list_files:
+        logger.critical(f"Sorry, no flattened files found, check '{data_dir}'...")
+        return None 
 
     # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
     # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
@@ -371,10 +414,30 @@ def draw_sidebar(df, sort_list=None):
     # otherwise apply sorting right now
     return df_filter.sort_values(by=[v[0] for v in sort_list], 
                                        ascending=[v[1] for v in sort_list])
-    
 
+def main(args=None):
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="""A script run the data explorer.""",
+        epilog="""Process TBD...
+            # specify the input media file 
+            streamlit run timed.py -- -m video.mp4
+    """, formatter_class=argparse.RawTextHelpFormatter)
+    submain = parser.add_argument_group('main execution')
+    submain.add_argument('-d', '--data_dir', dest='data_dir', type=str, default='../results', help='specify the source directory for flattened metadata')
+    submain.add_argument('-m', '--media_file', dest='media_file', type=str, default='', help='specific media file for extracting clips (empty=no clips)')
+
+    if args is None:
+        config_defaults = vars(parser.parse_args())
+    else:
+        config_defaults = vars(parser.parse_args(args))
+    print(f"Runtime Configuration {config_defaults}")
+
+    main_page(**config_defaults)
 
 
 # main block run by code
 if __name__ == '__main__':
-    main_page()
+    """ Main page for streamlit timed data explorer """
+    main()
