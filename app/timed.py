@@ -33,11 +33,8 @@ import json
 
 import altair as alt
 
-<<<<<<< HEAD
 data_dir = path.join("..", "results")
 video_dir = path.join("..", "videos")
-=======
->>>>>>> 1ccf625982a10546f80f7bac1ad65fdd8743aeea
 version_path = path.join("..", "_version.py")
 re_issue = re.compile(r"[^0-9A-Za-z]+")
 presence_bars = False  # toggle to show presence indicators as a graph
