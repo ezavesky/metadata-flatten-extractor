@@ -233,7 +233,6 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
-    st.write(Path(data_dir))
     for filepath in Path(data_dir).rglob(f'*.csv*'):
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
