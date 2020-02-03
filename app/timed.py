@@ -32,6 +32,7 @@ import math
 import json
 
 data_dir = path.join("..", "results")
+video_dir = path.join("..", "videos")
 version_path = path.join("..", "_version.py")
 re_issue = re.compile(r"[^0-9A-Za-z]+")
 presence_bars = False  # toggle to show presence indicators as a graph
@@ -46,8 +47,8 @@ NLP_TOKENIZE = True
 TOP_HISTOGRAM_N = 20
 TOP_LINE_N = 5
 SAMPLE_N = 250
-MP4FILE = path.join(data_dir, "superbowl2019.mp4") # master video, expected in "results" directory, along with data_buncle
-TMP_MP4FILE = path.join(data_dir, "tmp.mp4") # scratch file for clips
+MP4FILE = path.join(video_dir, "superbowl2019.mp4") # master video, expected in "results" directory, along with data_buncle
+TMP_MP4FILE = path.join(video_dir, "tmp.mp4") # scratch file for clips
 DEFAULT_REWIND = 5 # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
 
@@ -55,8 +56,7 @@ def main_page():
     # read in version information
     version_dict = {}
     with open(version_path) as file:
-        exec(file.read(), version_dict)
-
+        exec(file.read(), version_dict)   
     st.title(version_dict['__description__']+" Explorer")
     ux_report = st.empty()
     ux_progress = st.empty()
@@ -191,13 +191,15 @@ def data_load(stem_datafile, allow_cache=True):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
+    st.write(Path(data_dir))
     for filepath in Path(data_dir).rglob(f'*.csv*'):
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
 
     # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
     # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
-    path_new = path.join(data_dir, f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
+    #path_new = path.join(data_dir, f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
+    path_new = path.join(data_dir, f"{stem_datafile}.pkl.gz")
     path_backup = None
     for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
         path_backup = filepath

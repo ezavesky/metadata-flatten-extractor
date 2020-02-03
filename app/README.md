@@ -64,6 +64,19 @@ To execute, change to this directory and run the below command.
 streamlit run timed.py
 ```
 
+# Docker installation & execution
+```
+# Build docker image from root directory of repo
+docker build --rm -t streamlit_timed -f Dockerfile.app .
+# Run docker container
+# Assumes extracted dataset is in "results" and video files are in "videos"
+# Mounting app rather than copying it allows you to edit the app while container is running
+docker run -ti -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos -v${PWD}/app:/app streamlit_timed:latest
+```
+To connect to the streamlit app:
+* from your localhost, go to `localhost:8501` 
+* if connecting externally, use the IP addresses listed on the console.q
+
 ## Data Ingest
 
 For speedier interactions, a one-time data ingest process will begin.  Depending
