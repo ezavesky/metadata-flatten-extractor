@@ -20,7 +20,9 @@ enableCORS = false\n\
 " > /root/.streamlit/config.toml' \
     # install requirements
     && pip install --no-cache-dir  -r $WORKDIR/requirements.txt \ 
-    && pip install --no-cache-dir  -r $WORKDIR/app/requirements.txt
+    && pip install --no-cache-dir  -r $WORKDIR/app/requirements.txt \
+    # install NLP word model for spacy
+    && python -m spacy download en_core_web_sm
 
 # exposing default port for streamlit
 EXPOSE 8501

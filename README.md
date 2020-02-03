@@ -138,6 +138,9 @@ Job complete in 4m58.265737799s
 
 ## 0.4
 
+### 0.4.1
+* fix docker image for nlp tasks, fix stop word aggregation
+
 ### 0.4.0
 * adding video playback (and image preview) via inline command-line execution of ffmpeg in application
 * create new Dockerfile.app for all-in-one explorer app creation
