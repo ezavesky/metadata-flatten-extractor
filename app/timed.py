@@ -23,7 +23,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import ast
-from os import path
+from os import path, system, unlink
 from pathlib import Path
 import re
 import hashlib
@@ -48,14 +48,18 @@ TOP_HISTOGRAM_N = 15
 TOP_LINE_N = 5
 NLP_FILTER = 0.025
 SAMPLE_N = 250
+DEFAULT_REWIND = 5 # how early to start clip from max score (sec)
+DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
+
+ALTAIR_DEFAULT_WIDTH = 660   # width of charts
+ALTAIR_DEFAULT_HEIGHT = 300   # height of charts
 
 def main_page(data_dir=None, media_file=None):
     """Main page for execution"""
     # read in version information
     version_dict = {}
     with open(version_path) as file:
-        exec(file.read(), version_dict)
-
+        exec(file.read(), version_dict)   
     st.title(version_dict['__description__']+" Explorer")
     ux_report = st.empty()
     ux_progress = st.empty()
@@ -95,7 +99,7 @@ def main_page(data_dir=None, media_file=None):
             st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
         else:
             # https://github.com/streamlit/streamlit/blob/5e8e0ec1b46ac0b322dc48d27494be674ad238fa/lib/streamlit/DeltaGenerator.py
-            st.write(alt.Chart(df_sub.head(TOP_HISTOGRAM_N)).mark_bar().encode(
+            st.write(alt.Chart(df_sub.head(TOP_HISTOGRAM_N), width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_bar().encode(
                 x=alt.X('count', sort=None),
                 y=alt.Y('tag', sort=None),
                 tooltip=['tag', 'count', 'mean', 'min']
@@ -131,6 +135,20 @@ def main_page(data_dir=None, media_file=None):
             st.line_chart(df_scored)
         else:
             st.area_chart(df_scored)
+
+    def clip_video(media_file, media_output, start, duration=1, image_only=False):
+        """Helper function to create video clip"""
+        if path.exists(media_output):
+            unlink(media_output)
+        if (system("which ffmpeg")==0):  # check if ffmpeg is in path
+            if not image_only:
+                return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy {media_output}")
+            else: 
+                return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 {media_output}")
+        else:
+            return -1
+
+    st.markdown("## high-frequency content")
 
     # frequency bar chart for found labels / tags
     st.markdown("### popular visual tags")
@@ -174,7 +192,7 @@ def main_page(data_dir=None, media_file=None):
     quick_timeseries(df_live, df_sub, "explicit", False)      # time chart of top N 
     
     # plunk down a dataframe for people to explore as they want
-    st.markdown(f"### filtered exploration ({SAMPLE_N} events)")
+    st.markdown(f"## filtered exploration ({SAMPLE_N} events)")
     filter_tag = st.selectbox("Tag Type for Exploration", ["All"] + list(df_live["tag_type"].unique()))
     order_tag = st.selectbox("Sort Metric", ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
                                          "duration - ascending", "duration - descending"])
@@ -188,6 +206,40 @@ def main_page(data_dir=None, media_file=None):
     else:
         df_sub = df_sub.sort_values(order_sort, ascending=order_ascend).head(SAMPLE_N)
     st.write(df_sub)
+
+    st.markdown(f"## clip replay")
+
+    if media_file is None or not path.exists(media_file):
+        st.markdown(f"*Media file `{media_file}` not found or readable, can not generate clips.*")
+    else:        
+        st.markdown(f"### celebrity clips")
+        _, clip_ext = path.splitext(path.basename(media_file))
+        media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
+        media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
+
+        df_celeb = df_live[df_live["tag_type"]=="identity"] 
+        celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
+        df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag]  
+        # get begin_time with max score for selected celeb, convert to seconds
+        row_first = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]
+        time_begin_sec = int(row_first['time_begin'] / np.timedelta64(1, 's'))
+        time_duration_sec = int(row_first["duration"])  # use shot duration
+        time_str = str(pd.Timedelta(row_first['time_begin']))
+
+        if st.button("Play Clip"):
+            status = clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
+            if status == 0: # play clip
+                st.video(open(media_clip, 'rb'))
+                st.markdown(f"*Celebrity: {celebrity_tag} (score: {row_first['score']}) @ {time_str} ({round(time_duration_sec, 2)}s)*")
+            elif status == -1:
+                st.markdown("**Error:** ffmpeg not found in path. Cannot create video clip.")
+            else:
+                st.markdown("**Error:** creating video clip.")
+        else:       # print thumbnail
+            status = clip_video(media_file, media_image, time_begin_sec, image_only=True)
+            if status == 0:
+                st.image(media_image, use_column_width=True,
+                        caption=f"Celebrity: {celebrity_tag} (score: {row_first['score']}) @ {time_str}")
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
@@ -383,13 +435,13 @@ def main(args=None):
     
     parser = argparse.ArgumentParser(
         description="""A script run the data explorer.""",
-        epilog="""Process TBD...
+        epilog="""Application examples
             # specify the input media file 
             streamlit run timed.py -- -m video.mp4
     """, formatter_class=argparse.RawTextHelpFormatter)
     submain = parser.add_argument_group('main execution')
     submain.add_argument('-d', '--data_dir', dest='data_dir', type=str, default='../results', help='specify the source directory for flattened metadata')
-    submain.add_argument('-m', '--media_file', dest='media_file', type=str, default='', help='specific media file for extracting clips (empty=no clips)')
+    submain.add_argument('-m', '--media_file', dest='media_file', type=str, default=None, help='specific media file for extracting clips (empty=no clips)')
 
     if args is None:
         config_defaults = vars(parser.parse_args())

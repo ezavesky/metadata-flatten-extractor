@@ -42,6 +42,17 @@ model.
 python -m spacy download en_core_web_sm
 ```
 
+The application can also generate small clips from an original video.  For now,
+this is accomplished with a system call to `ffmpeg`, so to use this functionality
+you must have it installed on your system.  Historically, the [anaconda framework](https://www.anaconda.com/)
+has been a great way to get [ffmpeg as a package](https://anaconda.org/menpo/ffmpeg) 
+working in various environments.  Future versions may attempt to reduce this burden this via
+python package dependency. 
+
+```shell
+conda install ffmpeg
+```
+
 # Execution and Deployment
 
 To execute, you will need to bring your own pre-processed flattened metadata and
@@ -75,6 +86,42 @@ streamlit run timed.py -- <options>
 ingested, so make note that only relevant file from a single asset are included.
 
 
+## Docker installation & execution
+
+An application-oriented docker file has also been created.  It makes the following assumptions
+for operation...
+
+```shell
+# Build docker image from root directory of repo
+docker build --rm -t streamlit_timed -f Dockerfile.app .
+```
+
+* Assumes extracted dataset is in "/results" and video files are in "/videos"
+    * *NOTE: You must mount both of these directories in the docker run command.*
+* Your media and data files should be mounted instead of copied
+* Connect to your exposed application via port 8051
+    * From your localhost, go to `localhost:8501` 
+    * If connecting externally, use the IP addresses listed on the console
+
+Afterwards, running your docker file is trivial with standard syntax to mount the target volumes.
+
+```shell
+# Run docker container (default video path)
+docker run --rm -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos streamlit_timed:latest 
+
+# Run docker container (specific video path)
+docker run --rm -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos -e VIDEO=/videos/videohd.mp4  streamlit_timed:latest 
+
+```
+
+Optionally you can edit the app while running for continuous updates.
+
+```shell
+# Mounting app rather than copying it allows you to edit the app while container is running
+docker run --rm -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos -v ${PWD}/app:/src/app streamlit_timed:latest
+```
+
+
 ## Data Ingest
 
 For speedier interactions, a one-time data ingest process will begin.  Depending
@@ -105,7 +152,5 @@ Although there is no specific timeline for deliverables, this is a potential
 roadmap for future features to be implemented.
 
 * search - search for favorite items via text or celebrity
-* media connectivity - link to play videos or show images at specific time points
-* instances - scatter plots for infrequent but notable events, like celebrities
 * HUD - creation of sparklines or overlays with events of all types co-visualized
 * tech debt - speed up the ingest and processing steps
