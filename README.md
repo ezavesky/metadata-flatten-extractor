@@ -139,7 +139,7 @@ Job complete in 4m58.265737799s
 ## 0.4
 
 ### 0.4.0
-* adding video playback via inline command-line execution of ffmpeg in application
+* adding video playback (and image preview) via inline command-line execution of ffmpeg in application
 * create new Dockerfile.app for all-in-one explorer app creation
 
 ## 0.3
