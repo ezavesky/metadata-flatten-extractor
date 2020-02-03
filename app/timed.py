@@ -44,10 +44,13 @@ from sys import stdout as STDOUT
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 NLP_TOKENIZE = True
+NLP_STOPWORD = "_stopword_"
+
 TOP_HISTOGRAM_N = 15
 TOP_LINE_N = 5
 NLP_FILTER = 0.025
 SAMPLE_N = 250
+
 DEFAULT_REWIND = 5 # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
 
@@ -106,9 +109,9 @@ def main_page(data_dir=None, media_file=None):
             ))
 
 
-    def quick_hist(df_live, tag_type, show_hist=True):
+    def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
         """Helper function to draw aggregate histograms of tags"""
-        df_sub = _aggregate_tags(df_live, tag_type)
+        df_sub = _aggregate_tags(df_live, tag_type, field_group)
         if len(df_sub) == 0:
             st.markdown("*Sorry, the active filters removed all events for this display.*")
             return None
@@ -167,7 +170,8 @@ def main_page(data_dir=None, media_file=None):
         st.markdown(f"*Note: The top {round(NLP_FILTER * 100, 1)}% of most frequent events (more than {num_clip} instances) have been dropped.*")
     else:
         st.markdown(f"*Note: Results after stop word removal.*")
-        df_sub.rename({"details":"tag"})
+        df_sub.rename(columns={"details":"tag"}, inplace=True)
+        df_sub = df_sub[(df_sub["tag"] != NLP_STOPWORD) & (df_sub["tag"] != "")]
     _quick_sorted_barchart(df_sub)
 
     # frequency bar chart for found labels / tags
@@ -191,6 +195,8 @@ def main_page(data_dir=None, media_file=None):
     df_sub = quick_hist(df_live, "explicit", False)
     quick_timeseries(df_live, df_sub, "explicit", False)      # time chart of top N 
     
+    # TODO: shot length distribution?
+
     # plunk down a dataframe for people to explore as they want
     st.markdown(f"## filtered exploration ({SAMPLE_N} events)")
     filter_tag = st.selectbox("Tag Type for Exploration", ["All"] + list(df_live["tag_type"].unique()))
@@ -219,18 +225,21 @@ def main_page(data_dir=None, media_file=None):
 
         df_celeb = df_live[df_live["tag_type"]=="identity"] 
         celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
-        df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag]  
+        # sor to find the best scoring, shortest duration clip
+        df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag].sort_values(["score", "duration"], ascending=[False, True])
         # get begin_time with max score for selected celeb, convert to seconds
-        row_first = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]
+        row_first = df_celeb_sel.head(1)
         time_begin_sec = int(row_first['time_begin'] / np.timedelta64(1, 's'))
         time_duration_sec = int(row_first["duration"])  # use shot duration
-        time_str = str(pd.Timedelta(row_first['time_begin']))
+        if time_duration_sec < DEFAULT_CLIPLEN:   # min clip length
+            time_duration_sec = DEFAULT_CLIPLEN
+        time_str = str(row_first['time_begin'][0])
 
         if st.button("Play Clip"):
             status = clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
             if status == 0: # play clip
                 st.video(open(media_clip, 'rb'))
-                st.markdown(f"*Celebrity: {celebrity_tag} (score: {row_first['score']}) @ {time_str} ({round(time_duration_sec, 2)}s)*")
+                st.markdown(f"*Celebrity: {celebrity_tag} (score: {row_first['score'][0]}) @ {time_str} ({round(time_duration_sec, 2)}s)*")
             elif status == -1:
                 st.markdown("**Error:** ffmpeg not found in path. Cannot create video clip.")
             else:
@@ -239,7 +248,7 @@ def main_page(data_dir=None, media_file=None):
             status = clip_video(media_file, media_image, time_begin_sec, image_only=True)
             if status == 0:
                 st.image(media_image, use_column_width=True,
-                        caption=f"Celebrity: {celebrity_tag} (score: {row_first['score']}) @ {time_str}")
+                        caption=f"Celebrity: {celebrity_tag} (score: {row_first['score'][0]}) @ {time_str}")
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
@@ -339,8 +348,9 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
         idx_sub = 0
         re_clean = re.compile(r"[^0-9A-Za-z]")
         for row_idx, row_word in df_sub.iterrows():
+            ux_report.info(f"... filtering text stop words ({idx_sub}/{len(df_sub)})....")
             word_new = nlp(row_word["tag"])
-            list_new[idx_sub] = re_clean.sub('', word_new.text.lower()) if not nlp.vocab[word_new.text].is_stop else "_stopword_"
+            list_new[idx_sub] = re_clean.sub('', word_new.text.lower()) if not nlp.vocab[word_new.text].is_stop else NLP_STOPWORD
             idx_sub += 1
         df.loc[df["tag_type"]=="word", "details"] = list_new
 
