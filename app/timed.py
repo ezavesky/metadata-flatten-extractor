@@ -136,12 +136,15 @@ def main_page(data_dir=None, media_file=None):
         else:
             st.area_chart(df_scored)
 
-    def create_videoclip(media_file, start, duration, media_clip):
+    def clip_video(media_file, media_output, start, duration=1, image_only=False):
         """Helper function to create video clip"""
-        if path.exists(media_clip):
-            os.unlink(media_clip)
+        if path.exists(media_output):
+            unlink(media_output)
         if (system("which ffmpeg")==0):  # check if ffmpeg is in path
-            return system(f"ffmpeg -i {media_file} -ss {start}  -t {duration} -c copy {media_clip}")
+            if not image_only:
+                return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy {media_output}")
+            else: 
+                return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 {media_output}")
         else:
             return -1
 
@@ -210,23 +213,33 @@ def main_page(data_dir=None, media_file=None):
         st.markdown(f"*Media file `{media_file}` not found or readable, can not generate clips.*")
     else:        
         st.markdown(f"### celebrity clips")
-        _, clip_file = path.splitext(path.dirname(media_file))
-        media_clip = path.join(path.dirname(media_file), "".join(["clip", clip_file]))
+        _, clip_ext = path.splitext(path.basename(media_file))
+        media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
+        media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
 
         df_celeb = df_live[df_live["tag_type"]=="identity"] 
         celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
         df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag]  
         # get begin_time with max score for selected celeb, convert to seconds
-        time_begin = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]['time_begin'] / 1e9  
+        row_first = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]
+        time_begin_sec = int(row_first['time_begin'] / np.timedelta64(1, 's'))
+        time_duration_sec = int(row_first["duration"])  # use shot duration
+        time_str = str(pd.Timedelta(row_first['time_begin']))
 
         if st.button("Play Clip"):
-            status = create_videoclip(media_file, int(time_begin-DEFAULT_REWIND), DEFAULT_CLIPLEN, media_clip)
+            status = clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
             if status == 0: # play clip
-                st.video(open(media_clip, 'rb').read())
+                st.video(open(media_clip, 'rb'))
+                st.markdown(f"*Celebrity: {celebrity_tag} (score: {row_first['score']}) @ {time_str} ({round(time_duration_sec, 2)}s)*")
             elif status == -1:
-                st.write("ffmpeg not found in path. Cannot create video clip.")
+                st.markdown("**Error:** ffmpeg not found in path. Cannot create video clip.")
             else:
-                st.write("Error creating video clip.")
+                st.markdown("**Error:** creating video clip.")
+        else:       # print thumbnail
+            status = clip_video(media_file, media_image, time_begin_sec, image_only=True)
+            if status == 0:
+                st.image(media_image, use_column_width=True,
+                        caption=f"Celebrity: {celebrity_tag} (score: {row_first['score']}) @ {time_str}")
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
