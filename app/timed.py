@@ -261,17 +261,19 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
     for filepath in Path(data_dir).rglob(f'*.csv*'):
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
-    if not list_files:
-        logger.critical(f"Sorry, no flattened files found, check '{data_dir}'...")
+
+    path_backup = None
+    for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
+        path_backup = filepath
+        break
+
+    if not list_files and path_backup is None:
+        logger.critical(f"Sorry, no flattened or cached files found, check '{data_dir}'...")
         return None 
 
     # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
     # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
     path_new = path.join(data_dir, f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
-    path_backup = None
-    for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
-        path_backup = filepath
-        break
 
     # see if checksum matches the datafile (plus stem)
     if allow_cache and (path.exists(path_new) or path_backup is not None):
