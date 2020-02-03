@@ -31,6 +31,8 @@ import glob
 import math
 import json
 
+import altair as alt
+
 data_dir = path.join("..", "results")
 video_dir = path.join("..", "videos")
 version_path = path.join("..", "_version.py")
