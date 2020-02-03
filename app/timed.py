@@ -51,6 +51,9 @@ SAMPLE_N = 250
 DEFAULT_REWIND = 5 # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
 
+ALTAIR_DEFAULT_WIDTH = 660   # width of charts
+ALTAIR_DEFAULT_HEIGHT = 300   # height of charts
+
 def main_page(data_dir=None, media_file=None):
     """Main page for execution"""
     # read in version information
@@ -96,7 +99,7 @@ def main_page(data_dir=None, media_file=None):
             st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
         else:
             # https://github.com/streamlit/streamlit/blob/5e8e0ec1b46ac0b322dc48d27494be674ad238fa/lib/streamlit/DeltaGenerator.py
-            st.write(alt.Chart(df_sub.head(TOP_HISTOGRAM_N)).mark_bar().encode(
+            st.write(alt.Chart(df_sub.head(TOP_HISTOGRAM_N), width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_bar().encode(
                 x=alt.X('count', sort=None),
                 y=alt.Y('tag', sort=None),
                 tooltip=['tag', 'count', 'mean', 'min']
