@@ -1,27 +1,29 @@
 FROM python:3.7-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg
+ENV WORKDIR=/src
+ENV VIDEO=/videos/video.mp4
 
-# streamlit-specific commands
-RUN mkdir -p /root/.streamlit
-RUN bash -c 'echo -e "\
+# install pacakages
+COPY . $WORKDIR
+
+RUN python -V \
+    && apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    # streamlit-specific commands
+    && mkdir -p /root/.streamlit \
+    && bash -c 'echo -e "\
 [general]\n\
 email = \"\"\n\
 " > /root/.streamlit/credentials.toml'
 RUN bash -c 'echo -e "\
 [server]\n\
 enableCORS = false\n\
-" > /root/.streamlit/config.toml'
+" > /root/.streamlit/config.toml' \
+    # install requirements
+    && pip install --no-cache-dir  -r $WORKDIR/requirements.txt \ 
+    && pip install --no-cache-dir  -r $WORKDIR/app/requirements.txt
 
 # exposing default port for streamlit
 EXPOSE 8501
 
-# copy over and install packages
-COPY app/requirements.txt ./requirements.txt
-RUN pip3 install -r requirements.txt
-
-# copying all analysis code to image
-COPY _version.py /
-
 # run app
-CMD streamlit run /app/timed.py
+CMD cd $WORKDIR/app && streamlit run timed.py -- --media_file $VIDEO --data_dir /results

@@ -208,13 +208,13 @@ def main_page(data_dir=None, media_file=None):
     else:        
         st.markdown(f"### celebrity clips")
         _, clip_file = path.splitext(path.dirname(media_file))
-        media_clip = path.join(path.dirname(media_file, "".join(["clip", clip_file]))
+        media_clip = path.join(path.dirname(media_file), "".join(["clip", clip_file]))
 
         df_celeb = df_live[df_live["tag_type"]=="identity"] 
         celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
         df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag]  
         # get begin_time with max score for selected celeb, convert to seconds
-        time_begin = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]['time_begin']/1e9  
+        time_begin = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]['time_begin'] / 1e9  
 
         if st.button("Play Clip"):
             status = create_videoclip(media_file, int(time_begin-DEFAULT_REWIND), DEFAULT_CLIPLEN, media_clip)

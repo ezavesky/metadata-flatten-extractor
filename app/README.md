@@ -87,17 +87,40 @@ ingested, so make note that only relevant file from a single asset are included.
 
 
 ## Docker installation & execution
-```
+
+An application-oriented docker file has also been created.  It makes the following assumptions
+for operation...
+
+```shell
 # Build docker image from root directory of repo
 docker build --rm -t streamlit_timed -f Dockerfile.app .
-# Run docker container
-# Assumes extracted dataset is in "results" and video files are in "videos"
-# Mounting app rather than copying it allows you to edit the app while container is running
-docker run -ti -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos -v${PWD}/app:/app streamlit_timed:latest
 ```
-To connect to the streamlit app:
-* from your localhost, go to `localhost:8501` 
-* if connecting externally, use the IP addresses listed on the console.q
+
+* Assumes extracted dataset is in "/results" and video files are in "/videos"
+    * *NOTE: You must mount both of these directories in the docker run command.*
+* Your media and data files should be mounted instead of copied
+* Connect to your exposed application via port 8051
+    * From your localhost, go to `localhost:8501` 
+    * If connecting externally, use the IP addresses listed on the console
+
+Afterwards, running your docker file is trivial with standard syntax to mount the target volumes.
+
+```shell
+# Run docker container (default video path)
+docker run --rm -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos streamlit_timed:latest 
+
+# Run docker container (specific video path)
+docker run --rm -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos -e VIDEO=/videos/videohd.mp4  streamlit_timed:latest 
+
+```
+
+Optionally you can edit the app while running for continuous updates.
+
+```shell
+# Mounting app rather than copying it allows you to edit the app while container is running
+docker run --rm -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos -v ${PWD}/app:/src/app streamlit_timed:latest
+```
+
 
 ## Data Ingest
 
