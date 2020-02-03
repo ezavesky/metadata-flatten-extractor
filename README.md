@@ -138,6 +138,10 @@ Job complete in 4m58.265737799s
 
 ## 0.3
 
+### 0.3.2
+* argument input capabilities for exploration app
+* sort histograms in exploration app by count not alphabet
+
 ### 0.3.1
 * browsing bugfixes for exploration application
 
