@@ -23,7 +23,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import ast
-from os import path, system
+from os import path, system, unlink
 from pathlib import Path
 import re
 import hashlib
@@ -33,8 +33,6 @@ import json
 
 import altair as alt
 
-data_dir = path.join("..", "results")
-video_dir = path.join("..", "videos")
 version_path = path.join("..", "_version.py")
 re_issue = re.compile(r"[^0-9A-Za-z]+")
 presence_bars = False  # toggle to show presence indicators as a graph
@@ -50,8 +48,6 @@ TOP_HISTOGRAM_N = 15
 TOP_LINE_N = 5
 NLP_FILTER = 0.025
 SAMPLE_N = 250
-MP4FILE = path.join(video_dir, "superbowl2019.mp4") # master video, expected in "results" directory, along with data_buncle
-TMP_MP4FILE = path.join(video_dir, "tmp.mp4") # scratch file for clips
 DEFAULT_REWIND = 5 # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
 
@@ -137,14 +133,16 @@ def main_page(data_dir=None, media_file=None):
         else:
             st.area_chart(df_scored)
 
-    def create_videoclip(mp4file, start, duration):
+    def create_videoclip(media_file, start, duration, media_clip):
         """Helper function to create video clip"""
-        system(f"rm -f {TMP_MP4FILE}")
+        if path.exists(media_clip):
+            os.unlink(media_clip)
         if (system("which ffmpeg")==0):  # check if ffmpeg is in path
-            return system(f"ffmpeg -i {mp4file} -ss {start}  -t {duration} -c copy {TMP_MP4FILE}")
+            return system(f"ffmpeg -i {media_file} -ss {start}  -t {duration} -c copy {media_clip}")
         else:
             return -1
 
+    st.markdown("## high-frequency content")
 
     # frequency bar chart for found labels / tags
     st.markdown("### popular visual tags")
@@ -188,7 +186,7 @@ def main_page(data_dir=None, media_file=None):
     quick_timeseries(df_live, df_sub, "explicit", False)      # time chart of top N 
     
     # plunk down a dataframe for people to explore as they want
-    st.markdown(f"### filtered exploration ({SAMPLE_N} events)")
+    st.markdown(f"## filtered exploration ({SAMPLE_N} events)")
     filter_tag = st.selectbox("Tag Type for Exploration", ["All"] + list(df_live["tag_type"].unique()))
     order_tag = st.selectbox("Sort Metric", ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
                                          "duration - ascending", "duration - descending"])
@@ -203,27 +201,29 @@ def main_page(data_dir=None, media_file=None):
         df_sub = df_sub.sort_values(order_sort, ascending=order_ascend).head(SAMPLE_N)
     st.write(df_sub)
 
-    # celebrity viewing
-    st.write("") 
-    st.markdown(f"### watch clips containing your favorite celebrities")
+    st.markdown(f"## clip replay")
 
-    df_celeb = df_live[df_live["tag_type"]=="identity"] 
-    celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
-    df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag]  
-     # get begin_time with max score for selected celeb, convert to seconds
-    time_begin = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]['time_begin']/1e9  
+    if media_file is None or not path.exists(media_file):
+        st.markdown(f"*Media file `{media_file}` not found or readable, can not generate clips.*")
+    else:        
+        st.markdown(f"### celebrity clips")
+        _, clip_file = path.splitext(path.dirname(media_file))
+        media_clip = path.join(path.dirname(media_file, "".join(["clip", clip_file]))
 
-    if st.button("Play Clip"):
-        status = create_videoclip(MP4FILE, int(time_begin-DEFAULT_REWIND), DEFAULT_CLIPLEN)
-        if status == 0: # play clip
-            st.video(open(TMP_MP4FILE, 'rb').read())
-        elif status == -1:
-            st.write("ffmpeg not found in path. Cannot create video clip.")
-        else:
-            st.write("Error creating video clip.")
-    
+        df_celeb = df_live[df_live["tag_type"]=="identity"] 
+        celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
+        df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag]  
+        # get begin_time with max score for selected celeb, convert to seconds
+        time_begin = df_celeb_sel.loc[df_celeb_sel["score"].idxmax()]['time_begin']/1e9  
 
-   
+        if st.button("Play Clip"):
+            status = create_videoclip(media_file, int(time_begin-DEFAULT_REWIND), DEFAULT_CLIPLEN, media_clip)
+            if status == 0: # play clip
+                st.video(open(media_clip, 'rb').read())
+            elif status == -1:
+                st.write("ffmpeg not found in path. Cannot create video clip.")
+            else:
+                st.write("Error creating video clip.")
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
@@ -419,13 +419,13 @@ def main(args=None):
     
     parser = argparse.ArgumentParser(
         description="""A script run the data explorer.""",
-        epilog="""Process TBD...
+        epilog="""Application examples
             # specify the input media file 
             streamlit run timed.py -- -m video.mp4
     """, formatter_class=argparse.RawTextHelpFormatter)
     submain = parser.add_argument_group('main execution')
     submain.add_argument('-d', '--data_dir', dest='data_dir', type=str, default='../results', help='specify the source directory for flattened metadata')
-    submain.add_argument('-m', '--media_file', dest='media_file', type=str, default='', help='specific media file for extracting clips (empty=no clips)')
+    submain.add_argument('-m', '--media_file', dest='media_file', type=str, default=None, help='specific media file for extracting clips (empty=no clips)')
 
     if args is None:
         config_defaults = vars(parser.parse_args())

@@ -42,6 +42,17 @@ model.
 python -m spacy download en_core_web_sm
 ```
 
+The application can also generate small clips from an original video.  For now,
+this is accomplished with a system call to `ffmpeg`, so to use this functionality
+you must have it installed on your system.  Historically, the [anaconda framework](https://www.anaconda.com/)
+has been a great way to get [ffmpeg as a package](https://anaconda.org/menpo/ffmpeg) 
+working in various environments.  Future versions may attempt to reduce this burden this via
+python package dependency. 
+
+```shell
+conda install ffmpeg
+```
+
 # Execution and Deployment
 
 To execute, you will need to bring your own pre-processed flattened metadata and
@@ -75,7 +86,7 @@ streamlit run timed.py -- <options>
 ingested, so make note that only relevant file from a single asset are included.
 
 
-# Docker installation & execution
+## Docker installation & execution
 ```
 # Build docker image from root directory of repo
 docker build --rm -t streamlit_timed -f Dockerfile.app .
@@ -118,7 +129,5 @@ Although there is no specific timeline for deliverables, this is a potential
 roadmap for future features to be implemented.
 
 * search - search for favorite items via text or celebrity
-* media connectivity - link to play videos or show images at specific time points
-* instances - scatter plots for infrequent but notable events, like celebrities
 * HUD - creation of sparklines or overlays with events of all types co-visualized
 * tech debt - speed up the ingest and processing steps
