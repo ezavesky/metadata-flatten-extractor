@@ -151,6 +151,11 @@ Job complete in 4m58.265737799s
 
 ## 0.4
 
+### 0.4.3
+* add new `azure_videoindexer` parser
+* switch flattened reference from `logo` to `brand`
+* add parsing library `pytimeparse` for simpler ingest
+
 ### 0.4.2
 * add new `time_offset` parameter to environment/run configuration
 * fix bug for reusing/rewriting existing files
@@ -190,9 +195,9 @@ Job complete in 4m58.265737799s
 ### 0.2.0
 * add initial package, requirements, docker image
 * add basic readme for usage example
-* processes types `gcp_videointelligence_label`, `gcp_videointelligence_shot_change`, `gcp_videointelligence_explicit_content`, `gcp_videointelligence_speech_transcription`, `aws_rekognition_video_content_moderation`, `aws_rekognition_video_celebs`, `aws_rekognition_video_labels`, `aws_rekognition_video_faces`, `aws_rekognition_video_person_tracking`
+* processes types `gcp_videointelligence_label`, `gcp_videointelligence_shot_change`, `gcp_videointelligence_explicit_content`, `gcp_videointelligence_speech_transcription`, `aws_rekognition_video_content_moderation`, `aws_rekognition_video_celebs`, `aws_rekognition_video_labels`, `aws_rekognition_video_faces`, `aws_rekognition_video_person_tracking`, `azure_videoindexer`
 
 
 # Future Development
 
-* the remaining known extractors... `azure_videoindexer`, `pyscenedetect`, `yolo3`, `openpose`
+* the remaining known extractors... `pyscenedetect`, `yolo3`, `openpose`
