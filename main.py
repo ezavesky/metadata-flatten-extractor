@@ -87,7 +87,6 @@ class Flatten():
         if "annotationResults" not in dict_data:
             logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_label'")
             return None
-        path_result = run_options['path_result']
 
         # return details from a local entity
         def extract_entities(entity_item, as_str=True):
@@ -347,7 +346,8 @@ class Flatten():
                                 "score": float(alt_obj["confidence"]), 
                                 "details": json.dumps({"words": num_words, "transcript": alt_obj["transcript"]}),
                                 "extractor": "gcp_videointelligence_speech_transcription"})
-            return pd.DataFrame(list_items)
+            # added duplicate drop 0.4.1 for some reason this extractor has this bad tendency
+            return pd.DataFrame(list_items).drop_duplicates(inplace=True)
 
         logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunks from source 'gcp_videointelligence_speech_transcription'")
         return None
@@ -462,10 +462,6 @@ class Flatten():
         :param: run_options (dict): specific runtime information
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
-
         list_items = []
         last_load_idx = 0
         while last_load_idx >= 0:
@@ -526,9 +522,6 @@ class Flatten():
         :param: run_options (dict): specific runtime information 
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        path_result = run_options['path_result']
-        if path.exists(path_result) and ('force_overwrite' not in run_options or not run_options['force_overwrite']):
-            return True
         list_items = []
         face_feats = ['AgeRange', 'Smile', 'Eyeglasses', 'Sunglasses', 'Gender', 'Beard', 'Mustache', 
                      'EyesOpen', 'MouthOpen', 'Pose']  # , 'Landmarks', 'Quality']  -- propose we skip these (emz 1/30
@@ -653,6 +646,7 @@ class Flatten():
         logger.critical(f"No people found in source 'aws_rekognition_video_person_tracking' ({file_search}'")
         return None
 
+
 def main():
     # check for a single argument as input for the path as an override
     if len(sys.argv) > 1:
@@ -689,18 +683,35 @@ def main():
 
             # allow injection of parameters from environment
             input_vars = {'path_result': path_output, "force_overwrite": True, 
-                          "compressed": True, 'all_frames': False}
+                          "compressed": True, 'all_frames': False, 'time_offset':0}
             if contentai.metadata is not None:  # see README.md for more info
                 input_vars.update(contentai.metadata)
 
             if "compressed" in input_vars and input_vars["compressed"]:  # allow compressed version
                 input_vars["path_result"] += ".gz"
 
+            df = None
             if path.exists(input_vars['path_result']) and input_vars['force_overwrite']:
                 logger.info(f"Skipping re-process of {input_vars['path_result']}...")
             else:
                 logger.info(f"ContentAI argments: {input_vars}")
                 df = func(input_vars)  # attempt to process
+
+            if df is not None:  # skip bad results
+                if input_vars['time_offset'] != 0:  # need offset?
+                    logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events...")
+                    for col_name in ['time_begin', 'time_end', 'time_event']:
+                        df[col_name] += input_vars ['time_offset']
+
+                df_prior = None
+                if path.exists(input_vars['path_result']):
+                    df_prior = pd.read_csv(input_vars['path_result'])
+                    logger.info(f"Loaded {len(df_prior)} existing events from {input_vars['path_result']}...")
+                    df = pd.concat([df, df_prior])
+                    num_prior = len(df)
+                    df.drop_duplicates(inplace=True)
+                    logger.info(f"Duplicates removal shrunk from {num_prior} to {len(df)} surviving events...")
+
                 df.sort_values("time_begin").to_csv(input_vars['path_result'], index=False)
                 logger.info(f"Wrote {len(df)} items to result file '{input_vars['path_result']}'")
 
