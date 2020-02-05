@@ -18,11 +18,13 @@ in the [main](main.py) script.
 
 **NOTE: Not all flattening functions will respect/obey properties defined here.**
 
-* `force_overwrite` - *(bool)* - force existing files to be overwritten
+* `force_overwrite` - *(bool)* - force existing files to be overwritten (*default=False*)
 * `compressed` - *(bool)* - compress output CSVs instead of raw write (*default=True*, e.g. append '.gz')
 * `all_frames` - *(bool)* - for video-based events, log all instances in box or just the center (*default=False*)
+* `time_offset` - *(int)* - when merging events for an asset split into multiple parts, time in seconds (*default=0*)
 
-## generated insights
+
+## generated schema
 
 The output of this flattening will be a set of CSV files, one for each extractor.  the standard
 schema for these CSV files has the following fields.
@@ -57,18 +59,29 @@ to let the code know where to look for content.
 
 One can also run the command-line with a single argument as input and optionally ad runtime
 configuration (see [runtime variables](#getting-started)) as part 
-of the `EXTRACTOR_METADATA` variable as JSON.   For utility, the below line has been wrapped
+of the `EXTRACTOR_METADATA` variable as JSON.   
+
+```shell
+EXTRACTOR_METADATA='{"compressed":True}'
+```
+
+For utility, the below line has been wrapped
 in the bash script `run_local.sh`.
 
 ```shell
-EXTRACTOR_NAME=metadata-flatten EXTRACTOR_JOB_ID=1 EXTRACTOR_CONTENT_PATH=$1 EXTRACTOR_CONTENT_URL=file://$1 EXTRACTOR_RESULT_PATH=`pwd`/results python main.py
+EXTRACTOR_METADATA='$3' EXTRACTOR_NAME=metadata-flatten EXTRACTOR_JOB_ID=1 \
+    EXTRACTOR_CONTENT_PATH=$1 EXTRACTOR_CONTENT_URL=file://$1 EXTRACTOR_RESULT_PATH=`pwd`/results/$2 \
+    python -u main.py
 ```
 
 You can locally download data from a specific job for this extractor to directly analyze.
 
 ```shell
 contentai data wHaT3ver1t1s --dir data
-./run_local.sh data/wHaT3ver1t1s
+# normal result generation into compressed CSVs (with overwrite)
+./run_local.sh data/wHaT3ver1t1s results/
+# with environment variables and integration of results from a file that was split
+ ./run_local.sh results/1XMDAz9w8T1JFEKHRuNunQhRWL1/ results/ '{"force_overwrite":false,"time_offset":10800}'
 ```
 
 
@@ -137,6 +150,10 @@ Job complete in 4m58.265737799s
 # Changes
 
 ## 0.4
+
+### 0.4.2
+* add new `time_offset` parameter to environment/run configuration
+* fix bug for reusing/rewriting existing files
 
 ### 0.4.1
 * fix docker image for nlp tasks, fix stop word aggregation
