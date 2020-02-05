@@ -89,6 +89,7 @@ def main_page(data_dir=None, media_file=None):
 
     # logger.info(list(df.columns))
 
+    @st.cache(suppress_st_warning=False)
     def _aggregate_tags(df_live, tag_type, field_group="tag"):
         df_sub = df_live[df_live["tag_type"]==tag_type].groupby(field_group)["score"] \
                     .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
@@ -179,10 +180,10 @@ def main_page(data_dir=None, media_file=None):
     st.markdown("### popular textual named entities")
     df_sub = quick_hist(df_live, "entity")  # quick tag hist
 
-    # frequency bar chart for logos
-    st.markdown("### popular logos")
-    df_sub = quick_hist(df_live, "logo")
-    quick_timeseries(df_live, df_sub, "logo", False)      # time chart of top N 
+    # frequency bar chart for brands
+    st.markdown("### popular brands")
+    df_sub = quick_hist(df_live, "brand")
+    quick_timeseries(df_live, df_sub, "brand", False)      # time chart of top N 
 
     # frequency bar chart for emotions
 
@@ -494,5 +495,4 @@ def main(args=None):
 
 # main block run by code
 if __name__ == '__main__':
-    """ Main page for streamlit timed data explorer """
     main()
