@@ -312,12 +312,12 @@ class Flatten():
             logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_speech_transcription'")
             return None
 
+        list_items = []
         re_time_clean = re.compile(r"s$")
         for annotation_obj in dict_data["annotationResults"]:  # traverse items
             if "speechTranscriptions" not in annotation_obj:  # validate object
                 logger.critical(f"Missing nested 'speechTranscriptions' in annotation chunk '{annotation_obj}'")
                 return None
-            list_items = []
             for speech_obj in annotation_obj["speechTranscriptions"]:  # walk through all parts
                 if "alternatives" not in speech_obj:
                     logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunk '{speech_obj}'")
@@ -325,8 +325,8 @@ class Flatten():
                 for alt_obj in speech_obj["alternatives"]:   # walk through speech parts
                     time_end = 0
                     time_begin = 1e200
-                    num_words = 0
-                    if "words" in alt_obj and num_words==0:  # parse all words for this transcript chunk
+                    if "words" in alt_obj and len(alt_obj['words']) > 0:  # parse all words for this transcript chunk
+                        num_words = 0
                         for word_obj in alt_obj["words"]:  # walk through all words
                             # {  "startTime": "0.400s",  "endTime": "0.700s",  "word": "Super", "confidence": 0.9128385782241821 }
                             time_begin_clean = float(re_time_clean.sub('', word_obj["startTime"]))
@@ -346,9 +346,10 @@ class Flatten():
                                 "score": float(alt_obj["confidence"]), 
                                 "details": json.dumps({"words": num_words, "transcript": alt_obj["transcript"]}),
                                 "extractor": "gcp_videointelligence_speech_transcription"})
-            # added duplicate drop 0.4.1 for some reason this extractor has this bad tendency
-            return pd.DataFrame(list_items).drop_duplicates(inplace=True)
 
+        # added duplicate drop 0.4.1 for some reason this extractor has this bad tendency
+        if len(list_items) > 0:
+            return pd.DataFrame(list_items).drop_duplicates()
         logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunks from source 'gcp_videointelligence_speech_transcription'")
         return None
 
@@ -679,7 +680,7 @@ def main():
         try:
             func = getattr(flatten, f"flatten_{extractor_name}")
             # call process with i/o specified
-            path_output = path.join(contentai.result_path, extractor_name + ".csv")
+            path_output = path.join(contentai.result_path, "flatten_" + extractor_name + ".csv")
 
             # allow injection of parameters from environment
             input_vars = {'path_result': path_output, "force_overwrite": True, 
