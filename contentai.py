@@ -22,7 +22,10 @@ extractor_name = os.getenv("EXTRACTOR_NAME", "musicnn")
 # get metadata
 metadata = None
 if "EXTRACTOR_METADATA" in os.environ:
-    metadata = json.loads(os.environ["EXTRACTOR_METADATA"])
+    try:
+        metadata = json.loads(os.environ["EXTRACTOR_METADATA"])
+    except json.decoder.JSONDecodeError as e:
+        print(f"Warning: EXTRACTOR_METADATA unusual; `{os.environ['EXTRACTOR_METADATA']}` -> parsed exception {e}")
 
 # whether or not we're running in the platform
 running_in_contentai = False
