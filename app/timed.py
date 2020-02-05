@@ -259,7 +259,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
-    for filepath in Path(data_dir).rglob(f'*.csv*'):
+    for filepath in Path(data_dir).rglob(f'flatten_*.csv*'):
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
 
@@ -304,6 +304,50 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
         df = df_new if df is None else pd.concat([df, df_new], axis=0, sort=False)
     df["details"].fillna("", inplace=True)
 
+    logger.info(f"Known columns: {list(df.columns)}")
+    logger.info(f"Known types: {list(df['tag_type'].unique())}")
+
+    # extract shot extents
+    ux_report.info(f"... mapping shot id to all events....")
+    ux_progress.progress(math.floor(float(task_idx)/task_count*100))
+    task_idx += 1
+    df["duration"] = df["time_end"] - df["time_begin"]
+    df["shot"] = 0
+
+    # TODO: allow multiple shot providers
+
+    # build look-up table for all shots by second
+    UPSAMPLE_TIME = 4  # how many map intervals per second?
+    shot_timing = range(int(math.ceil(df["time_begin"].max())) * UPSAMPLE_TIME)  # create index
+    # for speed, we generate a mapping that can round the time into a reference...
+    #   [t0, t1, t2, t3, ....] and use that mapping for duration and shot id
+    shot_lookup = None
+    shot_duration = None
+    for idx_shots, df_shots in df[df["tag"]=="shot"].groupby("extractor"):
+        if shot_lookup is not None:
+            break
+        shot_lookup = []
+        shot_duration = []
+        print(df_shots.head(0))
+        # logger.info(f"Generating shot mapping from type '{df_shots['extractor'][0]}'...")
+        df_shots = df_shots.sort_values("time_begin")
+        idx_shot = 0
+        for row_idx, row_shot in df_shots.iterrows():
+            ref_shot = int(math.floor(row_shot["time_begin"] * UPSAMPLE_TIME))
+            # print("check", ref_shot, idx_shot, row_shot["duration"])
+            while ref_shot >= len(shot_duration):
+                # print("push", ref_shot, idx_shot, row_shot["duration"])
+                shot_lookup.append(idx_shot)
+                shot_duration.append(row_shot["duration"])
+            idx_shot += 1
+    ref_shot = int(math.floor(df["time_begin"].max() * UPSAMPLE_TIME))
+    while ref_shot >= len(shot_duration):   # extend the mapping array until max time
+        shot_lookup.append(shot_duration[-1])
+        shot_duration.append(shot_duration[-1])
+
+    df["shot"] = df["time_begin"].apply(lambda x: shot_lookup[int(math.floor(x * UPSAMPLE_TIME))])     # now map the time offset 
+    df["duration"] = df["time_begin"].apply(lambda x: shot_duration[int(math.floor(x * UPSAMPLE_TIME))])     # now map the time offset 
+
     # default with tag for keywords
     df.loc[df["tag_type"]=="word", "details"] = df[df["tag_type"]=="word"]
     if NLP_TOKENIZE:
@@ -346,31 +390,16 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
         ux_progress.progress(math.floor(float(task_idx)/task_count*100))
         task_idx += 1
         # from spacy.lang.en.stop_words import STOP_WORDS
-        df_sub = df[df["tag_type"]=="word"]
-        list_new = list(df_sub["tag"])
+        list_new = df[df["tag_type"]=="word"]["tag"].unique()
+        map_new = {}
         re_clean = re.compile(r"[^0-9A-Za-z]")
         for idx_sub in range(len(list_new)):
-            ux_report.info(f"... filtering text stop words ({idx_sub}/{len(df_sub)})....")
+            ux_report.info(f"... filtering text stop words ({idx_sub}/{len(list_new)})....")
             word_new = nlp(list_new[idx_sub])
-            list_new[idx_sub] = re_clean.sub('', word_new.text.lower()) if not nlp.vocab[word_new.text].is_stop else NLP_STOPWORD
-        df.loc[df["tag_type"]=="word", "details"] = list_new
+            map_new[list_new[idx_sub]] = re_clean.sub('', word_new.text.lower()) if not nlp.vocab[word_new.text].is_stop else NLP_STOPWORD
+        # now map to single array of mapping
+        df.loc[df["tag_type"]=="word", "details"] =  df[df["tag_type"]=="word"]["tag"].apply(lambda x: map_new[x])
 
-    # extract shot extents
-    ux_report.info(f"... mapping shot id to all events....")
-    ux_progress.progress(math.floor(float(task_idx)/task_count*100))
-    task_idx += 1
-    df["duration"] = df["time_end"] - df["time_begin"]
-    df["shot"] = 0
-    df_sub = df[df["tag"]=="shot"]
-    idx_sub = 0
-    for row_idx, row_shot in df_sub.iterrows():
-        ux_report.info(f"... mapping shot id to all events ({idx_sub}/{len(df_sub)}) for {len(df)} samples....")
-        # idx_match = df.loc[row_shot["time_begin"]:row_shot["time_end"]].index   # find events to update
-        idx_match = df.loc[(df["time_begin"] >= row_shot["time_begin"])
-                            & (df["time_end"] < row_shot["time_end"])].index   # find events to update
-        df.loc[idx_match, "duration"] = row_shot["duration"]
-        df.loc[idx_match, "shot"] = idx_sub
-        idx_sub += 1
 
     ux_report.info(f"... normalizing time signatures...")
     ux_progress.progress(math.floor(float(task_idx)/task_count*100))
