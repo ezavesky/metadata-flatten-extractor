@@ -154,6 +154,7 @@ Job complete in 4m58.265737799s
 ### 0.4.2
 * add new `time_offset` parameter to environment/run configuration
 * fix bug for reusing/rewriting existing files
+* add output prefix `flatten_` to all generated CSVs to avoid collision with other extractor input
 
 ### 0.4.1
 * fix docker image for nlp tasks, fix stop word aggregation
