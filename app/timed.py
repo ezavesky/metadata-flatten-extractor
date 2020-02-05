@@ -193,9 +193,9 @@ def main_page(data_dir=None, media_file=None):
     quick_timeseries(df_live, df_sub, "identity", False)      # time chart of top N 
     
     # frequency bar chart for celebrities
-    st.markdown("### explicit events timeline")
-    df_sub = quick_hist(df_live, "explicit", False)
-    quick_timeseries(df_live, df_sub, "explicit", False)      # time chart of top N 
+    st.markdown("### moderation events timeline")
+    df_sub = quick_hist(df_live, "moderation", False)
+    quick_timeseries(df_live, df_sub, "moderation", False)      # time chart of top N 
     
     # TODO: shot length distribution?
 

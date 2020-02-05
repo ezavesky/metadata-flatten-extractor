@@ -153,7 +153,7 @@ Job complete in 4m58.265737799s
 
 ### 0.4.3
 * add new `azure_videoindexer` parser
-* switch flattened reference from `logo` to `brand`
+* switch flattened reference from `logo` to `brand`; `explicit` to `moderation`
 * add parsing library `pytimeparse` for simpler ingest
 
 ### 0.4.2

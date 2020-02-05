@@ -448,7 +448,7 @@ class Flatten():
                         time_frame = float(celebrity_obj["Timestamp"])/1000
                         details_obj = {'category': local_obj["ParentName"]}
                         score_frame = round(float(local_obj["Confidence"])/100, 4)
-                        list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "explicit",
+                        list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "moderation",
                             "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                             "score": score_frame, "details": json.dumps(details_obj),
                             "extractor": "aws_rekognition_video_content_moderation"})
@@ -797,7 +797,7 @@ class Flatten():
 
             if "namedPeople" in insight_obj:  # loop over named entities
                 for local_obj in insight_obj['namedPeople']:
-                    if "name" in local_obj and "instances" in local_obj:  # validate object
+                    if "instances" in local_obj:  # validate object
                         details_obj = {"url": local_obj["referenceUrl"], "description": local_obj['description']}
                         for time_obj in local_obj["instances"]:  # walk through all appearances
                             time_begin = parse(time_obj['start'])
@@ -808,7 +808,84 @@ class Flatten():
                                 "score":  local_obj['confidence'], "details": json.dumps(details_obj),
                                 "extractor": "azure_videoindexer"})
 
-            # "visualContentModeration",  'transcripts', 'ocr', 'scenes', 'shots', ''
+            # TODO: consider adding 'textualContentModeration'
+
+            if "visualContentModeration" in insight_obj:  # loop over named moderation
+                score_map = {'adultScore': 'adult', 'racyScore': 'racy'}
+                for local_obj in insight_obj['visualContentModeration']:
+                    if "name" in local_obj and "instances" in local_obj:  # validate object
+                        for time_obj in local_obj["instances"]:  # walk through all appearances
+                            time_begin = parse(time_obj['start'])
+                            time_end = parse(time_obj['end'])
+                            for type_moderation in score_map:
+                                if local_obj[type_moderation] > 0:
+                                    list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "moderation",
+                                        "time_end": time_frame, "time_event": time_frame, "tag": score_map[type_moderation],
+                                        "score": local_obj[type_moderation], "details": "",
+                                        "extractor": "azure_videoindexer"})
+
+            if "transcripts" in insight_obj:  # loop over transcripts
+                for local_obj in insight_obj['transcripts']:
+                    if "text" in local_obj and "instances" in local_obj and len(local_obj["text"]) > 0:  # validate object
+                        for time_obj in local_obj["instances"]:  # walk through all appearances
+                            time_begin = parse(time_obj['start'])
+                            time_end = parse(time_obj['end'])
+                            list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "transcript",
+                                "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
+                                "score": float(time_obj["confidence"]), 
+                                "details": json.dumps({ "transcript": local_obj["transcript"]}),
+                                "extractor": "azure_videoindexer"})
+
+            if "ocr" in insight_obj:  # loop over ocr
+                for local_obj in insight_obj['ocr']:
+                    if "text" in local_obj and "instances" in local_obj and len(local_obj["text"]) > 0:  # validate object
+                        local_box = {'w': round(local_obj['width'], 4), 
+                            'h': round(local_obj['height'], 4),
+                            'l': round(local_obj['left'], 4), 
+                            't': round(local_obj    ['top'], 4),
+                            'transcript': local_obj['text'] }
+                        for time_obj in local_obj["instances"]:  # walk through all appearances
+                            time_begin = parse(time_obj['start'])
+                            time_end = parse(time_obj['end'])
+                            list_items.append( {"time_begin": time_begin, "source_event": "image", "tag_type": "ocr",
+                                "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
+                                "score": float(local_obj["confidence"]), 
+                                "details": json.dumps(local_box),
+                                "extractor": "azure_videoindexer"})
+
+            if "shots" in insight_obj:  # loop over shot
+                for local_obj in insight_obj['shots']:
+                    if "keyFrames" in local_obj and "instances" in local_obj:  # validate object
+                        details_obj = { }
+                        if 'tags' in local_obj:
+                            details_obj['tags'] = local_obj['tags']
+
+                        time_event = None
+                        if 'keyFrames' in local_obj:   # try to get a specific keyframe
+                            key_frame_obj = local_obj['keyFrames'][0]   # grab first frame
+                            if "instances" in key_frame_obj:
+                                time_event = parse(key_frame_obj['instances'][0]['start'])                            
+
+                        for time_obj in local_obj["instances"]:  # walk through all appearances
+                            time_begin = parse(time_obj['start'])
+                            time_end = parse(time_obj['end'])
+                            if time_event is None:
+                                time_event = time_begin
+                            list_items.append( {"time_begin": time_begin, "source_event": "video", "tag_type": "shot",
+                                "time_end": time_end, "time_event": time_event, "tag": "shot",
+                                "score": 1.0, "details": json.dumps(details_obj),
+                                "extractor": "azure_videoindexer"})
+
+            if "scenes" in insight_obj:  # loop over scenes
+                for local_obj in insight_obj['scenes']:
+                    if "instances" in local_obj:  # validate object
+                        for time_obj in local_obj["instances"]:  # walk through all appearances
+                            time_begin = parse(time_obj['start'])
+                            time_end = parse(time_obj['end'])
+                            list_items.append( {"time_begin": time_begin, "source_event": "video", "tag_type": "scene",
+                                "time_end": time_end, "time_event": time_begin, "tag": "scene",
+                                "score": 1.0, "details": "",
+                                "extractor": "azure_videoindexer"})
 
         if len(list_items) > 0:   # return the whole thing as dataframe
             return pd.DataFrame(list_items)
