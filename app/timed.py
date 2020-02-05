@@ -147,7 +147,8 @@ def main_page(data_dir=None, media_file=None):
             if not image_only:
                 return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy {media_output}")
             else: 
-                return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 {media_output}")
+                # TODO: do we allow force of an aspect ratio for bad video transcode?  e.g. -vf 'scale=640:360' 
+                return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 {media_output}")  
         else:
             return -1
 
@@ -346,14 +347,12 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
         task_idx += 1
         # from spacy.lang.en.stop_words import STOP_WORDS
         df_sub = df[df["tag_type"]=="word"]
-        list_new = df_sub["details"]
-        idx_sub = 0
+        list_new = list(df_sub["tag"])
         re_clean = re.compile(r"[^0-9A-Za-z]")
-        for row_idx, row_word in df_sub.iterrows():
+        for idx_sub in range(len(list_new)):
             ux_report.info(f"... filtering text stop words ({idx_sub}/{len(df_sub)})....")
-            word_new = nlp(row_word["tag"])
+            word_new = nlp(list_new[idx_sub])
             list_new[idx_sub] = re_clean.sub('', word_new.text.lower()) if not nlp.vocab[word_new.text].is_stop else NLP_STOPWORD
-            idx_sub += 1
         df.loc[df["tag_type"]=="word", "details"] = list_new
 
     # extract shot extents
