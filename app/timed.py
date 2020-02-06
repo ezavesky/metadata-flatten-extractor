@@ -51,8 +51,8 @@ TOP_LINE_N = 5
 NLP_FILTER = 0.025
 SAMPLE_N = 250
 
-DEFAULT_REWIND = 5 # how early to start clip from max score (sec)
-DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
+DEFAULT_REWIND = 2 # how early to start clip from max score (sec)
+DEFAULT_CLIPLEN = 5 # length of default cllip (sec)
 
 ALTAIR_DEFAULT_WIDTH = 660   # width of charts
 ALTAIR_DEFAULT_HEIGHT = 300   # height of charts
@@ -66,12 +66,15 @@ ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts
 def _aggregate_tags(df_live, tag_type, field_group="tag"):
     df_sub = df_live
     if tag_type is not None:
-        df_sub = df_live[df_live["tag_type"]==tag_type]
+        if type(tag_type) != list:
+            tag_type = [tag_type]
+        df_sub = df_live[df_live["tag_type"].isin(tag_type)]
     df_sub = df_sub.groupby(field_group)["score"] \
                 .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
                 .sort_values(["count", "mean"], ascending=False)
     df_sub[["mean", "min", "max"]] = df_sub[["mean", "min", "max"]].apply(lambda x: round(x, 3))
     return df_sub
+
 
 def _quick_sorted_barchart(df_sub):
     """Create bar chart (e.g. histogram) with no axis sorting..."""
@@ -97,14 +100,18 @@ def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
         _quick_sorted_barchart(df_sub)
     return df_sub
 
+
 def quick_timeseries(df_live, df_sub, tag_type, use_line=True):
     """Helper function to draw a timeseries for a few top selected tags..."""
     if df_sub is None:
         return
-    add_tag = st.selectbox("Additional Timeline Tag", list(df_live[df_live["tag_type"]==tag_type]["tag"].unique()))
+    if type(tag_type) != list:
+        tag_type = [tag_type]
+    add_tag = st.selectbox("Additional Timeline Tag", list(df_sub["tag"].unique()))
     tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
 
-    df_sub = df_live[(df_live["tag_type"]==tag_type) & (df_live["tag"].isin(tag_top))]    # filter top
+    df_subtags = df_live[df_live["tag_type"].isin(tag_type)]
+    df_sub = df_subtags[df_subtags["tag"].isin(tag_top)]    # filter top
     df_sub = df_sub[["tag", "score"]]   # select only score and tag name
     df_sub.index = df_sub.index.round('1T')
     df_filtered = pd.DataFrame([])
@@ -115,18 +122,19 @@ def quick_timeseries(df_live, df_sub, tag_type, use_line=True):
         df_resample["time"] = pd.to_datetime('2018-01-01') + df_resample.index
         df_resample["tag"] = n
         df_filtered = pd.concat([df_filtered, df_resample], sort=False)
+    df_filtered["score"] = df_filtered["score"].round(3)
     if use_line:
         chart = alt.Chart(df_filtered, width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_line().encode(
             x=alt.X('hoursminutes(time)', sort=None),
             y=alt.Y('score', sort=None),
             color='tag',
-            tooltip=['tag','time','score'])
+            tooltip=['tag','hoursminutes(time)','score'])
     else:
         chart = alt.Chart(df_filtered, width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_area(opacity=0.5).encode(
             x=alt.X('hoursminutes(time)', sort=None),
             y=alt.Y('score', sort=None, stack=None),
             color='tag', 
-            tooltip=['tag','time','score'])
+            tooltip=['tag','hoursminutes(time)','score'])
     st.altair_chart(chart)
 
 
@@ -136,10 +144,10 @@ def clip_video(media_file, media_output, start, duration=1, image_only=False):
         unlink(media_output)
     if (system("which ffmpeg")==0):  # check if ffmpeg is in path
         if not image_only:
-            return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy {media_output}")
+            return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy -y {media_output}")
         else: 
             # TODO: do we allow force of an aspect ratio for bad video transcode?  e.g. -vf 'scale=640:360' 
-            return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 {media_output}")  
+            return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 -y {media_output}")  
     else:
         return -1
 
@@ -220,6 +228,9 @@ def main_page(data_dir=None, media_file=None):
     quick_timeseries(df_live, df_sub, "brand", False)      # time chart of top N 
 
     # frequency bar chart for emotions
+    st.markdown("### frequent emotion and sentiment")
+    df_sub =  _aggregate_tags(df_live, ["sentiment", "emotion"])
+    quick_timeseries(df_live, df_sub, ["sentiment", "emotion"], False)      # time chart of top N 
 
     # frequency bar chart for celebrities
     st.markdown("### popular celebrities")
@@ -230,11 +241,9 @@ def main_page(data_dir=None, media_file=None):
     st.markdown("### moderation events timeline")
     df_sub = quick_hist(df_live, "moderation", False)
     quick_timeseries(df_live, df_sub, "moderation", False)      # time chart of top N 
-    
-    # TODO: shot length distribution?
 
     # plunk down a dataframe for people to explore as they want
-    st.markdown(f"## filtered exploration ({SAMPLE_N} events)")
+    st.markdown(f"## filtered exploration ({SAMPLE_N}/{len(df_live)} events)")
     filter_tag = st.selectbox("Tag Type for Exploration", ["All"] + list(df_live["tag_type"].unique()))
     order_tag = st.selectbox("Sort Metric", ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
                                          "duration - ascending", "duration - descending"])
