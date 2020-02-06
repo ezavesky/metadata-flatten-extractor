@@ -281,9 +281,11 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
     if allow_cache and (path.exists(path_new) or path_backup is not None):
         if path.exists(path_new):  # if so, load old datafile, skip reload
             return pd.read_pickle(path_new)
-        else:
+        elif len(list_files) == 0:  # only allow backup if new files weren't found
             st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
             return pd.read_pickle(path_backup)
+        else:   # otherwise, delete the old backup
+            unlink(path_backup.resolve())
     
     # time_init = pd.Timestamp('2010-01-01T00')  # not used any more
     ux_report = st.empty()

@@ -155,6 +155,7 @@ Job complete in 4m58.265737799s
 * add new `azure_videoindexer` parser
 * switch flattened reference from `logo` to `brand`; `explicit` to `moderation`
 * add parsing library `pytimeparse` for simpler ingest
+* fix bug to delete old data bundle if reference files are available
 
 ### 0.4.2
 * add new `time_offset` parameter to environment/run configuration
