@@ -151,6 +151,11 @@ Job complete in 4m58.265737799s
 
 ## 0.4
 
+### 0.4.4
+* fixes for `azure_videoindexer` parser
+* add sentiment and emotion summary
+* rework graph generation and add bran/entity search capability
+
 ### 0.4.3
 * add new `azure_videoindexer` parser
 * switch flattened reference from `logo` to `brand`; `explicit` to `moderation`
