@@ -51,11 +51,117 @@ TOP_LINE_N = 5
 NLP_FILTER = 0.025
 SAMPLE_N = 250
 
-DEFAULT_REWIND = 5 # how early to start clip from max score (sec)
-DEFAULT_CLIPLEN = 10 # length of default cllip (sec)
+DEFAULT_REWIND = 2 # how early to start clip from max score (sec)
+DEFAULT_CLIPLEN = 5 # length of default cllip (sec)
 
 ALTAIR_DEFAULT_WIDTH = 660   # width of charts
-ALTAIR_DEFAULT_HEIGHT = 300   # height of charts
+ALTAIR_DEFAULT_HEIGHT = 220   # height of charts
+ALTAIR_SIDEBAR_WIDTH = 280   # width of charts
+ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts
+
+
+### ------------ helper functions ---------------------
+
+@st.cache(suppress_st_warning=False)
+def _aggregate_tags(df_live, tag_type, field_group="tag"):
+    df_sub = df_live
+    if tag_type is not None:
+        if type(tag_type) != list:
+            tag_type = [tag_type]
+        df_sub = df_live[df_live["tag_type"].isin(tag_type)]
+    df_sub = df_sub.groupby(field_group)["score"] \
+                .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
+                .sort_values(["count", "mean"], ascending=False)
+    df_sub[["mean", "min", "max"]] = df_sub[["mean", "min", "max"]].apply(lambda x: round(x, 3))
+    return df_sub
+
+
+def _quick_sorted_barchart(df_sub):
+    """Create bar chart (e.g. histogram) with no axis sorting..."""
+    if False:   #  https://github.com/streamlit/streamlit/issues/385
+        st.bar_chart(df_sub["count"].head(TOP_HISTOGRAM_N))
+    else:
+        # https://github.com/streamlit/streamlit/blob/5e8e0ec1b46ac0b322dc48d27494be674ad238fa/lib/streamlit/DeltaGenerator.py
+        chart = alt.Chart(df_sub.head(TOP_HISTOGRAM_N), width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_bar().encode(
+            x=alt.X('count', sort=None),
+            y=alt.Y('tag', sort=None),
+            tooltip=['tag', 'count', 'mean', 'min'])
+        st.altair_chart(chart)
+
+
+def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
+    """Helper function to draw aggregate histograms of tags"""
+    df_sub = _aggregate_tags(df_live, tag_type, field_group)
+    if len(df_sub) == 0:
+        st.markdown("*Sorry, the active filters removed all events for this display.*")
+        return None
+    # unfortunately, a bug currently overrides sort order
+    if show_hist:
+        _quick_sorted_barchart(df_sub)
+    return df_sub
+
+
+def quick_timeseries(df_live, df_sub, tag_type, use_line=True):
+    """Helper function to draw a timeseries for a few top selected tags..."""
+    if df_sub is None:
+        return
+    if type(tag_type) != list:
+        tag_type = [tag_type]
+    add_tag = st.selectbox("Additional Timeline Tag", list(df_sub["tag"].unique()))
+    tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
+
+    df_subtags = df_live[df_live["tag_type"].isin(tag_type)]
+    df_sub = df_subtags[df_subtags["tag"].isin(tag_top)]    # filter top
+    df_sub = df_sub[["tag", "score"]]   # select only score and tag name
+    df_sub.index = df_sub.index.round('1T')
+    df_filtered = pd.DataFrame([])
+    for n in tag_top:    # resample each top tag
+        df_resample = pd.DataFrame(df_sub[df_sub["tag"] == n].resample('1T', base=0).mean()["score"]).fillna(0)
+        df_resample.columns = ["score"]
+        # need to convert to date time -- https://github.com/altair-viz/altair/issues/967#issuecomment-399774414
+        df_resample["time"] = pd.to_datetime('2018-01-01') + df_resample.index
+        df_resample["tag"] = n
+        df_filtered = pd.concat([df_filtered, df_resample], sort=False)
+    df_filtered["score"] = df_filtered["score"].round(3)
+    if use_line:
+        chart = alt.Chart(df_filtered, width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_line().encode(
+            x=alt.X('hoursminutes(time)', sort=None),
+            y=alt.Y('score', sort=None),
+            color='tag',
+            tooltip=['tag','hoursminutes(time)','score'])
+    else:
+        chart = alt.Chart(df_filtered, width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_area(opacity=0.5).encode(
+            x=alt.X('hoursminutes(time)', sort=None),
+            y=alt.Y('score', sort=None, stack=None),
+            color='tag', 
+            tooltip=['tag','hoursminutes(time)','score'])
+    st.altair_chart(chart)
+
+
+def clip_video(media_file, media_output, start, duration=1, image_only=False):
+    """Helper function to create video clip"""
+    if path.exists(media_output):
+        unlink(media_output)
+    if (system("which ffmpeg")==0):  # check if ffmpeg is in path
+        if not image_only:
+            return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy -y {media_output}")
+        else: 
+            # TODO: do we allow force of an aspect ratio for bad video transcode?  e.g. -vf 'scale=640:360' 
+            return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 -y {media_output}")  
+    else:
+        return -1
+
+@st.cache(suppress_st_warning=False)
+def clip_media(media_file, media_output, start):
+    """Helper function to create video clip"""
+    status = clip_video(media_file, media_output, start, image_only=True)
+    if status == 0:
+        with open(media_output, 'rb') as f:
+            return f.read()
+    return None
+        
+
+### ------------ main rendering page and sidebar ---------------------
 
 def main_page(data_dir=None, media_file=None):
     """Main page for execution"""
@@ -89,71 +195,7 @@ def main_page(data_dir=None, media_file=None):
 
     # logger.info(list(df.columns))
 
-    @st.cache(suppress_st_warning=False)
-    def _aggregate_tags(df_live, tag_type, field_group="tag"):
-        df_sub = df_live[df_live["tag_type"]==tag_type].groupby(field_group)["score"] \
-                    .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
-                    .sort_values(["count", "mean"], ascending=False)
-        df_sub[["mean", "min", "max"]] = df_sub[["mean", "min", "max"]].apply(lambda x: round(x, 3))
-        return df_sub
-
-    def _quick_sorted_barchart(df_sub):
-        """Create bar chart (e.g. histogram) with no axis sorting..."""
-        if False:   #  https://github.com/streamlit/streamlit/issues/385
-            st.bar_chart(df_sub["tag"].head(TOP_HISTOGRAM_N))
-        else:
-            # https://github.com/streamlit/streamlit/blob/5e8e0ec1b46ac0b322dc48d27494be674ad238fa/lib/streamlit/DeltaGenerator.py
-            st.write(alt.Chart(df_sub.head(TOP_HISTOGRAM_N), width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_bar().encode(
-                x=alt.X('count', sort=None),
-                y=alt.Y('tag', sort=None),
-                tooltip=['tag', 'count', 'mean', 'min']
-            ))
-
-
-    def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
-        """Helper function to draw aggregate histograms of tags"""
-        df_sub = _aggregate_tags(df_live, tag_type, field_group)
-        if len(df_sub) == 0:
-            st.markdown("*Sorry, the active filters removed all events for this display.*")
-            return None
-        # unfortunately, a bug currently overrides sort order
-        if show_hist:
-            _quick_sorted_barchart(df_sub)
-        return df_sub
-
-    def quick_timeseries(df_live, df_sub, tag_type, use_line=True):
-        """Helper function to draw a timeseries for a few top selected tags..."""
-        if df_sub is None:
-            return
-        add_tag = st.selectbox("Additional Timeline Tag", list(df_live[df_live["tag_type"]==tag_type]["tag"].unique()))
-        tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
-
-        df_sub = df_live[(df_live["tag_type"]==tag_type) & (df_live["tag"].isin(tag_top))]    # filter top
-        df_sub = df_sub[["tag", "score"]]   # select only score and tag name
-        df_sub.index = df_sub.index.round('1T')
-        list_resampled = [df_sub[df_sub["tag"] == n].resample('1T', base=0).mean()["score"] for n in tag_top]   # resample each top tag
-        df_scored = pd.concat(list_resampled, axis=1).fillna(0)
-        df_scored.columns = tag_top
-        df_scored.index = df_scored.index.seconds // 60
-        if use_line:
-            st.line_chart(df_scored)
-        else:
-            st.area_chart(df_scored)
-
-    def clip_video(media_file, media_output, start, duration=1, image_only=False):
-        """Helper function to create video clip"""
-        if path.exists(media_output):
-            unlink(media_output)
-        if (system("which ffmpeg")==0):  # check if ffmpeg is in path
-            if not image_only:
-                return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy {media_output}")
-            else: 
-                # TODO: do we allow force of an aspect ratio for bad video transcode?  e.g. -vf 'scale=640:360' 
-                return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 {media_output}")  
-        else:
-            return -1
-
-    st.markdown("## high-frequency content")
+    st.markdown("## frequency analysis")
 
     # frequency bar chart for found labels / tags
     st.markdown("### popular visual tags")
@@ -185,22 +227,23 @@ def main_page(data_dir=None, media_file=None):
     df_sub = quick_hist(df_live, "brand")
     quick_timeseries(df_live, df_sub, "brand", False)      # time chart of top N 
 
-    # frequency bar chart for emotions
-
     # frequency bar chart for celebrities
     st.markdown("### popular celebrities")
     df_sub = quick_hist(df_live, "identity")
     quick_timeseries(df_live, df_sub, "identity", False)      # time chart of top N 
     
+    # frequency bar chart for emotions
+    st.markdown("### frequent emotion and sentiment")
+    df_sub =  _aggregate_tags(df_live, ["sentiment", "emotion"])
+    quick_timeseries(df_live, df_sub, ["sentiment", "emotion"], False)      # time chart of top N 
+
     # frequency bar chart for celebrities
     st.markdown("### moderation events timeline")
     df_sub = quick_hist(df_live, "moderation", False)
     quick_timeseries(df_live, df_sub, "moderation", False)      # time chart of top N 
-    
-    # TODO: shot length distribution?
 
     # plunk down a dataframe for people to explore as they want
-    st.markdown(f"## filtered exploration ({SAMPLE_N} events)")
+    st.markdown(f"## filtered exploration ({SAMPLE_N}/{len(df_live)} events)")
     filter_tag = st.selectbox("Tag Type for Exploration", ["All"] + list(df_live["tag_type"].unique()))
     order_tag = st.selectbox("Sort Metric", ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
                                          "duration - ascending", "duration - descending"])
@@ -214,6 +257,20 @@ def main_page(data_dir=None, media_file=None):
     else:
         df_sub = df_sub.sort_values(order_sort, ascending=order_ascend).head(SAMPLE_N)
     st.write(df_sub)
+
+    # compute the distribution
+    st.markdown("### overall tag distributions")
+    df_sub = df_live.copy()
+    df_sub["score"] = df_live["score"].apply(lambda x: math.floor(x * 100)/100)
+    df_sub = _aggregate_tags(df_sub, None, ["tag_type","score"])
+    # df_sub = df_sub.pivot(index="score", columns="tag_type", values="count").fillna(0)
+    chart = alt.Chart(df_sub, height=ALTAIR_DEFAULT_HEIGHT, width=ALTAIR_DEFAULT_WIDTH).mark_bar().encode(
+        x=alt.X('score', sort=None),
+        y=alt.Y('count', sort=None, scale=alt.Scale(type="log"), stack=None),
+        color='tag_type',
+        tooltip=['tag_type','count','score'])
+    st.altair_chart(chart)
+
 
     st.markdown(f"## clip replay")
 
@@ -229,9 +286,11 @@ def main_page(data_dir=None, media_file=None):
         celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
         # sor to find the best scoring, shortest duration clip
         df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag].sort_values(["score", "duration"], ascending=[False, True])
-        # get begin_time with max score for selected celeb, convert to seconds
-        row_first = df_celeb_sel.head(1)
-        time_begin_sec = int(row_first['time_begin'] / np.timedelta64(1, 's'))
+        # get begin_time with max score for selected celeb
+        sel_shot = df_celeb_sel["shot"][0]
+        time_event_sec = int(df_celeb_sel['time_begin'][0] / np.timedelta64(1, 's'))   # convert to seconds 
+        row_first = df_live[(df_live["shot"]==sel_shot) & (df_live["tag_type"]=="shot")].head(1)
+        time_begin_sec = int(row_first['time_begin'] / np.timedelta64(1, 's'))   # convert to seconds
         time_duration_sec = int(row_first["duration"])  # use shot duration
         if time_duration_sec < DEFAULT_CLIPLEN:   # min clip length
             time_duration_sec = DEFAULT_CLIPLEN
@@ -247,9 +306,9 @@ def main_page(data_dir=None, media_file=None):
             else:
                 st.markdown("**Error:** creating video clip.")
         else:       # print thumbnail
-            status = clip_video(media_file, media_image, time_begin_sec, image_only=True)
-            if status == 0:
-                st.image(media_image, use_column_width=True,
+            media_data = clip_media(media_file, media_image, time_event_sec)
+            if media_data is not None:
+                st.image(media_data, use_column_width=True,
                         caption=f"Celebrity: {celebrity_tag} (score: {row_first['score'][0]}) @ {time_str}")
 
 
@@ -326,12 +385,11 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
     #   [t0, t1, t2, t3, ....] and use that mapping for duration and shot id
     shot_lookup = None
     shot_duration = None
-    for idx_shots, df_shots in df[df["tag"]=="shot"].groupby("extractor"):
+    for idx_shots, df_shots in df[df["tag_type"]=="shot"].groupby("extractor"):
         if shot_lookup is not None:
             break
         shot_lookup = []
         shot_duration = []
-        print(df_shots.head(0))
         # logger.info(f"Generating shot mapping from type '{df_shots['extractor'][0]}'...")
         df_shots = df_shots.sort_values("time_begin")
         idx_shot = 0
@@ -403,7 +461,6 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
         # now map to single array of mapping
         df.loc[df["tag_type"]=="word", "details"] =  df[df["tag_type"]=="word"]["tag"].apply(lambda x: map_new[x])
 
-
     ux_report.info(f"... normalizing time signatures...")
     ux_progress.progress(math.floor(float(task_idx)/task_count*100))
     task_idx += 1
@@ -431,40 +488,58 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
     return df
 
 
-
 def draw_sidebar(df, sort_list=None):
     # Generate the slider filters based on the data available in this subset of titles
     # Only show the slider if there is more than one value for that slider, otherwise, don't filter
-    st.sidebar.title('Discovery Filters')
-    st.sidebar.markdown("<br>", unsafe_allow_html=True)
+    st.sidebar.markdown('### Discovery Filters')
+    idx_match = [True] * len(df)    # start with whole index
+
+    df_text_df = df[(df["tag_type"]=="brand") | (df["tag_type"]=="identity")]
+    sel_keywords = st.sidebar.multiselect("Brand and Celebrity Search (intersecting search)", list(df_text_df['tag'].unique()), default=None)
+    shot_list_keyword = set(df_text_df['shot'].unique())
+    for keyword in sel_keywords:
+        shot_list_keyword = shot_list_keyword.intersection(df_text_df[df_text_df["tag"]==keyword]['shot'].unique())
+    st.sidebar.markdown("<hr style='margin-top:-0.25em; margin-bottom:-0.25em' />", unsafe_allow_html=True)
+    # print("KEY", shot_list_keyword, shot_list)
+    if len(shot_list_keyword) > 0:    # filter indexes by text match
+        idx_match &= df['shot'].isin(shot_list_keyword)
 
     # strict timeline slider
     value = (int(df.index.min().seconds // 60), int(df.index.max().seconds // 60))
-    time_bound = st.sidebar.slider("Time Range (min)", min_value=value[0], max_value=value[1], value=value)
-    st.sidebar.markdown("<br>", unsafe_allow_html=True)
-
-    # extract shot extents (shot length)
-    value = (int(df["duration"].min()), int(df["duration"].max()))
-    duration_bound = st.sidebar.slider("Shot Duration (sec)", min_value=value[0], max_value=value[1], value=value, step=1)
-    st.sidebar.markdown("<br>", unsafe_allow_html=True)
+    time_bound = st.sidebar.slider("Event Time Range (min)", min_value=value[0], max_value=value[1], value=value)
+    idx_match &= (df['time_begin'] >= pd.to_timedelta(time_bound[0], unit='min')) \
+                    & (df['time_end'] <= pd.to_timedelta(time_bound[1], unit='min'))
 
     # confidence measure
     value = (df["score"].min(), df["score"].max())
     score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
-    st.sidebar.markdown("<br>", unsafe_allow_html=True)
+    idx_match &= (df['score'] >= score_bound[0]) & (df['score'] <= score_bound[1])
 
+    # extract shot extents (shot length)
+    value = (int(df["duration"].min()), int(df["duration"].max()))
+    duration_bound = st.sidebar.slider("Shot Duration (sec)", min_value=value[0], max_value=value[1], value=value, step=1)
+    idx_match &= (df['duration'] >= duration_bound[0]) & (df['duration'] <= duration_bound[1])
+
+    # list for selected shot source
+    shot_source = st.sidebar.selectbox("Shot Source", list(df[df["tag_type"]=="shot"]["extractor"].unique()) )
+    st.sidebar.markdown("<div style='margin-top:-1em;font-size:smaller;text-align:center'>(currently disabled)</div>", unsafe_allow_html=True)
 
     # extract faces (emotion)
 
     # Filter by slider inputs to only show relevant events
-    df_filter = df[(df['time_begin'] >= pd.to_timedelta(time_bound[0], unit='min')) 
-                    & (df['time_end'] <= pd.to_timedelta(time_bound[1], unit='min'))
-                    & (df['duration'] >= duration_bound[0]) 
-                    & (df['duration'] <= duration_bound[1])
-                    & (df['score'] >= score_bound[0]) 
-                    & (df['score'] <= score_bound[1])
-    ]
+    df_filter = df[idx_match]
+    st.sidebar.markdown("<hr style='margin-top:-0.25em; margin-bottom:-0.25em' />", unsafe_allow_html=True)
 
+    # compute the distribution of shot time
+    st.sidebar.markdown("<div style='font-size:smaller;text-align:left'>Filtered Shot Duration Distribution</div>", unsafe_allow_html=True)
+    df_sub = df_filter.copy()
+    df_sub["seconds"] = df_sub["duration"].apply(lambda x: math.floor(x * 4)/4)
+    df_sub = _aggregate_tags(df_sub, "shot", "seconds")
+    chart = alt.Chart(df_sub, height=ALTAIR_SIDEBAR_HEIGHT, width=ALTAIR_SIDEBAR_WIDTH).mark_bar().encode(
+        x=alt.X('seconds', sort=None),
+        y=alt.Y('count', sort=None, scale=alt.Scale(type="log"), stack=None),
+        tooltip=['count','seconds'])
+    st.sidebar.altair_chart(chart)
 
     # hard work done, return the trends!
     if sort_list is None:
