@@ -813,14 +813,14 @@ class Flatten():
             if "visualContentModeration" in insight_obj:  # loop over named moderation
                 score_map = {'adultScore': 'adult', 'racyScore': 'racy'}
                 for local_obj in insight_obj['visualContentModeration']:
-                    if "name" in local_obj and "instances" in local_obj:  # validate object
+                    if "instances" in local_obj:  # validate object
                         for time_obj in local_obj["instances"]:  # walk through all appearances
                             time_begin = parse(time_obj['start'])
                             time_end = parse(time_obj['end'])
                             for type_moderation in score_map:
                                 if local_obj[type_moderation] > 0:
-                                    list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "moderation",
-                                        "time_end": time_frame, "time_event": time_frame, "tag": score_map[type_moderation],
+                                    list_items.append({"time_begin": time_begin, "source_event": "image",  "tag_type": "moderation",
+                                        "time_end": time_end, "time_event": time_begin, "tag": score_map[type_moderation],
                                         "score": local_obj[type_moderation], "details": "",
                                         "extractor": "azure_videoindexer"})
 
