@@ -89,6 +89,7 @@ def main_page(data_dir=None, media_file=None):
 
     # logger.info(list(df.columns))
 
+    @st.cache(suppress_st_warning=False)
     def _aggregate_tags(df_live, tag_type, field_group="tag"):
         df_sub = df_live[df_live["tag_type"]==tag_type].groupby(field_group)["score"] \
                     .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
@@ -179,10 +180,10 @@ def main_page(data_dir=None, media_file=None):
     st.markdown("### popular textual named entities")
     df_sub = quick_hist(df_live, "entity")  # quick tag hist
 
-    # frequency bar chart for logos
-    st.markdown("### popular logos")
-    df_sub = quick_hist(df_live, "logo")
-    quick_timeseries(df_live, df_sub, "logo", False)      # time chart of top N 
+    # frequency bar chart for brands
+    st.markdown("### popular brands")
+    df_sub = quick_hist(df_live, "brand")
+    quick_timeseries(df_live, df_sub, "brand", False)      # time chart of top N 
 
     # frequency bar chart for emotions
 
@@ -192,9 +193,9 @@ def main_page(data_dir=None, media_file=None):
     quick_timeseries(df_live, df_sub, "identity", False)      # time chart of top N 
     
     # frequency bar chart for celebrities
-    st.markdown("### explicit events timeline")
-    df_sub = quick_hist(df_live, "explicit", False)
-    quick_timeseries(df_live, df_sub, "explicit", False)      # time chart of top N 
+    st.markdown("### moderation events timeline")
+    df_sub = quick_hist(df_live, "moderation", False)
+    quick_timeseries(df_live, df_sub, "moderation", False)      # time chart of top N 
     
     # TODO: shot length distribution?
 
@@ -280,9 +281,11 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
     if allow_cache and (path.exists(path_new) or path_backup is not None):
         if path.exists(path_new):  # if so, load old datafile, skip reload
             return pd.read_pickle(path_new)
-        else:
+        elif len(list_files) == 0:  # only allow backup if new files weren't found
             st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
             return pd.read_pickle(path_backup)
+        else:   # otherwise, delete the old backup
+            unlink(path_backup.resolve())
     
     # time_init = pd.Timestamp('2010-01-01T00')  # not used any more
     ux_report = st.empty()
@@ -494,5 +497,4 @@ def main(args=None):
 
 # main block run by code
 if __name__ == '__main__':
-    """ Main page for streamlit timed data explorer """
     main()
