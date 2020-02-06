@@ -163,7 +163,7 @@ def clip_media(media_file, media_output, start):
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None):
+def main_page(data_dir=None, media_file=None, ignore_update=False):
     """Main page for execution"""
     # read in version information
     version_dict = {}
@@ -178,7 +178,7 @@ def main_page(data_dir=None, media_file=None):
     if media_file is None:
         media_file = path.join(data_dir, "videohd.mp4")
 
-    df = data_load("data_bundle", data_dir, True)
+    df = data_load("data_bundle", data_dir, True, ignore_update)
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
         return
@@ -313,7 +313,7 @@ def main_page(data_dir=None, media_file=None):
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
-def data_load(stem_datafile, data_dir, allow_cache=True):
+def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
 
     # generate a checksum of the input files
@@ -340,7 +340,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
     if allow_cache and (path.exists(path_new) or path_backup is not None):
         if path.exists(path_new):  # if so, load old datafile, skip reload
             return pd.read_pickle(path_new)
-        elif len(list_files) == 0:  # only allow backup if new files weren't found
+        elif len(list_files) == 0 or ignore_update:  # only allow backup if new files weren't found
             st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
             return pd.read_pickle(path_backup)
         else:   # otherwise, delete the old backup
@@ -442,7 +442,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True):
                     list_new.append(row_new)
         ux_report.info(f"... integrating {len(list_new)} new text entities....")
         df_entity = pd.DataFrame(list_new)
-        df = pd.concat([df, df_entity])
+        df = pd.concat([df, df_entity], sort=False)
         list_new = None
         df_entity = None
 
@@ -560,6 +560,7 @@ def main(args=None):
     submain = parser.add_argument_group('main execution')
     submain.add_argument('-d', '--data_dir', dest='data_dir', type=str, default='../results', help='specify the source directory for flattened metadata')
     submain.add_argument('-m', '--media_file', dest='media_file', type=str, default=None, help='specific media file for extracting clips (empty=no clips)')
+    submain.add_argument('-i', '--ignore_update', dest='ignore_update', default=False, action='store_true', help="Ignore update files and use bundle directly")
 
     if args is None:
         config_defaults = vars(parser.parse_args())
