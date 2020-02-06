@@ -1,7 +1,8 @@
 # metadata-flatten-extractor
 
 A method to flatten generated JSON data into timed CSV events in support of analytic 
-workflows within the [ContentAI Platform](https://www.contentai.io).
+workflows within the [ContentAI Platform](https://www.contentai.io). For interactive
+exploration a [data explorer interface](app) was created as a quick starting place for a quick start.
 
 1. [Getting Started](#getting-started)
 2. [Execution](#execution-and-deployment)
