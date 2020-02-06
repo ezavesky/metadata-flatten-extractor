@@ -55,7 +55,7 @@ DEFAULT_REWIND = 2 # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 5 # length of default cllip (sec)
 
 ALTAIR_DEFAULT_WIDTH = 660   # width of charts
-ALTAIR_DEFAULT_HEIGHT = 300   # height of charts
+ALTAIR_DEFAULT_HEIGHT = 220   # height of charts
 ALTAIR_SIDEBAR_WIDTH = 280   # width of charts
 ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts
 
@@ -227,16 +227,16 @@ def main_page(data_dir=None, media_file=None):
     df_sub = quick_hist(df_live, "brand")
     quick_timeseries(df_live, df_sub, "brand", False)      # time chart of top N 
 
-    # frequency bar chart for emotions
-    st.markdown("### frequent emotion and sentiment")
-    df_sub =  _aggregate_tags(df_live, ["sentiment", "emotion"])
-    quick_timeseries(df_live, df_sub, ["sentiment", "emotion"], False)      # time chart of top N 
-
     # frequency bar chart for celebrities
     st.markdown("### popular celebrities")
     df_sub = quick_hist(df_live, "identity")
     quick_timeseries(df_live, df_sub, "identity", False)      # time chart of top N 
     
+    # frequency bar chart for emotions
+    st.markdown("### frequent emotion and sentiment")
+    df_sub =  _aggregate_tags(df_live, ["sentiment", "emotion"])
+    quick_timeseries(df_live, df_sub, ["sentiment", "emotion"], False)      # time chart of top N 
+
     # frequency bar chart for celebrities
     st.markdown("### moderation events timeline")
     df_sub = quick_hist(df_live, "moderation", False)
