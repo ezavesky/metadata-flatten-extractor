@@ -71,6 +71,7 @@ streamlit run timed.py -- <options>
                         specify the source directory for flattened metadata
   -m MEDIA_FILE, --media_file MEDIA_FILE
                         specific media file for extracting clips (empty=no clips)
+  -i, --ignore_update   Ignore update files and use bundle directly
 ```
 
 * Currently, the app expects these to be installed in `data_dir`; by default this is
