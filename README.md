@@ -35,7 +35,7 @@ schema for these CSV files has the following fields.
 * `time_event` = exact time in seconds (may be equal to time_start if instantaneous)
 * `source_event` =  source media for event to add granularity for event inpact (e.g. face, video, audio, speech, image)
 * `tag` = simple text word or phrase
-* `tag_type` = descriptor for type of tag; e.g. tag=concept/label, shot=segment, explicit=moderation, word=text/speech word, phrase=long utterance, face=face emotion/properties, identity=face recognition, person=person objects
+* `tag_type` = descriptor for type of tag; e.g. tag=concept/label, shot=segment, moderation=moderation, word=text/speech word, phrase=long utterance, face=face emotion/properties, identity=face recognition, person=person objects
 * `score` = score/probability
 * `details` = possible bounding box or other long-form (JSON-encoded) details
 * `extractor` = name of extractor (from below)
@@ -151,6 +151,12 @@ Job complete in 4m58.265737799s
 # Changes
 
 ## 0.4
+
+### 0.4.5
+* fixes for gcp moderation flattening
+* fixes for app rendering (switch most graphs to scatter plot)
+* make all charts interactive again
+* fix for time zone/browser challenge in rendering
 
 ### 0.4.4
 * fixes for `azure_videoindexer` parser

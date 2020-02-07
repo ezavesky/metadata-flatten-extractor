@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .DS_Store
-*.mp4
+**/*.mp4
 
 # custom data directories
 data

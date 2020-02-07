@@ -69,6 +69,7 @@ def _aggregate_tags(df_live, tag_type, field_group="tag"):
         if type(tag_type) != list:
             tag_type = [tag_type]
         df_sub = df_live[df_live["tag_type"].isin(tag_type)]
+    # df_sub = df_sub.resample('1S', base=0).max().dropna().groupby(field_group)["score"] \  # consider resampling to seconds/minutnes?
     df_sub = df_sub.groupby(field_group)["score"] \
                 .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
                 .sort_values(["count", "mean"], ascending=False)
@@ -83,10 +84,10 @@ def _quick_sorted_barchart(df_sub):
     else:
         # https://github.com/streamlit/streamlit/blob/5e8e0ec1b46ac0b322dc48d27494be674ad238fa/lib/streamlit/DeltaGenerator.py
         chart = alt.Chart(df_sub.head(TOP_HISTOGRAM_N), width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_bar().encode(
-            x=alt.X('count', sort=None),
+            x=alt.X('count', sort=None, title='instance count'),
             y=alt.Y('tag', sort=None),
             tooltip=['tag', 'count', 'mean', 'min'])
-        st.altair_chart(chart)
+        st.altair_chart(chart.interactive())
 
 
 def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
@@ -101,7 +102,7 @@ def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
     return df_sub
 
 
-def quick_timeseries(df_live, df_sub, tag_type, use_line=True):
+def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
     """Helper function to draw a timeseries for a few top selected tags..."""
     if df_sub is None:
         return
@@ -116,26 +117,35 @@ def quick_timeseries(df_live, df_sub, tag_type, use_line=True):
     df_sub.index = df_sub.index.round('1T')
     df_filtered = pd.DataFrame([])
     for n in tag_top:    # resample each top tag
-        df_resample = pd.DataFrame(df_sub[df_sub["tag"] == n].resample('1T', base=0).mean()["score"]).fillna(0)
+        df_resample = pd.DataFrame(df_sub[df_sub["tag"] == n].resample('1T', base=0).mean()["score"]).dropna()
         df_resample.columns = ["score"]
         # need to convert to date time -- https://github.com/altair-viz/altair/issues/967#issuecomment-399774414
-        df_resample["time"] = pd.to_datetime('2018-01-01') + df_resample.index
         df_resample["tag"] = n
         df_filtered = pd.concat([df_filtered, df_resample], sort=False)
     df_filtered["score"] = df_filtered["score"].round(3)
-    if use_line:
-        chart = alt.Chart(df_filtered, width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_line().encode(
-            x=alt.X('hoursminutes(time)', sort=None),
-            y=alt.Y('score', sort=None),
+    # timezone weirdness to prevent incorrect rendering in different time zones - 
+    #    https://altair-viz.github.io/user_guide/times_and_dates.html?highlight=hours
+    dt_start = pd.Timestamp("2020-01-01T00:00:00", tz="UTC")
+    df_filtered["time"] = df_filtered.index + dt_start
+    if graph_type == 'scatter':
+        chart = alt.Chart(df_filtered).mark_circle().encode(
+            x=alt.X('utchoursminutes(time)', sort=None, title='time'),
+            y=alt.Y('score', sort=None, scale=alt.Scale(zero=False), stack=None),
             color='tag',
-            tooltip=['tag','hoursminutes(time)','score'])
-    else:
-        chart = alt.Chart(df_filtered, width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_area(opacity=0.5).encode(
-            x=alt.X('hoursminutes(time)', sort=None),
-            y=alt.Y('score', sort=None, stack=None),
+            tooltip=['tag','utchoursminutes(time)','score'])
+    elif graph_type == 'area':
+        chart = alt.Chart(df_filtered).mark_area(opacity=0.5).encode(
+            x=alt.X('utchoursminutes(time)', sort=None, title='time'),
+            y=alt.Y('score', sort=None, stack=None, scale=alt.Scale(zero=False)),
             color='tag', 
-            tooltip=['tag','hoursminutes(time)','score'])
-    st.altair_chart(chart)
+            tooltip=['tag','utchoursminutes(time)','score'])
+    else:
+        chart = alt.Chart(df_filtered).mark_line().encode(
+            x=alt.X('utchoursminutes(time)', sort=None, title='time'),
+            y=alt.Y('score', sort=None, scale=alt.Scale(zero=False)),
+            color='tag',
+            tooltip=['tag','utchoursminutes(time)','score'])
+    st.altair_chart(chart.interactive().properties(width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT))
 
 
 def clip_video(media_file, media_output, start, duration=1, image_only=False):
@@ -200,7 +210,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     # frequency bar chart for found labels / tags
     st.markdown("### popular visual tags")
     df_sub = quick_hist(df_live, "tag")  # quick tag hist
-    quick_timeseries(df_live, df_sub, "tag")      # time chart of top N 
+    quick_timeseries(df_live, df_sub, "tag", "scatter")      # time chart of top N 
 
     # frequency bar chart for types of faces
 
@@ -225,22 +235,22 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     # frequency bar chart for brands
     st.markdown("### popular brands")
     df_sub = quick_hist(df_live, "brand")
-    quick_timeseries(df_live, df_sub, "brand", False)      # time chart of top N 
+    quick_timeseries(df_live, df_sub, "brand", "scatter")      # time chart of top N 
 
     # frequency bar chart for celebrities
     st.markdown("### popular celebrities")
     df_sub = quick_hist(df_live, "identity")
-    quick_timeseries(df_live, df_sub, "identity", False)      # time chart of top N 
+    quick_timeseries(df_live, df_sub, "identity", "scatter")      # time chart of top N 
     
     # frequency bar chart for emotions
     st.markdown("### frequent emotion and sentiment")
     df_sub =  _aggregate_tags(df_live, ["sentiment", "emotion"])
-    quick_timeseries(df_live, df_sub, ["sentiment", "emotion"], False)      # time chart of top N 
+    quick_timeseries(df_live, df_sub, ["sentiment", "emotion"], "scatter")      # time chart of top N 
 
     # frequency bar chart for celebrities
     st.markdown("### moderation events timeline")
     df_sub = quick_hist(df_live, "moderation", False)
-    quick_timeseries(df_live, df_sub, "moderation", False)      # time chart of top N 
+    quick_timeseries(df_live, df_sub, "moderation", "scatter")      # time chart of top N 
 
     # plunk down a dataframe for people to explore as they want
     st.markdown(f"## filtered exploration ({SAMPLE_N}/{len(df_live)} events)")
@@ -269,7 +279,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
         y=alt.Y('count', sort=None, scale=alt.Scale(type="log"), stack=None),
         color='tag_type',
         tooltip=['tag_type','count','score'])
-    st.altair_chart(chart)
+    st.altair_chart(chart.interactive())
 
 
     st.markdown(f"## clip replay")
@@ -539,7 +549,7 @@ def draw_sidebar(df, sort_list=None):
         x=alt.X('seconds', sort=None),
         y=alt.Y('count', sort=None, scale=alt.Scale(type="log"), stack=None),
         tooltip=['count','seconds'])
-    st.sidebar.altair_chart(chart)
+    st.sidebar.altair_chart(chart.interactive())
 
     # hard work done, return the trends!
     if sort_list is None:
