@@ -49,7 +49,7 @@ NLP_STOPWORD = "_stopword_"
 TOP_HISTOGRAM_N = 15
 TOP_LINE_N = 5
 NLP_FILTER = 0.025
-SAMPLE_N = 250
+SAMPLE_N = 10
 
 DEFAULT_REWIND = 2 # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 5 # length of default cllip (sec)
@@ -283,16 +283,19 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
 
 
     st.markdown(f"## clip replay")
+    df_celeb = df_live[df_live["tag_type"]=="identity"] 
 
     if media_file is None or not path.exists(media_file):
         st.markdown(f"*Media file `{media_file}` not found or readable, can not generate clips.*")
+    elif df_celeb is None or len(df_celeb) < SAMPLE_N:
+        st.markdown(f"### celebrity clips")
+        st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
     else:        
         st.markdown(f"### celebrity clips")
         _, clip_ext = path.splitext(path.basename(media_file))
         media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
         media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
 
-        df_celeb = df_live[df_live["tag_type"]=="identity"] 
         celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
         # sor to find the best scoring, shortest duration clip
         df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag].sort_values(["score", "duration"], ascending=[False, True])
