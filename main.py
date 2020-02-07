@@ -281,7 +281,7 @@ class Flatten():
                         time_clean = float(re_time_clean.sub('', frame_item["timeOffset"]))
                         dict_scores = {n:n.split("Likelihood")[0] for n in frame_item.keys() if not n.startswith("time") }
                         for n in dict_scores:  # a little bit of a dance, but flexiblity for future explicit types
-                            list_items.append( {"time_begin": time_clean, "source_event": "image",  "tag_type": "explicit",
+                            list_items.append( {"time_begin": time_clean, "source_event": "image",  "tag_type": "moderation",
                                 "time_end": time_clean, "time_event": time_clean, "tag": dict_scores[n],                   
                                 "score": Flatten.GCP_LIKELIHOOD_MAP[frame_item[n]], "details": "",
                                 "extractor": "gcp_videointelligence_explicit_content"})
@@ -819,7 +819,7 @@ class Flatten():
                                 time_begin = parse(time_obj['start'])
                                 time_end = parse(time_obj['end'])
                                 for type_moderation in score_map:
-                                    if local_obj[type_moderation] > 0:
+                                    if local_obj[type_moderation] > 0.01:
                                         list_items.append({"time_begin": time_begin, "source_event": "image",  "tag_type": "moderation",
                                             "time_end": time_end, "time_event": time_begin, "tag": score_map[type_moderation],
                                             "score": local_obj[type_moderation], "details": "",
