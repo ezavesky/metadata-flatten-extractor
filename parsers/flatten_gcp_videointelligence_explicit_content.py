@@ -20,6 +20,7 @@
 
 from os import path
 from pandas import DataFrame
+import re
 
 from . import Flatten
 

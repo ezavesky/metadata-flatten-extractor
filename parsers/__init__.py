@@ -30,7 +30,6 @@ import warnings
 from sys import stdout as STDOUT
 
 import pandas as pd
-from pytimeparse import parse
 
 import contentai
 
