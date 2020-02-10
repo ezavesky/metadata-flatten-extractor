@@ -1,6 +1,6 @@
 #! python
 # ===============LICENSE_START=======================================================
-# vinyl-tools Apache-2.0
+# metadata-flatten-extractor Apache-2.0
 # ===================================================================================
 # Copyright (C) 2017-2020 AT&T Intellectual Property. All rights reserved.
 # ===================================================================================
@@ -19,6 +19,10 @@
 # -*- coding: utf-8 -*-
 
 from os import path
+import json
+import re
+from pandas import DataFrame
+
 from . import Flatten
 
 
@@ -91,7 +95,7 @@ class Parser(Flatten):
                                 "details": str_json, "extractor": "gcp_videointelligence_label", "tag_type": "tag",
                                 "tag": tag_name})
             # convert list to a dataframe
-            return pd.DataFrame(list_items)
+            return DataFrame(list_items)
 
         self.logger.critical(f"Missing nested knowns 'segmentLabelAnnotations' and 'shotLabelAnnotations' from source 'gcp_videointelligence_label'")
         return None

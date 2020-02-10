@@ -1,6 +1,6 @@
 #! python
 # ===============LICENSE_START=======================================================
-# vinyl-tools Apache-2.0
+# metadata-flatten-extractor Apache-2.0
 # ===================================================================================
 # Copyright (C) 2017-2020 AT&T Intellectual Property. All rights reserved.
 # ===================================================================================
@@ -19,6 +19,9 @@
 # -*- coding: utf-8 -*-
 
 from os import path
+import json
+from pandas import DataFrame
+
 from . import Flatten
 
 class Parser(Flatten):
@@ -48,7 +51,7 @@ class Parser(Flatten):
                     dict_data = self.json_load(path_content)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
-                    return pd.DataFrame(list_items)
+                    return DataFrame(list_items)
                 else:
                     last_load_idx = -1
                     break

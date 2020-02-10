@@ -1,6 +1,6 @@
 #! python
 # ===============LICENSE_START=======================================================
-# vinyl-tools Apache-2.0
+# metadata-flatten-extractor Apache-2.0
 # ===================================================================================
 # Copyright (C) 2017-2020 AT&T Intellectual Property. All rights reserved.
 # ===================================================================================
@@ -19,6 +19,10 @@
 # -*- coding: utf-8 -*-
 
 from os import path
+import re
+import json
+from pandas import DataFrame
+
 from . import Flatten
 
 class Parser(Flatten):
@@ -85,7 +89,7 @@ class Parser(Flatten):
 
         # added duplicate drop 0.4.1 for some reason this extractor has this bad tendency
         if len(list_items) > 0:
-            return pd.DataFrame(list_items).drop_duplicates()
+            return DataFrame(list_items).drop_duplicates()
         self.logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunks from source 'gcp_videointelligence_speech_transcription'")
         return None
         
