@@ -150,6 +150,12 @@ Job complete in 4m58.265737799s
 
 # Changes
 
+## 0.5
+
+### 0.5.0
+* split main function into sepearate auto-discovered modules
+* add new user collection detection parser
+
 ## 0.4
 
 ### 0.4.5
