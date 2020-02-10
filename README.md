@@ -152,6 +152,9 @@ Job complete in 4m58.265737799s
 
 ## 0.5
 
+### 0.5.1
+* split app modules into different visualization modes (overview, event_table, brand_learn)
+
 ### 0.5.0
 * split main function into sepearate auto-discovered modules
 * add new user collection detection parser

@@ -61,7 +61,7 @@ ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts
 
 ### ------------ helper functions ---------------------
 
-@st.cache(suppress_st_warning=False)
+# @st.cache(suppress_st_warning=False)
 def aggregate_tags(df_live, tag_type, field_group="tag"):
     df_sub = df_live
     if tag_type is not None:
@@ -183,7 +183,6 @@ def clip_media(media_file, media_output, start):
 @st.cache(suppress_st_warning=True)
 def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
-
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
@@ -222,7 +221,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     # Add a placeholder
     latest_iteration = st.empty()
     ux_progress = st.progress(0)
-    task_buffer = 5   # account for time-norm, sorting, shot-mapping, named entity
+    task_buffer = 6   # account for time-norm, sorting, shot-mapping, named entity, dup-dropping
     task_count = len(list_files)+task_buffer
 
     df = None
@@ -339,7 +338,12 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
             df[tf] = pd.to_timedelta(df[tf], unit='s')
             df[tf].fillna(pd.Timedelta(seconds=0), inplace=True)
 
-    ux_report.info(f"... sorting and indexing....")
+    ux_report.info(f"... pruning duplicates from {len(df)} events...")
+    ux_progress.progress(math.floor(float(task_idx)/task_count*100))
+    df.drop_duplicates(inplace=True)
+    task_idx += 1
+    
+    ux_report.info(f"... sorting and indexing {len(df)} events...")
     ux_progress.progress(math.floor(float(task_idx)/task_count*100))
     task_idx += 1
     df.sort_values(["time_begin", "time_end"], inplace=True)
