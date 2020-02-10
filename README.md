@@ -150,6 +150,12 @@ Job complete in 4m58.265737799s
 
 # Changes
 
+## 0.5
+
+### 0.5.0
+* split main function into sepearate auto-discovered modules
+* add new user collection detection parser
+
 ## 0.4
 
 ### 0.4.5
@@ -208,7 +214,7 @@ Job complete in 4m58.265737799s
 ### 0.2.0
 * add initial package, requirements, docker image
 * add basic readme for usage example
-* processes types `gcp_videointelligence_label`, `gcp_videointelligence_shot_change`, `gcp_videointelligence_explicit_content`, `gcp_videointelligence_speech_transcription`, `aws_rekognition_video_content_moderation`, `aws_rekognition_video_celebs`, `aws_rekognition_video_labels`, `aws_rekognition_video_faces`, `aws_rekognition_video_person_tracking`, `azure_videoindexer`
+* processes types `gcp_videointelligence_label`, `gcp_videointelligence_shot_change`, `gcp_videointelligence_explicit_content`, `gcp_videointelligence_speech_transcription`, `aws_rekognition_video_content_moderation`, `aws_rekognition_video_celebs`, `aws_rekognition_video_labels`, `aws_rekognition_video_faces`, `aws_rekognition_video_person_tracking`, `azure_videoindexer`, `rekognition_face_collection` (custom face collections)
 
 
 # Future Development
