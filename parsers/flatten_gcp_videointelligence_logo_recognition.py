@@ -1,6 +1,6 @@
 #! python
 # ===============LICENSE_START=======================================================
-# vinyl-tools Apache-2.0
+# metadata-flatten-extractor Apache-2.0
 # ===================================================================================
 # Copyright (C) 2017-2020 AT&T Intellectual Property. All rights reserved.
 # ===================================================================================
@@ -19,6 +19,10 @@
 # -*- coding: utf-8 -*-
 
 from os import path
+import re
+import json
+from pandas import DataFrame
+
 from . import Flatten
 
 
@@ -85,7 +89,7 @@ class Parser(Flatten):
                                     "source_event": "video", "tag": logo_item["entity"]["description"], "tag_type": "brand",
                                     "score": round(track_item["confidence"], 4), "details": json.dumps(details_obj), 
                                     "extractor": "gcp_videointelligence_logo_recognition"})
-                return pd.DataFrame(list_items)
+                return DataFrame(list_items)
 
         self.logger.critical(f"Missing nested 'logoRecognitionAnnotations' from source 'gcp_videointelligence_logo_recognition'")
         return None      

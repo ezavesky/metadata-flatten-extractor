@@ -1,6 +1,6 @@
 #! python
 # ===============LICENSE_START=======================================================
-# vinyl-tools Apache-2.0
+# metadata-flatten-extractor Apache-2.0
 # ===================================================================================
 # Copyright (C) 2017-2020 AT&T Intellectual Property. All rights reserved.
 # ===================================================================================
@@ -19,6 +19,8 @@
 # -*- coding: utf-8 -*-
 
 from os import path
+from pandas import DataFrame
+import json
 import re
 
 from . import Flatten
@@ -267,7 +269,7 @@ class Parser(Flatten):
                                     "extractor": "azure_videoindexer"})
 
         if len(list_items) > 0:   # return the whole thing as dataframe
-            return pd.DataFrame(list_items)
+            return DataFrame(list_items)
 
         self.logger.critical(f"Missing nested 'summarizedInsights' or 'videos' from source 'azure_videoindexer'")
         return None

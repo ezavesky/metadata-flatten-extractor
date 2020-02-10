@@ -1,6 +1,6 @@
 #! python
 # ===============LICENSE_START=======================================================
-# vinyl-tools Apache-2.0
+# metadata-flatten-extractor Apache-2.0
 # ===================================================================================
 # Copyright (C) 2017-2020 AT&T Intellectual Property. All rights reserved.
 # ===================================================================================
@@ -19,6 +19,9 @@
 # -*- coding: utf-8 -*-
 
 from os import path
+import re
+from pandas import DataFrame
+
 from . import Flatten
 
 
@@ -62,7 +65,7 @@ class Parser(Flatten):
                         "time_event": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
                         "source_event": "video", "tag": "shot", "score": 1.0, "details": "", "tag_type": "shot",
                         "extractor": "gcp_videointelligence_shot_change"})
-                return pd.DataFrame(list_items)
+                return DataFrame(list_items)
 
         self.logger.critical(f"Missing nested 'shotAnnotations' from source 'gcp_videointelligence_shot_change'")
         return None        
