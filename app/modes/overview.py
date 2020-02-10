@@ -108,22 +108,6 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     df_sub = quick_hist(df_live, "moderation", False)
     quick_timeseries(df_live, df_sub, "moderation", "scatter")      # time chart of top N 
 
-    # plunk down a dataframe for people to explore as they want
-    st.markdown(f"## filtered exploration ({SAMPLE_N}/{len(df_live)} events)")
-    filter_tag = st.selectbox("Tag Type for Exploration", ["All"] + list(df_live["tag_type"].unique()))
-    order_tag = st.selectbox("Sort Metric", ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
-                                         "duration - ascending", "duration - descending"])
-    order_ascend = order_tag.split('-')[-1].strip() == "ascending"  # eval to true/false
-    order_sort = order_tag.split('-')[0].strip()
-    df_sub = df_live
-    if filter_tag != "All":
-        df_sub = df_live[df_live["tag_type"]==filter_tag]
-    if order_tag == "random":
-        df_sub = df_sub.sample(SAMPLE_N)
-    else:
-        df_sub = df_sub.sort_values(order_sort, ascending=order_ascend).head(SAMPLE_N)
-    st.write(df_sub)
-
     # compute the distribution
     st.markdown("### overall tag distributions")
     df_sub = df_live.copy()
@@ -137,48 +121,6 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
         tooltip=['tag_type','count','score'])
     st.altair_chart(chart.interactive())
 
-
-    st.markdown(f"## clip replay")
-    df_celeb = df_live[df_live["tag_type"]=="identity"] 
-
-    if media_file is None or not path.exists(media_file):
-        st.markdown(f"*Media file `{media_file}` not found or readable, can not generate clips.*")
-    elif df_celeb is None or len(df_celeb) < SAMPLE_N:
-        st.markdown(f"### celebrity clips")
-        st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
-    else:        
-        st.markdown(f"### celebrity clips")
-        _, clip_ext = path.splitext(path.basename(media_file))
-        media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
-        media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
-
-        celebrity_tag = st.selectbox("Celebrity", list(df_celeb["tag"].unique())) 
-        # sor to find the best scoring, shortest duration clip
-        df_celeb_sel = df_celeb[df_celeb["tag"]==celebrity_tag].sort_values(["score", "duration"], ascending=[False, True])
-        # get begin_time with max score for selected celeb
-        sel_shot = df_celeb_sel["shot"][0]
-        time_event_sec = int(df_celeb_sel['time_begin'][0] / np.timedelta64(1, 's'))   # convert to seconds 
-        row_first = df_live[(df_live["shot"]==sel_shot) & (df_live["tag_type"]=="shot")].head(1)
-        time_begin_sec = int(row_first['time_begin'] / np.timedelta64(1, 's'))   # convert to seconds
-        time_duration_sec = int(row_first["duration"])  # use shot duration
-        if time_duration_sec < DEFAULT_CLIPLEN:   # min clip length
-            time_duration_sec = DEFAULT_CLIPLEN
-        time_str = str(row_first['time_begin'][0])
-
-        if st.button("Play Clip"):
-            status = clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
-            if status == 0: # play clip
-                st.video(open(media_clip, 'rb'))
-                st.markdown(f"*Celebrity: {celebrity_tag} (score: {row_first['score'][0]}) @ {time_str} ({round(time_duration_sec, 2)}s)*")
-            elif status == -1:
-                st.markdown("**Error:** ffmpeg not found in path. Cannot create video clip.")
-            else:
-                st.markdown("**Error:** creating video clip.")
-        else:       # print thumbnail
-            media_data = clip_media(media_file, media_image, time_event_sec)
-            if media_data is not None:
-                st.image(media_data, use_column_width=True,
-                        caption=f"Celebrity: {celebrity_tag} (score: {row_first['score'][0]}) @ {time_str}")
     return df_live
 
 
