@@ -161,6 +161,7 @@ def clip_video(media_file, media_output, start, duration=1, image_only=False):
     else:
         return -1
 
+
 @st.cache(suppress_st_warning=False)
 def clip_media(media_file, media_output, start):
     """Helper function to create video clip"""
@@ -170,6 +171,12 @@ def clip_media(media_file, media_output, start):
             return f.read()
     return None
         
+# def download_content(content_bytes, mime_type, filename):
+#     # Not officially supported 2/9/20 - https://github.com/streamlit/streamlit/issues/400
+#     # too heavy: https://user-images.githubusercontent.com/42288570/70138254-2b8d3e80-1690-11ea-8968-9c94ee2c9709.gif
+#     response = make_response(content_bytes, 200)
+#     response.headers['Content-type'] = 'application/pdf'
+#     response.headers['Content-disposition'] = f'Content-Disposition: inline; filename="{filename}"'
 
 ### ------------ main rendering page and sidebar ---------------------
 
@@ -189,6 +196,8 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
         media_file = path.join(data_dir, "videohd.mp4")
 
     df = data_load("data_bundle", data_dir, True, ignore_update)
+    # TODO: future download capability ...
+    # df.to_csv(path.join(data_dir, "data_bundle.snapshot.csz.gz"), sep='|')
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
         return
@@ -325,7 +334,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
                         caption=f"Celebrity: {celebrity_tag} (score: {row_first['score'][0]}) @ {time_str}")
 
 
-@st.cache(suppress_st_warning=True, allow_output_mutation=True)
+@st.cache(suppress_st_warning=True)
 def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
 
@@ -508,7 +517,7 @@ def draw_sidebar(df, sort_list=None):
     idx_match = [True] * len(df)    # start with whole index
 
     df_text_df = df[(df["tag_type"]=="brand") | (df["tag_type"]=="identity")]
-    sel_keywords = st.sidebar.multiselect("Brand and Celebrity Search (intersecting search)", list(df_text_df['tag'].unique()), default=None)
+    sel_keywords = st.sidebar.multiselect("Brand, Celebrity (intersecting search)", list(df_text_df['tag'].unique()), default=None)
     shot_list_keyword = set(df_text_df['shot'].unique())
     for keyword in sel_keywords:
         shot_list_keyword = shot_list_keyword.intersection(df_text_df[df_text_df["tag"]==keyword]['shot'].unique())
