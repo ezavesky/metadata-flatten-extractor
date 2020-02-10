@@ -23,6 +23,8 @@ from pandas import DataFrame
 import json
 import re
 
+from pytimeparse import parse as pt_parse
+
 from . import Flatten
 
 class Parser(Flatten):
@@ -73,8 +75,8 @@ class Parser(Flatten):
                             if not local_obj["name"].startswith("Unknown"):   # full-fledged celebrity
                                 details_obj = {"title": local_obj["title"], "description": local_obj['description'], 'url': local_obj['imageUrl']}
                                 for time_obj in local_obj["instances"]:  # walk through all appearances
-                                    time_begin = parse(time_obj['start'])
-                                    time_end = parse(time_obj['end'])
+                                    time_begin = pt_parse(time_obj['start'])
+                                    time_end = pt_parse(time_obj['end'])
                                     list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "identity",
                                         "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                         "score": local_obj['confidence'], "details": json.dumps(details_obj),
@@ -86,8 +88,8 @@ class Parser(Flatten):
                         # TODO: enable raw keywords?  (note this is not transcript/ASR)
                         if False and "name" in local_obj and "instances" in local_obj:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "speech", "tag_type": "keyword",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                     "score": 1.0, "details": "",
@@ -97,8 +99,8 @@ class Parser(Flatten):
                     for local_obj in insight_obj['sentiments']:
                         if "sentimentType" in local_obj and "instances" in local_obj:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "sentiment",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["sentimentType"],
                                     "score": local_obj["averageScore"], "details": "",
@@ -108,8 +110,8 @@ class Parser(Flatten):
                     for local_obj in insight_obj['emotions']:
                         if "type" in local_obj and "instances" in local_obj:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "emotion",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["type"],
                                     "score": time_obj["confidence"], "details": "",
@@ -119,8 +121,8 @@ class Parser(Flatten):
                     for local_obj in insight_obj['audioEffects']:
                         if "type" in local_obj and "instances" in local_obj:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "audio", "tag_type": "tag",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["type"],
                                     "score": 1.0, "details": "",
@@ -133,8 +135,8 @@ class Parser(Flatten):
                             if "referenceId" in local_obj:
                                 details_obj["category"] = local_obj["referenceId"]
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "tag",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                     "score": time_obj["confidence"], "details": json.dumps(details_obj),
@@ -144,8 +146,8 @@ class Parser(Flatten):
                     for local_obj in insight_obj['framePatterns']:
                         if "patternType" in local_obj and "instances" in local_obj:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "frame",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["patternType"],
                                     "score": local_obj['confidence'], "details": "",
@@ -156,8 +158,8 @@ class Parser(Flatten):
                         if "name" in local_obj and "instances" in local_obj:  # validate object
                             details_obj = {"url": local_obj["referenceUrl"], "description": local_obj['description']}
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "speech", "tag_type": "brand",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                     "score":  local_obj['confidence'], "details": json.dumps(details_obj),
@@ -168,8 +170,8 @@ class Parser(Flatten):
                         if "name" in local_obj and "instances" in local_obj:  # validate object
                             details_obj = {"url": local_obj["referenceUrl"], "description": local_obj['description']}
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 source_type = "image" if time_obj['instanceSource'] == "Ocr" else "speech"
                                 list_items.append({"time_begin": time_begin, "source_event": source_type, "tag_type": "entity",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
@@ -181,8 +183,8 @@ class Parser(Flatten):
                         if "instances" in local_obj:  # validate object
                             details_obj = {"url": local_obj["referenceUrl"], "description": local_obj['description']}
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 source_type = "image" if time_obj['instanceSource'] == "Ocr" else "speech"
                                 list_items.append({"time_begin": time_begin, "source_event": source_type, "tag_type": "entity",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
@@ -196,8 +198,8 @@ class Parser(Flatten):
                     for local_obj in insight_obj['visualContentModeration']:
                         if "instances" in local_obj:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 for type_moderation in score_map:
                                     if local_obj[type_moderation] > 0.01:
                                         list_items.append({"time_begin": time_begin, "source_event": "image",  "tag_type": "moderation",
@@ -209,8 +211,8 @@ class Parser(Flatten):
                     for local_obj in insight_obj['transcripts']:
                         if "text" in local_obj and "instances" in local_obj and len(local_obj["text"]) > 0:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "transcript",
                                     "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
                                     "score": float(time_obj["confidence"]), 
@@ -226,8 +228,8 @@ class Parser(Flatten):
                                 't': round(local_obj    ['top'], 4),
                                 'transcript': local_obj['text'] }
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append( {"time_begin": time_begin, "source_event": "image", "tag_type": "ocr",
                                     "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
                                     "score": float(local_obj["confidence"]), 
@@ -245,11 +247,11 @@ class Parser(Flatten):
                             if 'keyFrames' in local_obj:   # try to get a specific keyframe
                                 key_frame_obj = local_obj['keyFrames'][0]   # grab first frame
                                 if "instances" in key_frame_obj:
-                                    time_event = parse(key_frame_obj['instances'][0]['start'])                            
+                                    time_event = pt_parse(key_frame_obj['instances'][0]['start'])                            
 
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 if time_event is None:
                                     time_event = time_begin
                                 list_items.append( {"time_begin": time_begin, "source_event": "video", "tag_type": "shot",
@@ -261,8 +263,8 @@ class Parser(Flatten):
                     for local_obj in insight_obj['scenes']:
                         if "instances" in local_obj:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
-                                time_begin = parse(time_obj['start'])
-                                time_end = parse(time_obj['end'])
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
                                 list_items.append( {"time_begin": time_begin, "source_event": "video", "tag_type": "scene",
                                     "time_end": time_end, "time_event": time_begin, "tag": "scene",
                                     "score": 1.0, "details": "",
