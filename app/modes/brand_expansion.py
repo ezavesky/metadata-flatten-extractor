@@ -62,74 +62,57 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
         return
 
     # plunk down a dataframe for people to explore as they want
-    st.markdown(f"## filtered exploration ({min(SAMPLE_TABLE, len(df_live))}/{len(df_live)} events)")
-    sort_unique = ["random", "score - descending", "score - ascending", "time_begin", "time_end", 
-                                         "duration - ascending", "duration - descending"]
-    order_tag = st.selectbox("Sort Metric", sort_unique, index=sort_unique.index('score - descending'))
-    order_ascend = order_tag.split('-')[-1].strip() == "ascending"  # eval to true/false
-    order_sort = order_tag.split('-')[0].strip()
-    if order_tag == "random":
-        df_live = df_live.sample(frac=1)
-    else:
-        df_live.sort_values(order_sort, ascending=order_ascend, inplace=True)
-    df_sub = df_live.sample(SAMPLE_TABLE)
+    st.markdown(f"## brand expansion (top {min(SAMPLE_TABLE, len(df_live))}/{len(df_live)} events)")
+    df_live.sort_values(["score", "duration"], ascending=[False, True], inplace=True)
 
-    df_best = df_live.drop_duplicates("tag")
-    clip_display(df_best, df, media_file, field_group="tag")
+    if media_file is None or not path.exists(media_file):
+        st.markdown(f"*Media file `{media_file}` not found or readable, can not generate clips.*")
+    elif df_live is None or len(df_live) < TOP_LINE_N:
+        st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
+    else: 
+        clip_display(df_live, df, media_file, field_group="extractor")
+
 
     # compute the distribution
     st.markdown("### overall tag distributions")
-    df_filter = df_live.copy()
-    df_filter["score"] = df_filter["score"].apply(lambda x: math.floor(x * 100)/100)
-    df_filter = aggregate_tags(df_filter, None, ["tag","score"])
-    if len(df_filter) > NUM_SUMMARY:
-        score_cut = df_filter.iloc[NUM_SUMMARY]["count"]
-        df_filter.loc[df_filter["count"] < score_cut, "tag"] = "(other)"
+    df_sub = df_live.copy()
+    df_sub["score"] = df_live["score"].apply(lambda x: math.floor(x * 100)/100)
+    df_sub = aggregate_tags(df_sub, None, ["extractor","score"])
 
-    chart = alt.Chart(df_filter, height=ALTAIR_DEFAULT_HEIGHT, width=ALTAIR_DEFAULT_WIDTH).mark_bar().encode(
+    # df_sub = df_sub.pivot(index="score", columns="tag_type", values="count").fillna(0)
+    chart = alt.Chart(df_sub, height=ALTAIR_DEFAULT_HEIGHT, width=ALTAIR_DEFAULT_WIDTH).mark_bar().encode(
         x=alt.X('score', sort=None, stack=None),
         y=alt.Y('count', sort=None, scale=alt.Scale(type="log"), stack=None),
-        color='tag',
-        tooltip=['tag','count','score'])
+        color='extractor',
+        tooltip=['extractor','count','score'])
     st.altair_chart(chart.interactive())
 
-    # finally sneak a peak at the raw table
-    st.markdown("### sorted data exploration for tag_type")
-    st.dataframe(df_sub)
-
     return df_live
+
 
 
 def main_sidebar(df, sort_list=None):
     # Generate the slider filters based on the data available in this subset of titles
     # Only show the slider if there is more than one value for that slider, otherwise, don't filter
 
-    type_unique = ["All"] + list(df["tag_type"].unique())
-    filter_tag = st.sidebar.selectbox("Tag Type for Exploration", type_unique, index=type_unique.index('identity'))
-    df_sub = df
-    if filter_tag != "All":
-        df_sub = df[df['tag_type'] == filter_tag]
+    df_sub = df[df["tag_type"]=="brand"]
+    df_group = aggregate_tags(df_sub, None, ["tag"])
+    unique_tag = df_group[df_group["count"] >= TOP_LINE_N]["tag"].unique()   # must have a min count
+
+    filter_tag = st.sidebar.selectbox("Brand", unique_tag)
+    df_sub = df_sub[(df_sub["tag_type"]=="brand") & (df_sub["tag"]==filter_tag)]
     idx_match = [True] * len(df_sub)    # start with whole index
 
     # strict timeline slider
     value = (int(df.index.min().seconds // 60), int(df.index.max().seconds // 60))
     time_bound = st.sidebar.slider("Event Time Range (min)", min_value=value[0], max_value=value[1], value=value)
     idx_match &= (df_sub['time_begin'] >= pd.to_timedelta(time_bound[0], unit='min')) \
-                    & (df_sub['time_end'] <= pd.to_timedelta(time_bound[1], unit='min'))
+                    & (df_sub['time_end'] < pd.to_timedelta(time_bound[1], unit='min'))
 
     # confidence measure
     value = (df_sub["score"].min(), df_sub["score"].max())
     score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
     idx_match &= (df_sub['score'] >= score_bound[0]) & (df_sub['score'] <= score_bound[1])
-
-    # sel_keywords = st.sidebar.multiselect("Tags (union search)", list(df[idx_match]['tag'].unique()), default=None)
-    # shot_list = set(df[idx_match]['shot'].unique())
-    # for keyword in sel_keywords:
-    #     shot_list = shot_list.union(df[df["tag"]==keyword]['shot'].unique())
-    # st.sidebar.markdown("<hr style='margin-top:-0.25em; margin-bottom:-0.25em' />", unsafe_allow_html=True)
-    # # print("KEY", shot_list_keyword, shot_list)
-    # if len(shot_list) > 0:    # filter indexes by text match
-    #     idx_match &= df['shot'].isin(shot_list)
 
     # Filter by slider inputs to only show relevant events
     df_filter = df_sub[idx_match]
@@ -140,8 +123,8 @@ def main_sidebar(df, sort_list=None):
     # compute the distribution of shot time
     st.sidebar.markdown("<div style='font-size:smaller;text-align:left'>Filtered Shot Duration Distribution</div>", unsafe_allow_html=True)
     df_filter_shots["seconds"] = df_filter_shots["duration"].apply(lambda x: math.floor(x * 4)/4)
-    df_filter_shots = aggregate_tags(df_filter_shots, "shot", "seconds")
-    chart = alt.Chart(df_filter_shots, height=ALTAIR_SIDEBAR_HEIGHT, width=ALTAIR_SIDEBAR_WIDTH).mark_bar().encode(
+    df_filter_count = aggregate_tags(df_filter_shots, "shot", "seconds")
+    chart = alt.Chart(df_filter_count, height=ALTAIR_SIDEBAR_HEIGHT, width=ALTAIR_SIDEBAR_WIDTH).mark_bar().encode(
         x=alt.X('seconds', sort=None),
         y=alt.Y('count', sort=None, scale=alt.Scale(type="log"), stack=None),
         tooltip=['count','seconds'])
