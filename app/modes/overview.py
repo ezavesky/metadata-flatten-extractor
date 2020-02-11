@@ -54,7 +54,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     df_live = main_sidebar(df)
 
     # Create the runtime info
-    if len(df_live) < SAMPLE_N:
+    if len(df_live) < TOP_LINE_N:
         st.markdown("## Too few samples")
         st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
         return

@@ -49,9 +49,11 @@ TOP_HISTOGRAM_N = 15
 TOP_LINE_N = 5
 NLP_FILTER = 0.025
 SAMPLE_N = 10
+SAMPLE_TABLE = 100
 
-DEFAULT_REWIND = 2 # how early to start clip from max score (sec)
-DEFAULT_CLIPLEN = 5 # length of default cllip (sec)
+DEFAULT_REWIND = 2   # how early to start clip from max score (sec)
+DEFAULT_CLIPLEN = 5   # length of default cllip (sec)
+DEFAULT_REWIND_FRAME = -0.25   # rewind for frame-specific starts
 
 ALTAIR_DEFAULT_WIDTH = 660   # width of charts
 ALTAIR_DEFAULT_HEIGHT = 220   # height of charts
@@ -59,7 +61,7 @@ ALTAIR_SIDEBAR_WIDTH = 280   # width of charts
 ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts
 
 
-### ------------ helper functions ---------------------
+### ------------ dataframe and chart functions ---------------------
 
 # @st.cache(suppress_st_warning=False)
 def aggregate_tags(df_live, tag_type, field_group="tag"):
@@ -76,7 +78,7 @@ def aggregate_tags(df_live, tag_type, field_group="tag"):
     return df_sub
 
 
-def quick_sorted_barchart(df_sub):
+def quick_sorted_barchart(df_sub, field_group="tag"):
     """Create bar chart (e.g. histogram) with no axis sorting..."""
     if False:   #  https://github.com/streamlit/streamlit/issues/385
         st.bar_chart(df_sub["count"].head(TOP_HISTOGRAM_N))
@@ -84,8 +86,8 @@ def quick_sorted_barchart(df_sub):
         # https://github.com/streamlit/streamlit/blob/5e8e0ec1b46ac0b322dc48d27494be674ad238fa/lib/streamlit/DeltaGenerator.py
         chart = alt.Chart(df_sub.head(TOP_HISTOGRAM_N), width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT).mark_bar().encode(
             x=alt.X('count', sort=None, title='instance count'),
-            y=alt.Y('tag', sort=None),
-            tooltip=['tag', 'count', 'mean', 'min'])
+            y=alt.Y(field_group, sort=None),
+            tooltip=[field_group, 'count', 'mean', 'min'])
         st.altair_chart(chart.interactive())
 
 
@@ -97,7 +99,7 @@ def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
         return None
     # unfortunately, a bug currently overrides sort order
     if show_hist:
-        quick_sorted_barchart(df_sub)
+        quick_sorted_barchart(df_sub, field_group)
     return df_sub
 
 
@@ -146,6 +148,15 @@ def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
             tooltip=['tag','utchoursminutes(time)','score'])
     st.altair_chart(chart.interactive().properties(width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT))
 
+### ------------ util/format ---------------------
+
+def timedelta_str(timedelta, format="%H:%M:%S"):
+    """Create timedelta string with datetime formatting"""
+    dt_print = pd.Timestamp("2020-01-01T00:00:00", tz="UTC") + timedelta
+    return dt_print.strftime(format)
+
+
+### ------------ content functions ---------------------
 
 def clip_video(media_file, media_output, start, duration=1, image_only=False):
     """Helper function to create video clip"""
@@ -169,16 +180,60 @@ def clip_media(media_file, media_output, start):
         with open(media_output, 'rb') as f:
             return f.read()
     return None
-        
+
+
+def clip_display(df_live, df, media_file, field_group="tag"):
+    """Create visual for video or image with selection of specific instance"""
+    list_sel = []
+    for idx_r, val_r in df_live.iterrows():   # make it something readable
+        list_sel.append(f"{len(list_sel)} - (score: {round(val_r['score'],4)}) " \
+            f"@ {timedelta_str(val_r['time_begin'])} ({round(val_r['duration'], 2)}s) ({val_r[field_group]})")
+        if len(list_sel) >= SAMPLE_TABLE:
+            break
+    instance_sel = st.selectbox("Instance Display", list_sel)
+    instance_idx = int(instance_sel.split(' ')[0])
+    row_sel = df_live.iloc[instance_idx]
+
+    # get begin_time with max score for selected celeb
+    sel_shot = row_sel["shot"]
+    time_event_sec = float(row_sel['time_begin'] / np.timedelta64(1, 's'))   # convert to seconds 
+    # pull row from all data
+    row_first = df[(df["shot"]==sel_shot) & (df["tag_type"]=="shot")].head(1)
+    time_begin_sec = float(row_first['time_begin'][0] / np.timedelta64(1, 's'))   # convert to seconds
+    time_duration_sec = float(row_first["duration"][0])  # use shot duration
+    if time_duration_sec < DEFAULT_CLIPLEN:   # min clip length
+        time_duration_sec = DEFAULT_CLIPLEN
+    caption_str = f"*Tag: {row_sel['tag']}, Instance: {instance_idx} (score: {round(row_sel['score'],4)}) @ " \
+        f"{timedelta_str(row_first['time_begin'][0])} ({round(time_duration_sec, 2)}s)*"
+
+    _, clip_ext = path.splitext(path.basename(media_file))
+    media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
+    media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
+
+
+    if st.button("Play Clip"):
+        status = clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
+        if status == 0: # play clip
+            st.video(open(media_clip, 'rb'))
+            st.markdown(caption_str)
+        elif status == -1:
+            st.markdown("**Error:** ffmpeg not found in path. Cannot create video clip.")
+        else:
+            st.markdown("**Error:** creating video clip.")
+    else:       # print thumbnail
+        media_data = clip_media(media_file, media_image, time_event_sec-DEFAULT_REWIND_FRAME)
+        if media_data is not None:
+            st.image(media_data, use_column_width=True, caption=caption_str)
+    return row_sel
+
+## ---- data load functions --- 
+
 # def download_content(content_bytes, mime_type, filename):
 #     # Not officially supported 2/9/20 - https://github.com/streamlit/streamlit/issues/400
 #     # too heavy: https://user-images.githubusercontent.com/42288570/70138254-2b8d3e80-1690-11ea-8968-9c94ee2c9709.gif
 #     response = make_response(content_bytes, 200)
 #     response.headers['Content-type'] = 'application/pdf'
 #     response.headers['Content-disposition'] = f'Content-Disposition: inline; filename="{filename}"'
-
-
-## ---- data load functions --- 
 
 @st.cache(suppress_st_warning=True)
 def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
