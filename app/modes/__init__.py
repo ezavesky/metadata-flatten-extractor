@@ -19,7 +19,6 @@
 # -*- coding: utf-8 -*-
 
 # Imports
-import streamlit as st
 import pkgutil
 import pandas as pd
 import numpy as np
@@ -32,6 +31,8 @@ import math
 import json
 
 import altair as alt
+from sklearn.neighbors import BallTree
+import streamlit as st
 
 import logging
 import warnings
@@ -47,6 +48,7 @@ NLP_STOPWORD = "_stopword_"
 
 TOP_HISTOGRAM_N = 15
 TOP_LINE_N = 5
+MIN_INSIGHT_COUNT = 3
 NLP_FILTER = 0.025
 SAMPLE_N = 10
 SAMPLE_TABLE = 100
@@ -156,6 +158,46 @@ def timedelta_str(timedelta, format="%H:%M:%S"):
     return dt_print.strftime(format)
 
 
+def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_input_shots=True):
+    """Method to query for samples against a created tree/index
+
+    :param tree_query: (dict): Hot-indexed kNN object (e.g. BallTree from `data_index`) 
+    :param tree_shots: (list): The returned index/map from the absolute position in the tree to known/input shots
+    :param shot_input: (list): Known shots to use for query (they will be mapped with `tree_shots`)
+    :param num_neighbors: (int): Max number of neighbors to return after query
+    :param exclude_input_shots: (bool): Should items from `shot_input` be excluded from restuls?
+    :return: (DataFrame): dataframe of `shot` and `score` resulting from tree query
+
+    """
+    # NOTE: filter by those active shots that have query samples
+    #       we have to copy into a new array because memory views don't let us index randomly
+    # e.g. tree_query.data[[0,1,4,5], :]
+    #   https://www.programiz.com/python-programming/methods/built-in/memoryview
+    data_query = None
+    for raw_shot in shot_input:
+        if raw_shot in tree_shots:  # need to deref to index in memory view
+            if data_query is None:
+                data_query = tree_query.data[tree_shots.index(raw_shot)]
+            else:
+                data_query = np.vstack((data_query, tree_query.data[tree_shots.index(raw_shot), :]))
+    if len(data_query.shape) == 1:   # fix if we're querying with just a single sample
+        data_query = np.vstack((data_query, ))
+    # print(data_query)
+
+    # execute query, but pad with length of our query
+    query_dist, query_ind = tree_query.query(data_query, num_neighbors + data_query.shape[0])
+    # massage results into an easy to handle dataframe
+    df_expand = pd.DataFrame(np.vstack([np.hstack(query_dist), np.hstack(query_ind)]).T, columns=['distance', 'shot'])
+    df_expand["shot"] = df_expand["shot"].apply(lambda x: int(tree_shots[int(x)]))   # map back from query/tree
+    # exclude input shots from neighbors (yes, they will always be there otherwise!)
+    if exclude_input_shots:
+        df_expand = df_expand[~df_expand["shot"].isin(shot_input)]
+    # finally, group by shot number, push it to column, sort by best score
+    return df_expand.groupby('shot').max() \
+                    .reset_index(drop=False) \
+                    .sort_values('distance', ascending=True)
+
+
 ### ------------ content functions ---------------------
 
 def clip_video(media_file, media_output, start, duration=1, image_only=False):
@@ -190,28 +232,31 @@ def clip_display(df_live, df, media_file, field_group="tag"):
             f"@ {timedelta_str(val_r['time_begin'])} ({round(val_r['duration'], 2)}s) ({val_r[field_group]})")
         if len(list_sel) >= SAMPLE_TABLE:
             break
+    if not list_sel:
+        st.markdown("_(no instances to display)_")
+        return None
     instance_sel = st.selectbox("Instance Display", list_sel)
     instance_idx = int(instance_sel.split(' ')[0])
-    row_sel = df_live.iloc[instance_idx]
+    row_sel = pd.DataFrame([df_live.iloc[instance_idx]])
 
     # get begin_time with max score for selected celeb
-    sel_shot = row_sel["shot"]
-    time_event_sec = float(row_sel['time_begin'] / np.timedelta64(1, 's'))   # convert to seconds 
+    sel_shot = row_sel["shot"][0]
+    time_event_sec = float(row_sel['time_begin'][0] / np.timedelta64(1, 's'))   # convert to seconds 
     # pull row from all data
     row_first = df[(df["shot"]==sel_shot) & (df["tag_type"]=="shot")].head(1)
     time_begin_sec = float(row_first['time_begin'][0] / np.timedelta64(1, 's'))   # convert to seconds
     time_duration_sec = float(row_first["duration"][0])  # use shot duration
     if time_duration_sec < DEFAULT_CLIPLEN:   # min clip length
         time_duration_sec = DEFAULT_CLIPLEN
-    caption_str = f"*Tag: {row_sel['tag']}, Instance: {instance_idx} (score: {round(row_sel['score'],4)}) @ " \
+    caption_str = f"*Tag: {row_sel['tag'][0]}, Instance: {instance_idx} (score: {round(row_sel['score'][0], 4)}) @ " \
         f"{timedelta_str(row_first['time_begin'][0])} ({round(time_duration_sec, 2)}s)*"
 
     _, clip_ext = path.splitext(path.basename(media_file))
     media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
     media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
 
-
-    if st.button("Play Clip"):
+    key_button = f"{field_group}_{time_begin_sec}"
+    if st.button("Play Clip", key=key_button):
         status = clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
         if status == 0: # play clip
             st.video(open(media_clip, 'rb'))
@@ -413,3 +458,114 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     # save new data file before returning
     df.to_pickle(path_new)
     return df
+
+@st.cache(suppress_st_warning=True, allow_output_mutation=True)
+def data_index(stem_datafile, data_dir, df, allow_cache=True):
+    """A method to convert raw dataframe into vectorized features and return a hot index for query.
+    Returns:
+        [BallTree (sklearn.neighbors.BallTree), [shot0, shot1, shot2]] - indexed tree and list of shot ids that correspond to tree's memory view
+    """
+
+    # generate a checksum of the input files
+    m = hashlib.md5()
+    for data_time in sorted(df["time_begin"].unique()):
+        m.update(str(data_time).encode())
+
+    path_backup = None
+    for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
+        path_backup = filepath
+        break
+
+    # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
+    # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
+    path_new = path.join(data_dir, f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
+    ux_report = st.empty()
+    
+    # see if checksum matches the datafile (plus stem)
+    if allow_cache and (path.exists(path_new) or path_backup is not None):
+        if path.exists(path_new):  # if so, load old datafile, skip reload
+            df = pd.read_pickle(path_new)
+            ux_report.info(f"... building live index on features...")
+            tree = BallTree(df)
+            ux_report = st.empty()
+            return tree, list(df.index)
+        elif len(list_files) == 0 or ignore_update:  # only allow backup if new files weren't found
+            st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
+            df = pd.read_pickle(path_backup)
+            ux_report.info(f"... building live index on features...")
+            tree = BallTree(df)
+            ux_report = st.empty()
+            return tree, list(df.index)
+        else:   # otherwise, delete the old backup
+            unlink(path_backup.resolve())
+    
+    # time_init = pd.Timestamp('2010-01-01T00')  # not used any more
+    ux_progress = st.empty()
+    ux_report.info(f"Data has changed, regenerating core data bundle file {path_new}...")
+
+    # Add a placeholder
+    latest_iteration = st.empty()
+    ux_progress = st.progress(0)
+    task_buffer = 4   # account for pivot, index, duration
+    task_idx = 0
+
+    re_encode = re.compile(r"[^0-9a-zA-Z]")
+
+    list_pivot = []
+    tuple_groups = df.groupby(["tag", "tag_type"])   # run once but get length for progress bar
+    task_count = len(tuple_groups)+task_buffer
+    num_group = 0
+    ux_progress.progress(math.floor(task_idx/task_buffer*100))
+
+    # average by shot
+    # tuple_groups = df.groupby(["shot"])   # run once but get length for progress bar
+    # for idx_shot, df_shots in tuple_groups:
+    #     ux_report.info(f"... averaging {num_group}/{len(tuple_groups)} tag/tag_type shots...")
+    #     # print(df_mean, idx_shot, idx_group)
+
+    #     # group by tag_type, tag
+    #     for idx_group, df_group in df_shots.groupby(["tag", "tag_type"]):
+    #         list_pivot.append([idx_shot, re_encode.sub('_', '_'.join(idx_group)), df_group["score"].mean()])
+    #     num_group += 1
+
+    # group by tag_type, tag
+    for idx_group, df_group in tuple_groups:
+        if (num_group % 100) == 0:
+            ux_report.info(f"... vectorizing {num_group}/{len(tuple_groups)} tag/tag_type shots...")
+        # average by shot
+        df_mean = df_group.groupby('shot')['score'].mean().reset_index(drop=False)
+        df_mean["tag"] = re_encode.sub('_', '_'.join(idx_group))
+        list_pivot += list(df_mean.values)
+        num_group += 1
+
+    # pivot to make a shot-wise row view
+    task_idx += 1
+    tuple_groups = None
+    ux_progress.progress(math.floor(task_idx/task_buffer*100))
+    ux_report.info(f"... pivoting table for score reporting...")
+    df_vector_raw = pd.DataFrame(list_pivot, columns=["shot", "score", "tag"])
+    df_vector = pd.pivot_table(df_vector_raw, index=["shot"], values="score", columns=["tag"], fill_value=0).sort_index()
+    df_vector.index = df_vector.index.astype(int)
+    df_vector_raw = None
+
+    # append duration
+    task_idx += 1
+    ux_progress.progress(math.floor(task_idx/task_buffer*100))
+    ux_report.info(f"... linking shot duration to vectors...")
+    df_sub = df[df["tag_type"]=="shot"][["shot", "duration", "score"]].set_index("shot", drop=True)
+    df_vector = df_vector.join(df_sub["duration"])  # grab duration from original data
+    df_sub = None
+
+    # train new hot-index object for fast kNN query
+    # https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.BallTree.html#sklearn.neighbors.BallTree.query
+    task_idx += 1
+    ux_progress.progress(math.floor(task_idx/task_buffer*100))
+    ux_report.info(f"... building live index on features...")
+    tree = BallTree(df_vector)
+
+    ux_report.empty()
+    ux_progress.empty()
+
+    # save new data file before returning
+    df_vector.to_pickle(path_new)
+    return tree, list(df_vector.index)
