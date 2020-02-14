@@ -153,12 +153,15 @@ Job complete in 4m58.265737799s
 ## 0.5
 
 ### 0.5.1
-* split app modules into different visualization modes (overview, event_table, brand_expansion)
+* split app modules into different visualization modes (`overview`, `event_table`, `brand_expansion`)
+  * `brand_expansion` uses kNN search to expand from shots with brands to similar shots and returns those brands
+  * `event_table` allows specific exploration of identity (e.g. celebrities) and brands witih image/video playback
+  * **NOTE** The new application requires `scikit-learn` to perform live indexing of features
 * dramatically improved frame targeting (time offset) for event instances in application
 
 ### 0.5.0
 * split main function into sepearate auto-discovered modules
-* add new user collection detection parser
+* add new user collection detection parser `rekognition_face_collection` (custom face collections)
 
 ## 0.4
 
@@ -218,7 +221,7 @@ Job complete in 4m58.265737799s
 ### 0.2.0
 * add initial package, requirements, docker image
 * add basic readme for usage example
-* processes types `gcp_videointelligence_label`, `gcp_videointelligence_shot_change`, `gcp_videointelligence_explicit_content`, `gcp_videointelligence_speech_transcription`, `aws_rekognition_video_content_moderation`, `aws_rekognition_video_celebs`, `aws_rekognition_video_labels`, `aws_rekognition_video_faces`, `aws_rekognition_video_person_tracking`, `azure_videoindexer`, `rekognition_face_collection` (custom face collections)
+* processes types `gcp_videointelligence_label`, `gcp_videointelligence_shot_change`, `gcp_videointelligence_explicit_content`, `gcp_videointelligence_speech_transcription`, `aws_rekognition_video_content_moderation`, `aws_rekognition_video_celebs`, `aws_rekognition_video_labels`, `aws_rekognition_video_faces`, `aws_rekognition_video_person_tracking`, 
 
 
 # Future Development
