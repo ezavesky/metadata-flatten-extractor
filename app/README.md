@@ -130,7 +130,9 @@ on the length of your asset (almost linearly), the code will proceed to
 load all flattened files, convert time signatures, and perform some basic NLP
 tasks.  
 
-*On a 2.9 GHz 8-core, this process took about 7 minutes for an asset 2.75 hours long with 10 event input files. (v0.3.0)* 
+*On a 2.9 GHz 8-core laptop, this process took about 3 minutes for an asset 2.75 hours long with 10 event input files. (v0.4.4)* 
+
+*Additional indexing for brand-expansion takes about 1.5 minutes. (v0.5.1)* 
 
 Once complete, a cached ingested data file will be created and stored
 as [described above](#Execution-and-Deployment).
