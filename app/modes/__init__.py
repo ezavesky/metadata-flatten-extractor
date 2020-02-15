@@ -29,6 +29,7 @@ import hashlib
 import glob
 import math
 import json
+from time import sleep
 
 import altair as alt
 from sklearn.neighbors import BallTree
@@ -46,12 +47,12 @@ logger.setLevel(logging.DEBUG)
 NLP_TOKENIZE = True
 NLP_STOPWORD = "_stopword_"
 
-TOP_HISTOGRAM_N = 15
-TOP_LINE_N = 5
-MIN_INSIGHT_COUNT = 3
-NLP_FILTER = 0.025
-SAMPLE_N = 10
-SAMPLE_TABLE = 100
+TOP_HISTOGRAM_N = 15   # max number of elements to show in histogram
+TOP_LINE_N = 5   # max number of samples to show in timeseries plot
+MIN_INSIGHT_COUNT = 3   # min count for samples in 'insight' viewing (e.g. brand, text, event)
+NLP_FILTER = 0.025   # if stop word analysis not ready, what is HEAD/TAIL trim for frequencyy?
+SAMPLE_TABLE = 100   # how many samples go in the dataframe table dump
+MAX_LOCK_COUNT = 3   # how many lock loops shoudl we wait (for labels)
 
 DEFAULT_REWIND = 2   # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 5   # length of default cllip (sec)
@@ -59,9 +60,11 @@ DEFAULT_REWIND_FRAME = -0.25   # rewind for frame-specific starts
 
 ALTAIR_DEFAULT_WIDTH = 660   # width of charts
 ALTAIR_DEFAULT_HEIGHT = 220   # height of charts
-ALTAIR_SIDEBAR_WIDTH = 280   # width of charts
-ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts
+ALTAIR_SIDEBAR_WIDTH = 280   # width of charts (in sidebar)
+ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts (in sidebar)
 
+LABEL_TEXT = ['Invalid', 'Unverified', 'Valid']  # -1, 0, 1 for labeling interface
+LABEL_AS_CSV = False   # save labels as CSV or pkl?
 
 ### ------------ dataframe and chart functions ---------------------
 
@@ -182,8 +185,7 @@ def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_inpu
                 data_query = np.vstack((data_query, tree_query.data[tree_shots.index(raw_shot), :]))
     if len(data_query.shape) == 1:   # fix if we're querying with just a single sample
         data_query = np.vstack((data_query, ))
-    # print(data_query)
-
+   
     # execute query, but pad with length of our query
     query_dist, query_ind = tree_query.query(data_query, num_neighbors + data_query.shape[0])
     # massage results into an easy to handle dataframe
@@ -224,7 +226,7 @@ def clip_media(media_file, media_output, start):
     return None
 
 
-def clip_display(df_live, df, media_file, field_group="tag"):
+def clip_display(df_live, df, media_file, field_group="tag", label_dir=None, df_label=None):
     """Create visual for video or image with selection of specific instance"""
     list_sel = []
     for idx_r, val_r in df_live.iterrows():   # make it something readable
@@ -255,8 +257,7 @@ def clip_display(df_live, df, media_file, field_group="tag"):
     media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
     media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
 
-    key_button = f"{field_group}_{time_begin_sec}"
-    if st.button("Play Clip", key=key_button):
+    if st.button("Play Clip", key=f"{field_group}_{time_begin_sec}"):
         status = clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
         if status == 0: # play clip
             st.video(open(media_clip, 'rb'))
@@ -269,7 +270,28 @@ def clip_display(df_live, df, media_file, field_group="tag"):
         media_data = clip_media(media_file, media_image, time_event_sec-DEFAULT_REWIND_FRAME)
         if media_data is not None:
             st.image(media_data, use_column_width=True, caption=caption_str)
+
+    if label_dir is not None:
+        label_display(label_dir, df_label, row_sel)
     return row_sel
+
+
+def label_display(label_dir, df_label, row_sel):
+    label_initial = 1   # start with unlabeled state
+    if df_label is not None:
+        label_initial_row = df_label[(df_label["time_begin"]==row_sel['time_begin'][0]) \
+                                    & (df_label["extractor"]==row_sel['extractor'][0]) \
+                                    & (df_label["tag"]==row_sel['tag'][0]) \
+                                    & (df_label["tag_type"]==row_sel['tag_type'][0])]
+        if len(label_initial_row):
+            label_initial = int(label_initial_row['label']) + 1
+    time_event_sec = float(row_sel['time_begin'][0] / np.timedelta64(1, 's'))   # convert to seconds 
+    label_instance = st.radio(f"Label for Instance '{row_sel['tag'][0]}'", index=label_initial,
+        key=f"{row_sel['tag'][0]}_label_{row_sel['extractor'][0]}_{time_event_sec}", options=LABEL_TEXT)
+    label_new = LABEL_TEXT.index(label_instance)
+    if label_new != label_initial:  # only write on delta; 
+        data_label_serialize(label_dir, row_sel, label_new - 1)
+
 
 ## ---- data load functions --- 
 
@@ -296,7 +318,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
         break
 
     if not list_files and path_backup is None:
-        logger.critical(f"Sorry, no flattened or cached files found, check '{data_dir}'...")
+        logger.error(f"Sorry, no flattened or cached files found, check '{data_dir}'...")
         return None 
 
     # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
@@ -569,3 +591,64 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True):
     # save new data file before returning
     df_vector.to_pickle(path_new)
     return tree, list(df_vector.index)
+
+
+def data_label_serialize(data_dir, df_new=None, label_new=None):
+    """Method to load labels and append them to the primary data frame
+
+    :param stem_datafile: (str): Stem for active label files
+    :param data_dir: (str): Absolute/relative path for label file
+    :param label_new: (int): Label for row (-1=false, 1=true, 0=unknown)
+    :return bool: True/False on success of save
+    """
+    if LABEL_AS_CSV:
+        path_new = path.join(data_dir, f"data_labels.csv.gz")
+        path_lock = path.join(data_dir, f"data_labels.LOCK.csv.gz")
+    else:
+        path_new = path.join(data_dir, f"data_labels.pkl.gz")
+        path_lock = path.join(data_dir, f"data_labels.LOCK.pkl.gz")
+    ux_report = st.empty()
+    if df_new is None or label_new is None:
+        if path.exists(path_new):
+            if LABEL_AS_CSV:
+                df = pd.read_csv(path_new)
+                df["time_begin"] = pd.to_timedelta(df["time_begin"])
+                df["label"] = df["label"].astype(int)
+            else: 
+                df = pd.read_pickle(path_new)
+            return df
+        ux_report.warning(f"Warning, label file `{path_new}` is not found (ignore this on first runs)!")
+        return None
+    num_lock = 0
+    while path.exists(path_lock):  # if so, load old datafile, skip reload
+        num_lock += 1
+        if num_lock > MAX_LOCK_COUNT:
+            ux_report.error(f"Label file `{path_new}` is permanently locked, please clear the file or ask for help!")
+            logger.error(f"Label file `{path_new}` is permanently locked, please clear the file or ask for help!")
+            return False
+        ux_report.warning(f"Label file `{path_new}` is temporarily locked, retry {num_lock} momentarily...")
+        sleep(2)  # sleep a couple of seconds...
+    ux_report.info("Writing new label...")
+    ts_now = pd.Timestamp.now()
+    with open(path_lock, 'wt') as f:
+        f.write(str(ts_now))
+    col_primary = ["time_begin", "tag_type", "tag", "extractor"]
+    df = pd.DataFrame([], columns=col_primary)
+    if path.exists(path_new):
+        if LABEL_AS_CSV:
+            df = pd.read_csv(path_new)
+            df["time_begin"] = pd.to_timedelta(df["time_begin"])
+            df["label"] = df["label"].astype(int)
+        else: 
+            df = pd.read_pickle(path_new)
+    df_new = df_new[col_primary].copy()
+    df_new["timestamp"] = ts_now  # add new timestamp (now)
+    df_new["label"] = int(label_new)   # add new label
+    df = pd.concat([df_new, df], sort=False, ignore_index=True).drop_duplicates(col_primary)  # drop duplicate labels
+    if LABEL_AS_CSV:
+        df.to_csv(path_new, index=False)
+    else:
+        df.to_pickle(path_new)
+    ux_report.empty()
+    unlink(path_lock)
+    return True
