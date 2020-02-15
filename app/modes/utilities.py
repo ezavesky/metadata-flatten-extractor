@@ -19,7 +19,6 @@
 # -*- coding: utf-8 -*-
 
 # Imports
-import pkgutil
 import pandas as pd
 import numpy as np
 from os import path, system, unlink
@@ -39,8 +38,6 @@ import logging
 import warnings
 from sys import stdout as STDOUT
 
-# save module list at this level
-modules = [name for _, name, _ in pkgutil.iter_modules(__path__)]
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)

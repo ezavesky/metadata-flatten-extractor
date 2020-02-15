@@ -21,16 +21,12 @@
 # Imports
 import streamlit as st
 import pandas as pd
-import numpy as np
-from os import path, system, unlink
+from os import path
 import math
-import json
 
 import altair as alt
 
-presence_bars = False  # toggle to show presence indicators as a graph
-
-from . import *
+from .utilities import *
 
 NUM_SUMMARY = 10
 
