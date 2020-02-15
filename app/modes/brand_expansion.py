@@ -49,6 +49,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
 
     df = data_load("data_bundle", data_dir, True, ignore_update)
     tree_query, tree_shots = data_index("data_vectors", data_dir, df)   # convert data to numbers
+    df_label = data_label_serialize(data_dir)
     # print(tree_query.data.shape)
 
     # TODO: future download capability ...
@@ -74,7 +75,8 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     elif df_live is None or len(df_live) < MIN_INSIGHT_COUNT:
         st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
     else: 
-        df_instance = clip_display(df_live, df, media_file, field_group="extractor")
+        df_instance = clip_display(df_live, df, media_file, field_group="extractor",
+                                    label_dir=data_dir, df_label=df_label)
 
     # compute the distribution
     st.markdown("### source tag distributions")
@@ -142,7 +144,8 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     elif df_live is None or len(df_live) < MIN_INSIGHT_COUNT:
         st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
     else: 
-        df_instance = clip_display(df_brand_expand, df, media_file, field_group="tag")
+        df_instance = clip_display(df_brand_expand, df, media_file, field_group="tag",
+                                    label_dir=data_dir, df_label=df_label)
 
     return df_live
 
