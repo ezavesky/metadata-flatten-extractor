@@ -368,32 +368,26 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     UPSAMPLE_TIME = 4  # how many map intervals per second?
     shot_timing = range(int(math.ceil(df["time_begin"].max())) * UPSAMPLE_TIME)  # create index
     # for speed, we generate a mapping that can round the time into a reference...
-    #   [t0, t1, t2, t3, ....] and use that mapping for duration and shot id
+    #   [t0, t1, t2, t3, ....] and use that mapping shot id (update 2/16/20 - don't overwrite "duration" field)
     shot_lookup = None
-    shot_duration = None
     for idx_shots, df_shots in df[df["tag_type"]=="shot"].groupby("extractor"):
         if shot_lookup is not None:
             break
         shot_lookup = []
-        shot_duration = []
         # logger.info(f"Generating shot mapping from type '{df_shots['extractor'][0]}'...")
         df_shots = df_shots.sort_values("time_begin")
         idx_shot = 0
         for row_idx, row_shot in df_shots.iterrows():
             ref_shot = int(math.floor(row_shot["time_begin"] * UPSAMPLE_TIME))
             # print("check", ref_shot, idx_shot, row_shot["duration"])
-            while ref_shot >= len(shot_duration):
-                # print("push", ref_shot, idx_shot, row_shot["duration"])
+            while ref_shot >= len(shot_lookup):
                 shot_lookup.append(idx_shot)
-                shot_duration.append(row_shot["duration"])
             idx_shot += 1
     ref_shot = int(math.floor(df["time_begin"].max() * UPSAMPLE_TIME))
-    while ref_shot >= len(shot_duration):   # extend the mapping array until max time
-        shot_lookup.append(shot_duration[-1])
-        shot_duration.append(shot_duration[-1])
+    while ref_shot >= len(shot_lookup):   # extend the mapping array until max time
+        shot_lookup.append(shot_lookup[-1])
 
     df["shot"] = df["time_begin"].apply(lambda x: shot_lookup[int(math.floor(x * UPSAMPLE_TIME))])     # now map the time offset 
-    df["duration"] = df["time_begin"].apply(lambda x: shot_duration[int(math.floor(x * UPSAMPLE_TIME))])     # now map the time offset 
 
     # default with tag for keywords
     df.loc[df["tag_type"]=="word", "details"] = df[df["tag_type"]=="word"]
