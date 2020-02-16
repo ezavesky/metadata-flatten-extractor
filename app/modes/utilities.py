@@ -109,12 +109,14 @@ def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
     """Helper function to draw a timeseries for a few top selected tags..."""
     if df_sub is None:
         return
-    if type(tag_type) != list:
-        tag_type = [tag_type]
+    df_subtags = df_live
+    if tag_type is not None:
+        if type(tag_type) != list:
+            tag_type = [tag_type]
+        df_subtags = df_live[df_live["tag_type"].isin(tag_type)]
     add_tag = st.selectbox("Additional Timeline Tag", list(df_sub["tag"].unique()))
     tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
 
-    df_subtags = df_live[df_live["tag_type"].isin(tag_type)]
     df_sub = df_subtags[df_subtags["tag"].isin(tag_top)]    # filter top
     df_sub = df_sub[["tag", "score"]]   # select only score and tag name
     df_sub.index = df_sub.index.round('1T')
