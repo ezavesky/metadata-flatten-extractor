@@ -148,10 +148,13 @@ def main_sidebar(df, sort_list=None):
     idx_match &= (df['score'] >= score_bound[0]) & (df['score'] <= score_bound[1])
 
     # extract shot extents (shot length)
-    value = (int(df["duration"].min()), int(df["duration"].max()))
+    df_shot = df[df["tag_type"]=="shot"]
+    value = (int(df_shot["duration"].min()), int(df_shot["duration"].max()))
     duration_bound = st.sidebar.slider("Shot Duration (sec)", min_value=value[0], max_value=value[1], value=value, step=1)
-    idx_match &= (df['duration'] >= duration_bound[0]) & (df['duration'] <= duration_bound[1])
-
+    # updated to use duration of shot as filter, not the item directly
+    idx_shot = df_shot[(df_shot['duration'] >= duration_bound[0]) & (df_shot['duration'] <= duration_bound[1])]["shot"].unique()
+    idx_match &= df["shot"].isin(idx_shot)
+    
     # list for selected shot source
     shot_source = st.sidebar.selectbox("Shot Source", list(df[df["tag_type"]=="shot"]["extractor"].unique()) )
     st.sidebar.markdown("<div style='margin-top:-1em;font-size:smaller;text-align:center'>(currently disabled)</div>", unsafe_allow_html=True)
