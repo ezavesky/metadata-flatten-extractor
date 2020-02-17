@@ -68,7 +68,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
         df_live = df_live.sample(frac=1)
     else:
         df_live.sort_values(order_sort, ascending=order_ascend, inplace=True)
-    df_sub = df_live.sample(SAMPLE_TABLE)
+    df_sub = df_live.sample(min(len(df_live), SAMPLE_TABLE))
 
     df_best = df_live.drop_duplicates("tag")
     clip_display(df_best, df, media_file, field_group="tag")
