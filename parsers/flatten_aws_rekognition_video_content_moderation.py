@@ -53,7 +53,8 @@ class Parser(Flatten):
                     last_load_idx = -1
                     break
 
-            self.logger.info(f"... parsing aws_rekognition_video_content_moderation/{file_search} ")
+            if run_options["verbose"]:
+                self.logger.info(f"... parsing aws_rekognition_video_content_moderation/{file_search} ")
 
             if "ModerationLabels" not in dict_data:
                 self.logger.critical(f"Missing nested 'ModerationLabels' from source 'aws_rekognition_video_content_moderation' ({file_search})")
@@ -74,5 +75,6 @@ class Parser(Flatten):
                             "extractor": "aws_rekognition_video_content_moderation"})
             last_load_idx += 1
 
-        self.logger.critical(f"No moderation enties found in source 'aws_rekognition_video_content_moderation' ({file_search})")
+        if run_options["verbose"]:
+            self.logger.critical(f"No moderation enties found in source 'aws_rekognition_video_content_moderation' ({file_search})")
         return None

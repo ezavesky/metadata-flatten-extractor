@@ -49,7 +49,8 @@ class Parser(Flatten):
                 dict_data = self.json_load(path_content)
 
         if "annotationResults" not in dict_data:
-            self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_speech_transcription'")
+            if run_options["verbose"]:
+                self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_speech_transcription'")
             return None
 
         list_items = []
@@ -90,6 +91,7 @@ class Parser(Flatten):
         # added duplicate drop 0.4.1 for some reason this extractor has this bad tendency
         if len(list_items) > 0:
             return DataFrame(list_items).drop_duplicates()
-        self.logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunks from source 'gcp_videointelligence_speech_transcription'")
+        if run_options["verbose"]:
+            self.logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunks from source 'gcp_videointelligence_speech_transcription'")
         return None
         

@@ -51,7 +51,7 @@ def main():
         path_output = path.join(contentai.result_path, extractor_name + ".csv")
 
         # allow injection of parameters from environment
-        input_vars = {'path_result': path_output, "force_overwrite": True, 
+        input_vars = {'path_result': path_output, "force_overwrite": True, "verbose":False,
                         "compressed": True, 'all_frames': False, 'time_offset':0}
         if contentai.metadata is not None:  # see README.md for more info
             input_vars.update(contentai.metadata)
@@ -67,12 +67,13 @@ def main():
             parser_obj = getattr(parser_module, "Parser")   # get class template
             parser_instance = parser_obj(contentai.content_path)   # create instance
         
-            parsers.Flatten.logger.info(f"ContentAI argments: {input_vars}")
+            if input_vars["verbose"]:
+                parsers.Flatten.logger.info(f"ContentAI argments: {input_vars}")
             df = parser_instance.parse(input_vars)  # attempt to process
 
         if df is not None:  # skip bad results
             if input_vars['time_offset'] != 0:  # need offset?
-                parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events...")
+                parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{input_vars['path_result']}')...")
                 for col_name in ['time_begin', 'time_end', 'time_event']:
                     df[col_name] += input_vars ['time_offset']
 

@@ -23,6 +23,7 @@ in the [main](main.py) script.
 * `compressed` - *(bool)* - compress output CSVs instead of raw write (*default=True*, e.g. append '.gz')
 * `all_frames` - *(bool)* - for video-based events, log all instances in box or just the center (*default=False*)
 * `time_offset` - *(int)* - when merging events for an asset split into multiple parts, time in seconds (*default=0*)
+* `verbose` - *(bool)* - verbose input/output configuration printing (*default=False*)
 
 
 ## generated schema
@@ -184,6 +185,7 @@ Job complete in 4m58.265737799s
 ### 0.5.2
 * fix bugs in `gcp_videointelligence_logo_recognition` (timing) and `aws_rekognition_video_faces` (face emotions)
 * add new detection of `timing.txt` for integration of multiple results and their potential time offsets
+* added `verbose` flag to input of main parser
 
 ### 0.5.1
 * split app modules into different visualization modes (`overview`, `event_table`, `brand_expansion`)

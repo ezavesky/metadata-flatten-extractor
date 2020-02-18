@@ -273,5 +273,6 @@ class Parser(Flatten):
         if len(list_items) > 0:   # return the whole thing as dataframe
             return DataFrame(list_items)
 
-        self.logger.critical(f"Missing nested 'summarizedInsights' or 'videos' from source 'azure_videoindexer'")
+        if run_options["verbose"]:
+            self.logger.critical(f"Missing nested 'summarizedInsights' or 'videos' from source 'azure_videoindexer'")
         return None

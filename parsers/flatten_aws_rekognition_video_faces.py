@@ -56,7 +56,8 @@ class Parser(Flatten):
                     last_load_idx = -1
                     break
 
-            self.logger.info(f"... parsing aws_rekognition_video_faces/{file_search} ")
+            if run_options["verbose"]:
+                self.logger.info(f"... parsing aws_rekognition_video_faces/{file_search} ")
 
             for face_obj in dict_data["Faces"]:  # traverse items
                 if "Face" in face_obj:  # validate object
@@ -101,5 +102,6 @@ class Parser(Flatten):
 
             last_load_idx += 1
 
-        self.logger.critical(f"No faces found in source 'aws_rekognition_video_faces' ({file_search})")
+        if run_options["verbose"]:
+            self.logger.critical(f"No faces found in source 'aws_rekognition_video_faces' ({file_search})")
         return None
