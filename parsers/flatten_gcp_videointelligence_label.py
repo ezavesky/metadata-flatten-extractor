@@ -47,7 +47,8 @@ class Parser(Flatten):
                 path_content += ".gz"
                 dict_data = self.json_load(path_content)
         if "annotationResults" not in dict_data:
-            self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_label'")
+            if run_options["verbose"]:
+                self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_label'")
             return None
 
         # return details from a local entity
@@ -97,5 +98,6 @@ class Parser(Flatten):
             # convert list to a dataframe
             return DataFrame(list_items)
 
-        self.logger.critical(f"Missing nested knowns 'segmentLabelAnnotations' and 'shotLabelAnnotations' from source 'gcp_videointelligence_label'")
+        if run_options["verbose"]:
+            self.logger.critical(f"Missing nested knowns 'segmentLabelAnnotations' and 'shotLabelAnnotations' from source 'gcp_videointelligence_label'")
         return None
