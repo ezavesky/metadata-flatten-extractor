@@ -81,10 +81,12 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     st.markdown("### overall tag distributions")
     df_filter = df_live.copy()
     df_filter["score"] = df_filter["score"].apply(lambda x: math.floor(x * 100)/100)
+    df_filter_tag = aggregate_tags(df_filter, None, "tag")
     df_filter = aggregate_tags(df_filter, None, ["tag","score"])
-    if len(df_filter) > NUM_SUMMARY:
-        score_cut = df_filter.iloc[NUM_SUMMARY]["count"]
-        df_filter.loc[df_filter["count"] < score_cut, "tag"] = "(other)"
+    if len(df_filter_tag) > NUM_SUMMARY:   # use the TAG base aggregation first
+        score_cut = df_filter_tag.iloc[NUM_SUMMARY]["count"]
+        tag_cut = df_filter_tag[df_filter_tag["count"] < score_cut]["tag"].unique()
+        df_filter.loc[df_filter["tag"].isin(tag_cut), "tag"] = "(other)"
 
     chart = alt.Chart(df_filter, height=ALTAIR_DEFAULT_HEIGHT, width=ALTAIR_DEFAULT_WIDTH).mark_bar().encode(
         x=alt.X('score', sort=None, stack=None),
