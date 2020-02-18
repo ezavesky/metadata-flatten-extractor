@@ -53,7 +53,8 @@ class Parser(Flatten):
                     last_load_idx = -1
                     break
 
-            self.logger.info(f"... parsing aws_rekognition_video_celebs/{file_search} ")
+            if run_options["verbose"]:
+                self.logger.info(f"... parsing aws_rekognition_video_celebs/{file_search} ")
 
             if "Celebrities" not in dict_data:
                 self.logger.critical(f"Missing nested 'Celebrities' from source 'aws_rekognition_video_celebs' ({file_search})")
@@ -79,6 +80,7 @@ class Parser(Flatten):
                         "extractor": "aws_rekognition_video_celebs"})
             last_load_idx += 1
 
-        self.logger.critical(f"No celebrity enties found in source 'aws_rekognition_video_celebs' ({file_search})")
+        if run_options["verbose"]:
+            self.logger.critical(f"No celebrity enties found in source 'aws_rekognition_video_celebs' ({file_search})")
         return None
         

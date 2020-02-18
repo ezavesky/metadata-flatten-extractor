@@ -21,6 +21,7 @@
 from os import path
 import re
 import json
+import math
 from pandas import DataFrame
 
 from . import Flatten
@@ -51,7 +52,8 @@ class Parser(Flatten):
                 dict_data = self.json_load(path_content)
 
         if "annotationResults" not in dict_data:
-            self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_logo_recognition'")
+            if run_options["verbose"]:
+                self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_logo_recognition'")
             return None
 
         re_time_clean = re.compile(r"s$")
@@ -91,5 +93,6 @@ class Parser(Flatten):
                                     "extractor": "gcp_videointelligence_logo_recognition"})
                 return DataFrame(list_items)
 
-        self.logger.critical(f"Missing nested 'logoRecognitionAnnotations' from source 'gcp_videointelligence_logo_recognition'")
+        if run_options["verbose"]:
+            self.logger.critical(f"Missing nested 'logoRecognitionAnnotations' from source 'gcp_videointelligence_logo_recognition'")
         return None      

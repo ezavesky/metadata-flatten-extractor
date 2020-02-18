@@ -59,7 +59,8 @@ class Parser(Flatten):
                     last_load_idx = -1
                     break
 
-            self.logger.info(f"... parsing rekognition_face_collection/{file_search} ")
+            if run_options["verbose"]:
+                self.logger.info(f"... parsing rekognition_face_collection/{file_search} ")
 
             for face_obj in dict_data["Persons"]:  # traverse items
                 if "FaceMatches" in face_obj:  # validate object; for now, we skip unnamed faces
@@ -99,5 +100,6 @@ class Parser(Flatten):
                     list_items += list(seen_faces.values())
             last_load_idx += 1
 
-        self.logger.critical(f"No faces found in source 'rekognition_face_collection' ({file_search})")
+        if run_options["verbose"]:
+            self.logger.critical(f"No faces found in source 'rekognition_face_collection' ({file_search})")
         return None

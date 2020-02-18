@@ -50,7 +50,8 @@ class Parser(Flatten):
                 dict_data = self.json_load(path_content)
 
         if "annotationResults" not in dict_data:
-            self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_explicit_content'")
+            if run_options["verbose"]:
+                self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_explicit_content'")
             return None
 
         re_time_clean = re.compile(r"s$")
@@ -71,6 +72,7 @@ class Parser(Flatten):
                                 "extractor": "gcp_videointelligence_explicit_content"})
                 return DataFrame(list_items)
 
-        self.logger.critical(f"Missing nested 'explicitAnnotation' from source 'gcp_videointelligence_explicit_content'")
+        if run_options["verbose"]:
+            self.logger.critical(f"Missing nested 'explicitAnnotation' from source 'gcp_videointelligence_explicit_content'")
         return None
         

@@ -56,7 +56,8 @@ class Parser(Flatten):
                     last_load_idx = -1
                     break
 
-            self.logger.info(f"... parsing aws_rekognition_video_faces/{file_search} ")
+            if run_options["verbose"]:
+                self.logger.info(f"... parsing aws_rekognition_video_faces/{file_search} ")
 
             for face_obj in dict_data["Faces"]:  # traverse items
                 if "Face" in face_obj:  # validate object
@@ -68,13 +69,6 @@ class Parser(Flatten):
                             'h': round(local_obj['BoundingBox']['Height'], 4),
                             'l': round(local_obj['BoundingBox']['Left'], 4), 
                             't': round(local_obj['BoundingBox']['Top'], 4) }
-                    if "Emotions" in local_obj and local_obj["Emotions"]:
-                        emotion_obj = {}
-                        for emo_obj in local_obj["Emotions"]:
-                            score_emo = round(float(emo_obj["Confidence"])/100, 4)
-                            # if score_emo > 0.05   # consider a threshold?
-                            emotion_obj[emo_obj["Type"]] = score_emo
-                        details_obj['Emotions'] = emotion_obj
                     for f in face_feats:   # go through all face features
                         if f in local_obj and local_obj[f]:
                             if "Value" in local_obj[f]:
@@ -91,12 +85,23 @@ class Parser(Flatten):
                                 details_obj[f] = local_obj[f]
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
 
-                    list_items.append({"time_begin": time_frame, "source_event": "image", "tag_type": "face",
+                    list_items.append({"time_begin": time_frame, "source_event": "face", 
                         "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
                         "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_faces"})
 
+                    # update 0.5.2 - break out emotion to other tag type
+                    if "Emotions" in local_obj and local_obj["Emotions"]:
+                        for emo_obj in local_obj["Emotions"]:
+                            # if score_emo > 0.05   # consider a threshold?
+                            score_emo = round(float(emo_obj["Confidence"])/100, 4)
+                            list_items.append({"time_begin": time_frame, "source_event": "face", 
+                                "time_end": time_frame, "time_event": time_frame, "tag_type": "emotion",
+                                "tag": emo_obj["Type"].capitalize(), "score": score_emo, 
+                                "details": json.dumps(details_obj), "extractor": "aws_rekognition_video_faces"})
+
             last_load_idx += 1
 
-        self.logger.critical(f"No faces found in source 'aws_rekognition_video_faces' ({file_search})")
+        if run_options["verbose"]:
+            self.logger.critical(f"No faces found in source 'aws_rekognition_video_faces' ({file_search})")
         return None
