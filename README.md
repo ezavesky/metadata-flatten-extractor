@@ -186,6 +186,7 @@ Job complete in 4m58.265737799s
 * fix bugs in `gcp_videointelligence_logo_recognition` (timing) and `aws_rekognition_video_faces` (face emotions)
 * add new detection of `timing.txt` for integration of multiple results and their potential time offsets
 * added `verbose` flag to input of main parser
+* rename `rekognition_face_collection` for consistency with other parsers
 
 ### 0.5.1
 * split app modules into different visualization modes (`overview`, `event_table`, `brand_expansion`)
