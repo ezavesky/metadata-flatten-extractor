@@ -66,8 +66,17 @@ of the `EXTRACTOR_METADATA` variable as JSON.
 EXTRACTOR_METADATA='{"compressed":True}'
 ```
 
-For utility, the below line has been wrapped
-in the bash script `run_local.sh`.
+### locally downloading results
+
+You can locally download data from a specific job for this extractor to directly analyze.
+
+```shell
+contentai data wHaT3ver1t1s --dir data
+```
+
+### locally run on results
+
+For utility, the above line has been wrapped in the bash script `run_local.sh`.
 
 ```shell
 EXTRACTOR_METADATA='$3' EXTRACTOR_NAME=metadata-flatten EXTRACTOR_JOB_ID=1 \
@@ -75,22 +84,42 @@ EXTRACTOR_METADATA='$3' EXTRACTOR_NAME=metadata-flatten EXTRACTOR_JOB_ID=1 \
     python -u main.py
 ```
 
-You can locally download data from a specific job for this extractor to directly analyze.
+This allows a simplified command-line specification of a run configuration, which also allows the passage of metadata into a configuration.
+
+*Normal result generation into compressed CSVs (with overwrite).*
 
 ```shell
-contentai data wHaT3ver1t1s --dir data
-# normal result generation into compressed CSVs (with overwrite)
 ./run_local.sh data/wHaT3ver1t1s results/
-# with environment variables and integration of results from a file that was split
- ./run_local.sh results/1XMDAz9w8T1JFEKHRuNunQhRWL1/ results/ '{"force_overwrite":false,"time_offset":10800}'
 ```
 
+*Result generation with environment variables and integration of results from a file that was split at an offset of three hours.*
+ 
+```shell
+./run_local.sh results/1XMDAz9w8T1JFEKHRuNunQhRWL1/ results/ '{"force_overwrite":false,"time_offset":10800}'
+```
 
-- patch input of files for better compliance
-- add documentation (standard)
+### Local Runs with Timing Offsets
 
+The script `run_local.sh` also searches for a text file called `timing.txt` in each source directory.  If found, it will offset all results by the specified number of seconds before saving them to disk.
 
-### ContentAI Deploy 
+This capability may be useful if you have to manually split a file into multiple smaller files at a pre-determined time offset (e.g. three hours -> 10800 in `timing.txt`).   *(added v0.5.2)*
+
+```shell
+echo "10800" > 1XMDAz9w8T1JFEKHRuNunQhRWL1/timing.txt
+./run_local.sh results/1XMDAz9w8T1JFEKHRuNunQhRWL1/ results/
+```
+
+Afterwards, new results can be added arbitrarily and the script can be rerun in the same directory to accomodate different timing offsets.
+
+*Example demonstrating integration of multiple output directories.*
+
+```shell
+find results -type d  -d 1 | xargs -I {} ./run_local.sh {} results/
+```
+
+## ContentAI 
+
+### Deployment
 
 Deployment is easy and follows standard ContentAI steps.
 
@@ -108,7 +137,7 @@ docker build -t metadata-deploy
 contentai deploy metadata-flatten --cpu 256 --memory 512 -i metadata-deploy
 ```
 
-### ContentAI Run
+### Run as an Extractor
 
 
 ```shell
@@ -152,12 +181,16 @@ Job complete in 4m58.265737799s
 
 ## 0.5
 
+### 0.5.2
+* fix bugs in `gcp_videointelligence_logo_recognition` (timing) and `aws_rekognition_video_faces` (face emotions)
+* add new detection of `timing.txt` for integration of multiple results and their potential time offsets
+
 ### 0.5.1
 * split app modules into different visualization modes (`overview`, `event_table`, `brand_expansion`)
   * `brand_expansion` uses kNN search to expand from shots with brands to similar shots and returns those brands
   * `event_table` allows specific exploration of identity (e.g. celebrities) and brands witih image/video playback
   * **NOTE** The new application requires `scikit-learn` to perform live indexing of features
-* dramatically improved frame targeting (time offset) for event instances in application
+* dramatically improved frame targeting (time offset) for event instances (video) in application
 
 ### 0.5.0
 * split main function into sepearate auto-discovered modules

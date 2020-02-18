@@ -21,6 +21,7 @@
 from os import path
 import re
 import json
+import math
 from pandas import DataFrame
 
 from . import Flatten
