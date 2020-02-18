@@ -48,7 +48,7 @@ def main():
 
     for extractor_name in parsers.modules:  # iterate through auto-discovered packages
         # call process with i/o specified
-        path_output = path.join(contentai.result_path, "flatten_" + extractor_name + ".csv")
+        path_output = path.join(contentai.result_path, extractor_name + ".csv")
 
         # allow injection of parameters from environment
         input_vars = {'path_result': path_output, "force_overwrite": True, 
