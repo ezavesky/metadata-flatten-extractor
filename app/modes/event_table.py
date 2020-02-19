@@ -21,16 +21,12 @@
 # Imports
 import streamlit as st
 import pandas as pd
-import numpy as np
-from os import path, system, unlink
+from os import path
 import math
-import json
 
 import altair as alt
 
-presence_bars = False  # toggle to show presence indicators as a graph
-
-from . import *
+from .utilities import *
 
 NUM_SUMMARY = 10
 
@@ -56,7 +52,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     df_live = main_sidebar(df)
 
     # Create the runtime info
-    if len(df_live) < TOP_LINE_N:
+    if len(df_live) < MIN_INSIGHT_COUNT:
         st.markdown("## Too few samples")
         st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
         return
@@ -72,7 +68,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
         df_live = df_live.sample(frac=1)
     else:
         df_live.sort_values(order_sort, ascending=order_ascend, inplace=True)
-    df_sub = df_live.sample(SAMPLE_TABLE)
+    df_sub = df_live.sample(min(len(df_live), SAMPLE_TABLE))
 
     df_best = df_live.drop_duplicates("tag")
     clip_display(df_best, df, media_file, field_group="tag")
