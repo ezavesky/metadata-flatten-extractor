@@ -182,6 +182,11 @@ Job complete in 4m58.265737799s
 
 ## 0.5
 
+### 0.5.3
+* add labeling component to application (for video/image inspection) 
+* fix shot duration computeation in application (do not overwrite original event duration)
+* add text-search for scanning named entities, words from transcript
+
 ### 0.5.2
 * fix bugs in `gcp_videointelligence_logo_recognition` (timing) and `aws_rekognition_video_faces` (face emotions)
 * add new detection of `timing.txt` for integration of multiple results and their potential time offsets

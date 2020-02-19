@@ -44,9 +44,10 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     page_module = importlib.import_module(f"modes.{sel_mode}")  # load module
     func_page = getattr(page_module, "main_page")   # get class template
     df_live = func_page(data_dir, media_file, ignore_update)  # attempt to process
+    num_events = f"{len(df_live)} events" if df_live is not None else "(no events detected)"
     ux_report.markdown(f"""<div style="text-align:left; font-size:small; color:#a1a1a1; width=100%;">
                      <span >{version_dict['__package__']} (v {version_dict['__version__']})</span>
-                     <span > - {len(df_live)} events</span></div>""", unsafe_allow_html=True)
+                     <span > - {num_events}</span></div>""", unsafe_allow_html=True)
 
 
 def main(args=None):
