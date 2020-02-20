@@ -36,8 +36,9 @@ class Parser(Flatten):
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         list_items = []
-        face_feats = ['AgeRange', 'Smile', 'Eyeglasses', 'Sunglasses', 'Gender', 'Beard', 'Mustache', 
-                     'EyesOpen', 'MouthOpen', 'Pose']  # , 'Landmarks', 'Quality']  -- propose we skip these (emz 1/30
+        face_feats = {'Smile':'NoSmile', 'Eyeglasses':'NoGlasses', 'Sunglasses':'NoGlasses', 
+                      'Gender':None, 'Beard':'NoBeard', 'Mustache':'NoMustache', 
+                      'EyesOpen':'EyesClosed', 'MouthOpen':'MouthClosed'} # 'Pose', 'Landmarks', 'Quality']  -- propose we skip these (emz 1/30
         
         last_load_idx = 0
         while last_load_idx >= 0:
@@ -63,32 +64,40 @@ class Parser(Flatten):
                 if "Face" in face_obj:  # validate object
                     local_obj = face_obj["Face"]
                     time_frame = float(face_obj["Timestamp"])/1000
-                    details_obj = {}
                     if "BoundingBox" in local_obj:
+                        details_obj = {}
                         details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], 4), 
                             'h': round(local_obj['BoundingBox']['Height'], 4),
                             'l': round(local_obj['BoundingBox']['Left'], 4), 
                             't': round(local_obj['BoundingBox']['Top'], 4) }
-                    for f in face_feats:   # go through all face features
+                        if "Pose" in local_obj:
+                            details_obj['pose'] = local_obj["Pose"]
+                        score_frame = round(float(local_obj["Confidence"])/100, 4)
+                        list_items.append({"time_begin": time_frame, "source_event": "face", 
+                            "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
+                            "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
+                            "extractor": "aws_rekognition_video_faces"})
+
+                    # go through all face features (modified 0.5.4, split face attributes)
+                    for f in face_feats:   
                         if f in local_obj and local_obj[f]:
+                            details_obj = {}
+                            score_feat = None
                             if "Value" in local_obj[f]:
                                 score_feat = round(float(local_obj[f]["Confidence"])/100, 4)
-                                if local_obj[f]["Value"] == "Male":  # special case for 'male' gender
-                                    details_obj["Male"] = score_feat
-                                elif local_obj[f]["Value"] == "Female":  # special case for 'female' gender
-                                    details_obj["Female"] = score_feat
-                                else:  # normal valued item, use here
-                                    if local_obj[f]["Value"] == False:
-                                        score_feat = 1 - score_feat
-                                    details_obj[f] = score_feat
-                            else:  # don't match a condition above
+                                if face_feats[f] is not None:   # normal valued item, use here
+                                    if local_obj[f]["Value"] == False:   # get the right name for a negative value
+                                        f = face_feats[f]
+                                else:     # special match for gender
+                                    f = local_obj[f]["Value"]
+                            elif f == "AgeRange":   # special condition for age
                                 details_obj[f] = local_obj[f]
-                    score_frame = round(float(local_obj["Confidence"])/100, 4)
-
-                    list_items.append({"time_begin": time_frame, "source_event": "face", 
-                        "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
-                        "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
-                        "extractor": "aws_rekognition_video_faces"})
+                                score_feat = 1.0
+                            if score_feat is not None:
+                                list_items.append({"time_begin": time_frame, "source_event": "face", 
+                                    "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
+                                    "tag": f, "score": score_feat, "details": json.dumps(details_obj),
+                                    "extractor": "aws_rekognition_video_faces"})
 
                     # update 0.5.2 - break out emotion to other tag type
                     if "Emotions" in local_obj and local_obj["Emotions"]:
