@@ -229,8 +229,10 @@ def clip_display(df_live, df, media_file, field_group="tag", label_dir=None, df_
     """Create visual for video or image with selection of specific instance"""
     list_sel = []
     for idx_r, val_r in df_live.iterrows():   # make it something readable
+        time_duration_sec = float(val_r["duration"])  # use shot duration
+        str_duration = "" if time_duration_sec < 0.1 else f"({round(time_duration_sec, 2)}s)"
         list_sel.append(f"{len(list_sel)} - (score: {round(val_r['score'],4)}) " \
-            f"@ {timedelta_str(val_r['time_begin'])} ({round(val_r['duration'], 2)}s) ({val_r[field_group]})")
+            f"@ {timedelta_str(val_r['time_begin'])} {str_duration} ({val_r[field_group]})")
         if len(list_sel) >= SAMPLE_TABLE:
             break
     if not list_sel:
