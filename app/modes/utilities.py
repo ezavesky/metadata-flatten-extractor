@@ -51,6 +51,8 @@ NLP_FILTER = 0.025   # if stop word analysis not ready, what is HEAD/TAIL trim f
 SAMPLE_TABLE = 100   # how many samples go in the dataframe table dump
 MAX_LOCK_COUNT = 3   # how many lock loops shoudl we wait (for labels)
 
+UPSAMPLE_TIME = 4  # how many map intervals per second? when grouping shots
+
 DEFAULT_REWIND = 2   # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 5   # length of default cllip (sec)
 DEFAULT_REWIND_FRAME = -0.25   # rewind for frame-specific starts
@@ -369,7 +371,6 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     # TODO: allow multiple shot providers
 
     # build look-up table for all shots by second
-    UPSAMPLE_TIME = 4  # how many map intervals per second?
     shot_timing = range(int(math.ceil(df["time_begin"].max())) * UPSAMPLE_TIME)  # create index
     # for speed, we generate a mapping that can round the time into a reference...
     #   [t0, t1, t2, t3, ....] and use that mapping shot id (update 2/16/20 - don't overwrite "duration" field)

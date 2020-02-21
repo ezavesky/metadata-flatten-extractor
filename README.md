@@ -182,6 +182,9 @@ Job complete in 4m58.265737799s
 
 ## 0.5
 
+### 0.5.4
+* adding `face_attributes` visualization mode for exploration of face data
+
 ### 0.5.3
 * add labeling component to application (for video/image inspection) 
 * fix shot duration computeation in application (do not overwrite original event duration)
