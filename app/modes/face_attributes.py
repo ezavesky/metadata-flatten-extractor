@@ -28,8 +28,9 @@ import altair as alt
 
 from .utilities import *
 
-# https://stackoverflow.com/a/16710842 - split, but save quotes
-REGEX_SEARCH = re.compile(r'(?:[^\s,"]|"(?:\\.|[^"])*")+')
+
+LIST_NOFACE_TAGS = ["Face", "Age"]
+
 
 ### ------------ main rendering page and sidebar ---------------------
 
@@ -101,12 +102,23 @@ def main_sidebar(df):
     idx_match = [True] * len(df_sub)
 
     # aggregate for tag
-    list_attributes = df_sub["tag"].unique()
+    list_attributes = list(set(df_sub["tag"].unique()).difference(LIST_NOFACE_TAGS))
     sel_attribute = st.sidebar.multiselect("Shot Attributes", list_attributes)
 
+    # filtering mode
     text_found = st.sidebar.empty()
     mode_set = ["union (OR search)", "exclusion (NOT(OR) search)", "intersection (AND search)"]
     filter_mode = st.sidebar.selectbox("Filter Mode", mode_set, index=0)
+
+    # age filtering
+    df_age = df_sub[df_sub["tag"]=="Age"].copy()
+    if len(df_age):
+        df_age["low"] = df_age["details"].apply(lambda x: json.loads(x)["AgeRange"]["Low"]).astype(int)
+        df_age["high"] = df_age["details"].apply(lambda x: json.loads(x)["AgeRange"]["High"]).astype(int)
+        value = (int(df_age["low"].min()), int(df_age["high"].max()))
+        age_bound = st.sidebar.slider("Age Range", min_value=value[0], max_value=value[1], value=value)
+        time_include = df_age[(df_age["low"] >= age_bound[0]) & (df_age["high"] <= age_bound[1])].index.unique()
+        idx_match &= df_sub.index.isin(time_include)
 
     st.sidebar.markdown("<hr style='margin-top:-0.25em; margin-bottom:-0.25em' />", unsafe_allow_html=True)
 
@@ -139,7 +151,7 @@ def main_sidebar(df):
             idx_match &= df_sub["tag"].isin(sel_attribute)
 
     # exclude generic type 'face' that just has bounding boxes
-    df_filter = df_sub[idx_match & (df_sub['tag']!='Face')]
+    df_filter = df_sub[idx_match & (df_sub['tag'].isin(list_attributes))]
 
     st.sidebar.markdown("<hr style='margin-top:-0.25em; margin-bottom:-0.25em' />", unsafe_allow_html=True)
 
