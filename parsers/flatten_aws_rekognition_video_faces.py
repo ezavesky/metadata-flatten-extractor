@@ -64,25 +64,29 @@ class Parser(Flatten):
                 if "Face" in face_obj:  # validate object
                     local_obj = face_obj["Face"]
                     time_frame = float(face_obj["Timestamp"])/1000
+                    score_frame = round(float(local_obj["Confidence"])/100, 4)
                     if "BoundingBox" in local_obj:
                         details_obj = {}
                         details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], 4), 
                             'h': round(local_obj['BoundingBox']['Height'], 4),
                             'l': round(local_obj['BoundingBox']['Left'], 4), 
                             't': round(local_obj['BoundingBox']['Top'], 4) }
-                        if "Pose" in local_obj:
-                            details_obj['pose'] = local_obj["Pose"]
-                        score_frame = round(float(local_obj["Confidence"])/100, 4)
+                        list_items.append({"time_begin": time_frame, "source_event": "face", 
+                            "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
+                            "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
+                            "extractor": "aws_rekognition_video_faces"})
+                    if "Pose" in local_obj:
+                        details_obj['pose'] = local_obj["Pose"]
                         list_items.append({"time_begin": time_frame, "source_event": "face", 
                             "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
                             "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
                             "extractor": "aws_rekognition_video_faces"})
 
                     # go through all face features (modified 0.5.4, split face attributes)
-                    for f in face_feats:   
-                        if f in local_obj and local_obj[f]:
+                    for f in local_obj:
+                        score_feat = None
+                        if f in face_feats:   
                             details_obj = {}
-                            score_feat = None
                             if "Value" in local_obj[f]:
                                 score_feat = round(float(local_obj[f]["Confidence"])/100, 4)
                                 if face_feats[f] is not None:   # normal valued item, use here
@@ -90,14 +94,15 @@ class Parser(Flatten):
                                         f = face_feats[f]
                                 else:     # special match for gender
                                     f = local_obj[f]["Value"]
-                            elif f == "AgeRange":   # special condition for age
-                                details_obj[f] = local_obj[f]
-                                score_feat = 1.0
-                            if score_feat is not None:
-                                list_items.append({"time_begin": time_frame, "source_event": "face", 
-                                    "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
-                                    "tag": f, "score": score_feat, "details": json.dumps(details_obj),
-                                    "extractor": "aws_rekognition_video_faces"})
+                        elif f == "AgeRange":   # special condition for age
+                            details_obj[f] = local_obj[f]
+                            score_feat = 1.0
+                            f = "Age"
+                        if score_feat is not None:
+                            list_items.append({"time_begin": time_frame, "source_event": "face", 
+                                "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
+                                "tag": f, "score": score_feat, "details": json.dumps(details_obj),
+                                "extractor": "aws_rekognition_video_faces"})
 
                     # update 0.5.2 - break out emotion to other tag type
                     if "Emotions" in local_obj and local_obj["Emotions"]:
