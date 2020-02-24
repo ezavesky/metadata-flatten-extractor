@@ -74,7 +74,7 @@ class Parser(Flatten):
                         details_obj['urls'] = ",".join(local_obj["Urls"])
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
 
-                    list_items.append({"time_begin": time_frame, "source_event": "image", "tag_type": "identity",
+                    list_items.append({"time_begin": time_frame, "source_event": "face", "tag_type": "identity",
                         "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                         "score": score_frame, "details": json.dumps(details_obj),
                         "extractor": "aws_rekognition_video_celebs"})

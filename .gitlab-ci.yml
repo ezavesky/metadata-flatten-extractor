@@ -171,8 +171,9 @@ launch:
     - '[ -z "$EXISTING_CONTAINER" ] || ssh $USER_NAME@$DEPLOY_HOST "docker stop $EXISTING_CONTAINER && docker rm $EXISTING_CONTAINER"'
     # restart new instance with proper port
     - export DOCKER_RUN="docker run -d -p $BUILD_PORT:8501 --env runmode='server' -t $BUILD_IMAGE-app"
-    - echo "$DOCKER_RUN"
-    - ssh $USER_NAME@$DEPLOY_HOST "$DOCKER_RUN"
+    - echo "$DOCKER_RUN (disabled for now)"
+    # disabled until multi-asset input is added
+    # - ssh $USER_NAME@$DEPLOY_HOST "$DOCKER_RUN"
     # - ssh $USER_NAME@$DEPLOY_HOST "nvidia-docker run -u $USER_NAME -d --name $DOCKER_PROJECT -p $BUILD_PORT:6006  -t $BUILD_IMAGE-app"
     # remove the previous docker images (TODO: fix error condition; right now it's always proceeding)
     - '[ -z "$EXISTING_IMAGES" ] || ( ssh $USER_NAME@$DEPLOY_HOST "docker image rm $EXISTING_IMAGES" )'
@@ -219,8 +220,8 @@ contentai_push:
     - /tmp/contentai deploy $DOCKER_PROJECT --cpu 1024 --memory 2048 -i "$BUILD_IMAGE"
   dependencies:
     - setup
-  # only:
-  #   - master
+  only:
+    - master
 
 
 

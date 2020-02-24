@@ -49,6 +49,8 @@ class Flatten():
 
     def __init__(self, path_content):
         super().__init__()
+        self.extractor_keys = []
+        self.extractor = None
         self.path_content = path_content
 
     def json_load(self, path_file):
@@ -71,5 +73,20 @@ class Flatten():
                     return {}
         return {}
 
-    def get_extractor_results(self, extractor_name, path):
-        return contentai.get_extractor_results(extractor_name, path)
+    def get_extractor_results(self, extractor_name, path, force_retrieve=False):
+        if not force_retrieve:  # safe way to request without 404/500 error
+            if len(self.extractor_keys) < 1 or self.extractor != extractor_name:  
+                self.extractor_keys = []
+                self.extractor_name = extractor_name
+                dict_raw = self.get_extractor_keys(extractor_name)
+                # except urllib.error.HTTPError as e:
+                if dict_raw is not None and 'keys' in dict_raw:
+                    self.extractor_keys = dict_raw['keys']
+                    self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
+            if path not in self.extractor_keys:   # have the keys, check for presence
+                return None
+        return contentai.get_extractor_results(extractor_name, path)   # checked or brute force request
+
+    def get_extractor_keys(self, extractor_name):
+        return contentai.get_extractor_result_keys(extractor_name)
+
