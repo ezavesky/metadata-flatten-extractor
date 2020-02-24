@@ -15,6 +15,8 @@ RUN python -V \
 email = \"\"\n\
 " > /root/.streamlit/credentials.toml'
 RUN bash -c 'echo -e "\
+[browser]\n\
+gatherUsageStats = false\n\
 [server]\n\
 enableCORS = false\n\
 " > /root/.streamlit/config.toml' \
