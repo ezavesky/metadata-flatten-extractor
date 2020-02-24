@@ -142,14 +142,14 @@ contentai deploy metadata-flatten --cpu 256 --memory 512 -i metadata-deploy
 
 
 ```shell
-contentai run s3://bucket/video.mp4 -w 'digraph { <my_extractor> }' --watch --tasks
+contentai run https://bucket/video.mp4  -w 'digraph { aws_rekognition_video_celebs -> metadata_flatten}'
 
 JOB ID:     1Tfb1vPPqTQ0lVD1JDPUilB8QNr
 CONTENT:    s3://bucket/video.mp4
 STATE:      complete
-START:      Fri Nov 15 04:38:05 PM (6 minutes ago)
+START:      Fri Feb 15 04:38:05 PM (6 minutes ago)
 UPDATED:    1 minute ago
-END:        Fri Nov 15 04:43:04 PM (1 minute ago)
+END:        Fri Feb 15 04:43:04 PM (1 minute ago)
 DURATION:   4 minutes 
 
 EXTRACTORS
@@ -179,6 +179,13 @@ Job complete in 4m58.265737799s
 (testing and validation forthcoming)
 
 # Changes
+
+## 0.6
+
+### 0.6.0
+* adding CI/CD script for [gitlab](https://gitlab.com) 
+* validate usage as a flattening service 
+* modify `source_type` for `aws_rekognition_video_celebs` to `face`
 
 ## 0.5
 
@@ -272,3 +279,5 @@ Job complete in 4m58.265737799s
 # Future Development
 
 * the remaining known extractors... `pyscenedetect`, `yolo3`, `openpose`
+* integration of viewership insights
+* creation of sentiment and mood-based insights (which tags most co-occur here?)
