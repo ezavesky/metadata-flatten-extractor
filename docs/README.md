@@ -36,10 +36,10 @@ schema for these CSV files has the following fields.
 * `time_event` = exact time in seconds (may be equal to time_start if instantaneous)
 * `source_event` =  source media for event to add granularity for event inpact (e.g. face, video, audio, speech, image)
 * `tag` = simple text word or phrase
-* `tag_type` = descriptor for type of tag; e.g. tag=concept/label, shot=segment, moderation=moderation, word=text/speech word, phrase=long utterance, face=face emotion/properties, identity=face recognition, person=person objects
-* `score` = score/probability
+* `tag_type` = descriptor for type of tag; e.g. tag=concept/label, shot=segment, moderation=moderation, word=text/speech word, phrase=long utterance, face=face emotion/properties, identity=face recognition, scene=semantic scenes, brand=product or logo mention
+* `score` = confidence/probability
 * `details` = possible bounding box or other long-form (JSON-encoded) details
-* `extractor` = name of extractor (from below)
+* `extractor` = name of extractor for insight
 
 ## dependencies
 

@@ -75,9 +75,9 @@ class Parser(Flatten):
                         details_obj['box'] = []
                         for box in local_obj["Instances"]:
                             details_obj['box'].append({'w': round(box['BoundingBox']['Width'], 4), 
-                            'h': round(box['BoundingBox']['Height'], 4),
-                            'l': round(box['BoundingBox']['Left'], 4), 
-                            't': round(box['BoundingBox']['Top'], 4) })
+                                'h': round(box['BoundingBox']['Height'], 4),
+                                'l': round(box['BoundingBox']['Left'], 4), 
+                                't': round(box['BoundingBox']['Top'], 4) })
 
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
                     list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "tag",
