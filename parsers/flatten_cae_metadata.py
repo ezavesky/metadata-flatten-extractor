@@ -21,7 +21,6 @@
 from os import path
 from pandas import DataFrame
 import json
-import re
 
 from pytimeparse import parse as pt_parse
 
@@ -46,10 +45,29 @@ class Parser(Flatten):
                 path_content += ".gz"
                 dict_data = self.json_load(path_content)
 
-        re_time_clean = re.compile(r"s$")
         list_items = []
+ 
+        list_keywords = []
+        if "keywords" in dict_data:  # loop over keywords
+            for local_obj in dict_data['keywords']:
+                list_keywords.append({'tag':local_obj, 'tag_type':"keyword"})
+
+        # TODO: populate with other keywords (e.g. trending?)
 
         key_sentence = {}
+        if "smartTags" in dict_data:  # loop over smart tags
+            for local_type in ["programNE", "epgNE", "commercialNE"]:
+                if local_type in dict_data["smartTags"]:
+                    for local_obj in dict_data["smartTags"][local_type]:
+                        if "neType" in local_obj and "namedEntity" in local_obj:  # validate object
+                            insight_obj = {"tag": local_obj["namedEntity"], "tag_type": "identity",  # could be 'brand' too?
+                                "details": {"type": local_obj["neType"], 'description': local_obj['neLabel'], 'weight': local_obj['weight'] } }
+                            for sent_id in local_obj["sentNumber"]:
+                                sent_id = int(sent_id)
+                                if sent_id not in key_sentence:  # save this instance data a this sentence
+                                    key_sentence[sent_id] = []
+                                key_sentence[sent_id].append(insight_obj)
+
         if "sent" in dict_data:  # loop over transcripts
             insight_obj = dict_data["sent"]
             for local_obj in insight_obj:
@@ -60,10 +78,25 @@ class Parser(Flatten):
                     if "ccstart" in local_obj:
                         detail_obj['caption'] = {"time_begin": float(local_obj['ccstart'])/1000}
                         detail_obj['caption']["time_end"] = float(local_obj['ccduration'])/1000 + detail_obj['caption']["time_begin"]
-                    key_sentence[int(local_obj["number"])] = local_obj["text"]
                     list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "transcript",
                         "time_end": time_begin + time_duration, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
                         "score": 1.0, "details": json.dumps(detail_obj), "extractor": self.EXTRACTOR})
+
+                    # process other named entities that indicted this sentence
+                    sent_id = int(local_obj["number"])
+                    if sent_id in key_sentence:
+                        for insight_obj in key_sentence[sent_id]:
+                            list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": insight_obj['tag_type'],
+                                "time_end": time_begin + time_duration, "time_event": time_begin, "tag": insight_obj['tag'],
+                                "score": 1.0, "details": json.dumps(insight_obj['details']), "extractor": self.EXTRACTOR})
+
+                    # now process quickly for keywords
+                    lower_scan = local_obj["text"].lower()
+                    for insight_obj in list_keywords:
+                        if insight_obj['tag'].lower() in lower_scan:   # just check for presence
+                            list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": insight_obj['tag_type'],
+                                "time_end": time_begin + time_duration, "time_event": time_begin, "tag": insight_obj['tag'],
+                                "score": 1.0, "details": "", "extractor": self.EXTRACTOR})
 
         if "silence" in dict_data:  # loop over audio
             for local_obj in dict_data['silence']:
@@ -189,9 +222,20 @@ class Parser(Flatten):
                             "tag": "duplicate", "score": 1 - round(float(local_obj['kfcluster']['score']) / kfcluster_max, 4), 
                             "details": json.dumps(details_obj), "extractor": self.EXTRACTOR})
 
+        if "mmpara" in dict_data:  # loop over paragraph segments to make scenes (from speech)
+            for local_obj in dict_data['mmpara']:
+                if "start" in local_obj and "duration" in local_obj:  # validate object
+                    time_begin = float(local_obj['start'])/1000
+                    time_duration = float(local_obj['duration'])/1000
+                    details_obj = {}
+                    if "sentstart" in local_obj and "sentend" in local_obj:  # retain number of sentences
+                        details_obj = {'sentences': int(local_obj["sentend"]) - int(local_obj["sentstart"]) + 1}
+                    list_items.append({"time_begin": time_begin, "source_event": "speech", "tag_type": "scene",
+                        "time_end": time_begin + time_duration, "time_event": time_begin, "tag": "story",
+                        "score": 1.0, "details": json.dumps(details_obj), "extractor": self.EXTRACTOR})
+
+
         # TODO: additional parsing for these data
-        # keywords ---> keyword, speech=source_event
-        # mmpara  --> scenes?
         # viewers  --> ??
         # segments  --> scenes?
 
@@ -199,5 +243,5 @@ class Parser(Flatten):
             return DataFrame(list_items)
 
         if run_options["verbose"]:
-            self.logger.critical(f"Missing nested 'summarizedInsights' or 'videos' from source '{self.EXTRACTOR}'")
+            self.logger.critical(f"Missing nested sections from source '{self.EXTRACTOR}'")
         return None
