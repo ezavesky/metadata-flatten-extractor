@@ -1,7 +1,7 @@
 # Metadata Flattening Service Explorer
 
 An interactive [streamlit](https://www.streamlit.io/) app for exploration of 
-analytics events flattened with this package.
+analytics events flattened with this package starting from [flattened metadata](README.md).
 
 1. [Getting Started](#getting-started)
 2. [Execution](#execution-and-deployment)
