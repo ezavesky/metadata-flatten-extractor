@@ -42,7 +42,10 @@ class Parser(Flatten):
         #       "words": [ { "startTime": "0s", "endTime": "0.400s", "word": "Play", "confidence": 0.9128385782241821 },
         dict_data = self.get_extractor_results("gcp_videointelligence_speech_transcription", "data.json")
         if not dict_data:  # do we need to load it locally?
-            path_content = path.join(self.path_content, "gcp_videointelligence_speech_transcription", "data.json")
+            if 'extractor' in run_options:
+                path_content = path.join(self.path_content, "data.json")
+            else:
+                path_content = path.join(self.path_content, "gcp_videointelligence_speech_transcription", "data.json")
             dict_data = self.json_load(path_content)
             if not dict_data:
                 path_content += ".gz"

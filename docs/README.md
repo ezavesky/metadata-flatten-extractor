@@ -24,6 +24,7 @@ in the [main](main.py) script.
 * `all_frames` - *(bool)* - for video-based events, log all instances in box or just the center (*default=False*)
 * `time_offset` - *(int)* - when merging events for an asset split into multiple parts, time in seconds (*default=0*)
 * `verbose` - *(bool)* - verbose input/output configuration printing (*default=False*)
+* `extractor` - *(string)* - specify one extractor to flatten, skipping nested directory search (*default=all*, e.g. `cae_metadata`)
 
 
 ## generated schema
@@ -67,15 +68,7 @@ of the `EXTRACTOR_METADATA` variable as JSON.
 EXTRACTOR_METADATA='{"compressed":True}'
 ```
 
-### locally downloading results
-
-You can locally download data from a specific job for this extractor to directly analyze.
-
-```shell
-contentai data wHaT3ver1t1s --dir data
-```
-
-### locally run on results
+### Locally Run on Results
 
 For utility, the above line has been wrapped in the bash script `run_local.sh`.
 
@@ -98,6 +91,13 @@ This allows a simplified command-line specification of a run configuration, whic
 ```shell
 ./run_local.sh results/1XMDAz9w8T1JFEKHRuNunQhRWL1/ results/ '{"force_overwrite":false,"time_offset":10800}'
 ```
+
+*Result generation from a single extractor, with its nested directory explicitly specified. (added v0.6.1)*
+
+```shell
+./run_local.sh results/cae_metadata results/ '{"extractor":"cae_metadata"}'
+```
+
 
 ### Local Runs with Timing Offsets
 
@@ -138,6 +138,14 @@ docker build -t metadata-deploy
 contentai deploy metadata-flatten --cpu 256 --memory 512 -i metadata-deploy
 ```
 
+### Locally Downloading Results
+
+You can locally download data from a specific job for this extractor to directly analyze.
+
+```shell
+contentai data wHaT3ver1t1s --dir data
+```
+
 ### Run as an Extractor
 
 
@@ -166,7 +174,7 @@ Or run it via the docker image...
 docker run --rm  -v `pwd`/:/x -e EXTRACTOR_CONTENT_PATH=/x/file.mp3 -e EXTRACTOR_RESULT_PATH=/x/result2 <docker_image>
 ```
 
-### view extractor logs (stdout)
+### View Extractor Logs (stdout)
 
 ```shell
 contentai logs -f <my_extractor>

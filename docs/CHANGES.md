@@ -9,6 +9,7 @@ workflows within the [ContentAI Platform](https://www.contentai.io).
 * split documentation and changes
 * add new `cae_metadata` type of parser
 * modify `source_type` of detected faces in `azure_videoindexer` to `face`
+* modify to add new `extractors` input for limit to scanning (skips sub-dir check)
 
 ### 0.6.0
 * adding CI/CD script for [gitlab](https://gitlab.com) 

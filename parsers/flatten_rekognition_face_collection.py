@@ -46,7 +46,10 @@ class Parser(Flatten):
             file_search = f"result{last_load_idx}.json"
             dict_data = self.get_extractor_results("rekognition_face_collection", file_search)
             if not dict_data:  # do we need to load it locally?
-                path_content = path.join(self.path_content, "rekognition_face_collection", file_search)
+                if 'extractor' in run_options:
+                    path_content = path.join(self.path_content, file_search)
+                else:
+                    path_content = path.join(self.path_content, "rekognition_face_collection", file_search)
                 dict_data = self.json_load(path_content)
                 if not dict_data:
                     path_content += ".gz"
