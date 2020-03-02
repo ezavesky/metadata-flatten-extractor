@@ -20,7 +20,7 @@ result_path = os.getenv("EXTRACTOR_RESULT_PATH", ".")
 extractor_name = os.getenv("EXTRACTOR_NAME", "musicnn")
 
 # get metadata
-metadata = None
+metadata = {}
 if "EXTRACTOR_METADATA" in os.environ:
     try:
         metadata = json.loads(os.environ["EXTRACTOR_METADATA"])
