@@ -46,7 +46,11 @@ def main():
     if not path.exists(contentai.result_path):
         makedirs(contentai.result_path)
 
-    for extractor_name in parsers.modules:  # iterate through auto-discovered packages
+    list_modules = parsers.modules
+    if 'extractor' in contentai.metadata:  # add ability to specify sepcific extractor
+        list_modules = [f"flatten_{contentai.metadata['extractor']}"]
+
+    for extractor_name in list_modules:  # iterate through auto-discovered packages
         # call process with i/o specified
         path_output = path.join(contentai.result_path, extractor_name + ".csv")
 
@@ -71,7 +75,12 @@ def main():
                 parsers.Flatten.logger.info(f"ContentAI argments: {input_vars}")
             df = parser_instance.parse(input_vars)  # attempt to process
 
-        if df is not None:  # skip bad results
+        if df is None:  # skip bad results
+            if 'extractor' in contentai.metadata:
+                parsers.Flatten.logger.warning(f"Specified extractor `{contentai.metadata['extractor']}` failed to find data. " \
+                    f"Verify that input directory {contentai.content_path} points directly to file...")
+
+        else:
             if input_vars['time_offset'] != 0:  # need offset?
                 parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{input_vars['path_result']}')...")
                 for col_name in ['time_begin', 'time_end', 'time_event']:

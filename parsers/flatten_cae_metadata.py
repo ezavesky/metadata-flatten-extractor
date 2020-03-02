@@ -39,7 +39,10 @@ class Parser(Flatten):
         """
         dict_data = self.get_extractor_results(self.EXTRACTOR, "metadata.json")
         if not dict_data:  # do we need to load it locally?
-            path_content = path.join(self.path_content, self.EXTRACTOR, "metadata.json")
+            if 'extractor' in run_options:
+                path_content = path.join(self.path_content, "metadata.json")
+            else:
+                path_content = path.join(self.path_content, self.EXTRACTOR, "metadata.json")
             dict_data = self.json_load(path_content)
             if not dict_data:
                 path_content += ".gz"
