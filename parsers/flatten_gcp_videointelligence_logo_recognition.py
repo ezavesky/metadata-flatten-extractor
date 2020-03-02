@@ -45,7 +45,10 @@ class Parser(Flatten):
         #     "top": 0.717, "right": 0.482, "bottom": 0.822  },  "timeOffset": "168s"}, ...
         dict_data = self.get_extractor_results("gcp_videointelligence_logo_recognition", "data.json")
         if not dict_data:  # do we need to load it locally?
-            path_content = path.join(self.path_content, "gcp_videointelligence_logo_recognition", "data.json")
+            if 'extractor' in run_options:
+                path_content = path.join(self.path_content, "data.json")
+            else:
+                path_content = path.join(self.path_content, "gcp_videointelligence_logo_recognition", "data.json")
             dict_data = self.json_load(path_content)
             if not dict_data:
                 path_content += ".gz"

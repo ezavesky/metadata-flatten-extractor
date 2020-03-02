@@ -39,7 +39,10 @@ class Parser(Flatten):
         """
         dict_data = self.get_extractor_results("azure_videoindexer", "data.json")
         if not dict_data:  # do we need to load it locally?
-            path_content = path.join(self.path_content, "azure_videoindexer", "data.json")
+            if 'extractor' in run_options:
+                path_content = path.join(self.path_content, "data.json")
+            else:
+                path_content = path.join(self.path_content, "azure_videoindexer", "data.json")
             dict_data = self.json_load(path_content)
             if not dict_data:
                 path_content += ".gz"
@@ -77,7 +80,7 @@ class Parser(Flatten):
                                 for time_obj in local_obj["instances"]:  # walk through all appearances
                                     time_begin = pt_parse(time_obj['start'])
                                     time_end = pt_parse(time_obj['end'])
-                                    list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "identity",
+                                    list_items.append({"time_begin": time_begin, "source_event": "face", "tag_type": "identity",
                                         "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                         "score": local_obj['confidence'], "details": json.dumps(details_obj),
                                         "extractor": "azure_videoindexer"})

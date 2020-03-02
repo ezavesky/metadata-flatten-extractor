@@ -41,7 +41,10 @@ class Parser(Flatten):
             file_search = f"result{last_load_idx}.json"
             dict_data = self.get_extractor_results("aws_rekognition_video_labels", file_search)
             if not dict_data:  # do we need to load it locally?
-                path_content = path.join(self.path_content, "aws_rekognition_video_labels", file_search)
+                if 'extractor' in run_options:
+                    path_content = path.join(self.path_content, file_search)
+                else:
+                    path_content = path.join(self.path_content, "aws_rekognition_video_labels", file_search)
                 dict_data = self.json_load(path_content)
                 if not dict_data:
                     path_content += ".gz"
@@ -75,9 +78,9 @@ class Parser(Flatten):
                         details_obj['box'] = []
                         for box in local_obj["Instances"]:
                             details_obj['box'].append({'w': round(box['BoundingBox']['Width'], 4), 
-                            'h': round(box['BoundingBox']['Height'], 4),
-                            'l': round(box['BoundingBox']['Left'], 4), 
-                            't': round(box['BoundingBox']['Top'], 4) })
+                                'h': round(box['BoundingBox']['Height'], 4),
+                                'l': round(box['BoundingBox']['Left'], 4), 
+                                't': round(box['BoundingBox']['Top'], 4) })
 
                     score_frame = round(float(local_obj["Confidence"])/100, 4)
                     list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "tag",
