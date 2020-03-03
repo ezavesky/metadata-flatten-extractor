@@ -28,6 +28,7 @@ from . import Flatten
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
+        self.EXTRACTOR = "aws_rekognition_face_collection"
 
     def parse(self, run_options):
         """Flatten AWS Results from Face Collections
@@ -44,12 +45,12 @@ class Parser(Flatten):
         suppressed_matches = 0
         while last_load_idx >= 0:
             file_search = f"result{last_load_idx}.json"
-            dict_data = self.get_extractor_results("rekognition_face_collection", file_search)
+            dict_data = self.get_extractor_results(self.EXTRACTOR, file_search)
             if not dict_data:  # do we need to load it locally?
                 if 'extractor' in run_options:
                     path_content = path.join(self.path_content, file_search)
                 else:
-                    path_content = path.join(self.path_content, "rekognition_face_collection", file_search)
+                    path_content = path.join(self.path_content, self.EXTRACTOR, file_search)
                 dict_data = self.json_load(path_content)
                 if not dict_data:
                     path_content += ".gz"
@@ -95,7 +96,7 @@ class Parser(Flatten):
                             seen_faces[face_name] = {"time_begin": time_frame, "source_event": "image", 
                                 "time_end": time_frame, "time_event": time_frame, "tag_type": "identity",
                                 "tag": face_name, "score": score_frame, "details": json.dumps(details_obj),
-                                "extractor": "rekognition_face_collection"}
+                                "extractor": self.EXTRACTOR}
                         else:
                             suppressed_matches += 1
 
