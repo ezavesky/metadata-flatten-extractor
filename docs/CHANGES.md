@@ -5,6 +5,9 @@ workflows within the [ContentAI Platform](https://www.contentai.io).
 
 ## 0.6
 
+### 0.6.2
+* rename `rekognition_face_collection` to `aws_rekognition_face_collection` for consistency
+
 ### 0.6.1
 * split documentation and changes
 * add new `cae_metadata` type of parser
