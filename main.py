@@ -80,12 +80,12 @@ def main():
                 parsers.Flatten.logger.info(f"ContentAI argments: {input_vars}")
             df = parser_instance.parse(input_vars)  # attempt to process
 
-        if df is None:  # skip bad results
-            if 'extractor' in contentai.metadata:
-                parsers.Flatten.logger.warning(f"Specified extractor `{contentai.metadata['extractor']}` failed to find data. " \
-                    f"Verify that input directory {contentai.content_path} points directly to file...")
+            if df is None:  # skip bad results
+                if 'extractor' in contentai.metadata:
+                    parsers.Flatten.logger.warning(f"Specified extractor `{contentai.metadata['extractor']}` failed to find data. " \
+                        f"Verify that input directory {contentai.content_path} points directly to file...")
 
-        else:
+        if df is not None:
             if input_vars['time_offset'] != 0:  # need offset?
                 parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{input_vars['path_result']}')...")
                 for col_name in ['time_begin', 'time_end', 'time_event']:
