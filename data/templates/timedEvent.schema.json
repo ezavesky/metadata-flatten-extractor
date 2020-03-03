@@ -1,0 +1,43 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "timedEvent",
+    "description": "Specification for timed event formatted data.",
+    "type": "object",
+    "version": 1,
+    "properties": {
+        "name": {
+            "description": "the descriptive text for the event",
+            "type": "string"
+        },
+        "source": {
+            "$ref": "#/definitions/eventData"
+        },
+        "extractor": {
+            "description": "the colloquial extractor name (software, service, etc) that produced this event",
+            "type": "string"
+        },
+        "score": {
+            "$comment": "the confidence score for this event",
+            "type": "number"
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "name",
+        "source",
+        "extractor",
+        "score"
+    ],
+    "minProperties": 4,
+    "definitions": {
+        "eventData": {
+            "description": "specify the source modality/media for this event",
+            "enum": [
+                "image",
+                "face",
+                "speech", 
+                "video"
+            ]
+        }
+    }
+}

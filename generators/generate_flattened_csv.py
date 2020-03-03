@@ -21,30 +21,31 @@
 from os import path
 import json
 import re
-from pandas import DataFrame
+import pandas as pd
 
 from . import Generate
 
 class Generator(Generate):
     def __init__(self, path_destination):
-        super().__init__(path_destination)
-        self.GENERATOR = "flattened_csv"
+        super().__init__(path_destination, "csv", ".csv")
 
-    def generate(self, run_options, df):
+    def generate(self, path_output, run_options, df):
         """Generate CSV from flattened results
 
+        :param: path_output (str): path for output of the file 
         :param: run_options (dict): specific runtime information 
-        :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
+        :param: df (DataFrame): dataframe of events to break down
+        :returns: (int): count of items on successful decoding and export, zero otherwise
         """
 
         df_prior = None
-        if path.exists(self.path_destination):
-            df_prior = pd.read_csv(self.path_destination)
-            generators.Generate.logger.info(f"Loaded {len(df_prior)} existing events from {self.path_destination}...")
+        if path.exists(path_output):
+            df_prior = pd.read_csv(path_output)
+            self.logger.info(f"Loaded {len(df_prior)} existing events from {path_output}...")
             df = pd.concat([df, df_prior])
             num_prior = len(df)
             df.drop_duplicates(inplace=True)
-            generators.Generate.logger.info(f"Duplicates removal shrunk from {num_prior} to {len(df)} surviving events...")
+            self.logger.info(f"Duplicates removal shrunk from {num_prior} to {len(df)} surviving events...")
 
-        df.sort_values("time_begin").to_csv(self.path_destination, index=False)
-        return df
+        df.sort_values("time_begin").to_csv(path_output, index=False)
+        return len(df)

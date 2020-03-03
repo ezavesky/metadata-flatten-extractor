@@ -64,13 +64,12 @@ class Flatten():
                 infile = gzip.open(path_file, 'rt')
             else:
                 infile = open(path_file, 'rt')
-            with infile:
-                try:
-                    return json.load(infile)
-                except json.decoder.JSONDecodeError as e:
-                    return {}
-                except UnicodeDecodeError as e:
-                    return {}
+            try:
+                return json.load(infile)
+            except json.decoder.JSONDecodeError as e:
+                return {}
+            except UnicodeDecodeError as e:
+                return {}
         return {}
 
     def get_extractor_results(self, extractor_name, path, force_retrieve=False):
