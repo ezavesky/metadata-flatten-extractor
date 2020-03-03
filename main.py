@@ -55,21 +55,26 @@ def main():
     if 'generator' in contentai.metadata:  # add ability to specify sepcific extractor
         list_generator_modules = [f"generate_{contentai.metadata['generator']}"]
 
+    # allow injection of parameters from environment
+    input_vars = {"force_overwrite": True, "verbose":False,
+                    "compressed": True, 'all_frames': False, 'time_offset':0}
+    if contentai.metadata is not None:  # see README.md for more info
+        input_vars.update(contentai.metadata)
+
+    need_generation = False
+    map_outputs = {}
     for extractor_name in list_parser_modules:  # iterate through auto-discovered packages
-        # call process with i/o specified
-        path_output = path.join(contentai.result_path, extractor_name + ".csv")
-
-        # allow injection of parameters from environment
-        input_vars = {'path_result': path_output, "force_overwrite": True, "verbose":False,
-                        "compressed": True, 'all_frames': False, 'time_offset':0}
-        if contentai.metadata is not None:  # see README.md for more info
-            input_vars.update(contentai.metadata)
-
-        if "compressed" in input_vars and input_vars["compressed"]:  # allow compressed version
-            input_vars["path_result"] += ".gz"
+        for generator_name in list_generator_modules:  # iterate through auto-discovered packages
+            generator_module = importlib.import_module(f"generators.{generator_name}")  # load module
+            generator_obj = getattr(generator_module, "Generator")   # get class template
+            generator_instance = generator_obj(contentai.result_path)   # create instance
+            map_outputs[generator_name] = {'module': generator_instance, 'path': generator_instance.get_output_path(extractor_name)}
+            if "compressed" in input_vars and input_vars["compressed"]:  # allow compressed version
+                map_outputs[generator_name]["path"] += ".gz"
+            need_generation |= (generator_instance.is_universal or not path.exists(map_outputs[generator_name]["path"]))
 
         df = None
-        if path.exists(input_vars['path_result']) and input_vars['force_overwrite']:
+        if not need_generation and not input_vars['force_overwrite']:
             parsers.Flatten.logger.info(f"Skipping re-process of {input_vars['path_result']}...")
         else:
             parser_module = importlib.import_module(f"parsers.{extractor_name}")  # load module
@@ -91,12 +96,9 @@ def main():
                 for col_name in ['time_begin', 'time_end', 'time_event']:
                     df[col_name] += input_vars ['time_offset']
 
-            for generator_name in list_generator_modules:  # iterate through auto-discovered packages
-                generator_module = importlib.import_module(f"generators.{generator_name}")  # load module
-                generator_obj = getattr(generator_module, "Generator")   # get class template
-                generator_instance = generator_obj(input_vars['path_result'])   # create instance
-                df = generator_instance.generate(input_vars, df)  # attempt to process
-                parsers.Flatten.logger.info(f"Wrote {len(df)} items as '{generator_name}' to result file '{input_vars['path_result']}'")
+            for generator_name in map_outputs:  # iterate through auto-discovered packages
+                num_items = map_outputs[generator_name]['module'].generate(map_outputs[generator_name]["path"], input_vars, df)  # attempt to process
+                parsers.Flatten.logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
         pass
 
 if __name__ == "__main__":
