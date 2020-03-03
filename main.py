@@ -26,6 +26,7 @@ import pandas as pd
 
 import contentai
 import parsers
+import generators
 
 def main():
     # check for a single argument as input for the path as an override
@@ -46,11 +47,15 @@ def main():
     if not path.exists(contentai.result_path):
         makedirs(contentai.result_path)
 
-    list_modules = parsers.modules
+    list_parser_modules = parsers.modules
     if 'extractor' in contentai.metadata:  # add ability to specify sepcific extractor
-        list_modules = [f"flatten_{contentai.metadata['extractor']}"]
+        list_parser_modules = [f"flatten_{contentai.metadata['extractor']}"]
 
-    for extractor_name in list_modules:  # iterate through auto-discovered packages
+    list_generator_modules = generators.modules
+    if 'generator' in contentai.metadata:  # add ability to specify sepcific extractor
+        list_generator_modules = [f"generate_{contentai.metadata['generator']}"]
+
+    for extractor_name in list_parser_modules:  # iterate through auto-discovered packages
         # call process with i/o specified
         path_output = path.join(contentai.result_path, extractor_name + ".csv")
 
@@ -86,18 +91,13 @@ def main():
                 for col_name in ['time_begin', 'time_end', 'time_event']:
                     df[col_name] += input_vars ['time_offset']
 
-            df_prior = None
-            if path.exists(input_vars['path_result']):
-                df_prior = pd.read_csv(input_vars['path_result'])
-                parsers.Flatten.logger.info(f"Loaded {len(df_prior)} existing events from {input_vars['path_result']}...")
-                df = pd.concat([df, df_prior])
-                num_prior = len(df)
-                df.drop_duplicates(inplace=True)
-                parsers.Flatten.logger.info(f"Duplicates removal shrunk from {num_prior} to {len(df)} surviving events...")
-
-            df.sort_values("time_begin").to_csv(input_vars['path_result'], index=False)
-            parsers.Flatten.logger.info(f"Wrote {len(df)} items to result file '{input_vars['path_result']}'")
-
+            for generator_name in list_generator_modules:  # iterate through auto-discovered packages
+                generator_module = importlib.import_module(f"generators.{generator_name}")  # load module
+                generator_obj = getattr(generator_module, "Generator")   # get class template
+                generator_instance = generator_obj(input_vars['path_result'])   # create instance
+                df = generator_instance.generate(input_vars, df)  # attempt to process
+                parsers.Flatten.logger.info(f"Wrote {len(df)} items as '{generator_name}' to result file '{input_vars['path_result']}'")
+        pass
 
 if __name__ == "__main__":
     main()

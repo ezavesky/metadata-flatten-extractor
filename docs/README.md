@@ -24,7 +24,8 @@ in the [main](main.py) script.
 * `all_frames` - *(bool)* - for video-based events, log all instances in box or just the center (*default=False*)
 * `time_offset` - *(int)* - when merging events for an asset split into multiple parts, time in seconds (*default=0*)
 * `verbose` - *(bool)* - verbose input/output configuration printing (*default=False*)
-* `extractor` - *(string)* - specify one extractor to flatten, skipping nested directory search (*default=all*, e.g. `cae_metadata`)
+* `extractor` - *(string)* - specify one extractor to flatten, skipping nested module import (*default=all*, e.g. `cae_metadata`)
+* `generator` - *(string)* - specify one generator for output, skipping nested module import (*default=all*, e.g. `flattened_csv`)
 
 
 ## generated schema
