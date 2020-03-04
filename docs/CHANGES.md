@@ -3,6 +3,10 @@
 A method to flatten generated JSON data into timed CSV events in support of analytic 
 workflows within the [ContentAI Platform](https://www.contentai.io). 
 
+### 0.7.0
+* create new set of generator class objects for varying output generator
+* add new `generator` input for limiting output to a single type
+
 ## 0.6
 
 ### 0.6.2
@@ -12,7 +16,7 @@ workflows within the [ContentAI Platform](https://www.contentai.io).
 * split documentation and changes
 * add new `cae_metadata` type of parser
 * modify `source_type` of detected faces in `azure_videoindexer` to `face`
-* modify to add new `extractors` input for limit to scanning (skips sub-dir check)
+* modify to add new `extractor` input for limit to scanning (skips sub-dir check)
 
 ### 0.6.0
 * adding CI/CD script for [gitlab](https://gitlab.com) 

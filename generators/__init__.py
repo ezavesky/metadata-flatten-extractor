@@ -19,11 +19,9 @@
 # -*- coding: utf-8 -*-
 
 import pkgutil
-import json
-import re
-import math
-import gzip
 from os import path
+import json
+import gzip
 
 import logging
 import warnings
@@ -31,27 +29,35 @@ from sys import stdout as STDOUT
 
 import pandas as pd
 
-import contentai
-
 modules = [name for _, name, _ in pkgutil.iter_modules(__path__)]
 
-class Flatten():
-    # https://cloud.google.com/video-intelligence/docs/reference/reast/Shared.Types/Likelihood
-    GCP_LIKELIHOOD_MAP = { "LIKELIHOOD_UNSPECIFIED": 0.0, "VERY_UNLIKELY": 0.1, "UNLIKELY": 0.25,
-                           "POSSIBLE": 0.5, "LIKELY": 0.75, "VERY_LIKELY": 0.9 }
-    TAG_TRANSCRIPT = "_transcript_"
-
+class Generate():
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler(STDOUT)
-    handler.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
+    PATH_DATA = path.join(path.dirname(path.dirname(__file__)), 'data')
 
-    def __init__(self, path_content):
+    def __init__(self, path_destination, generator="unknown", format=".csv", universal=False):
+        """Construct new generator instance
+
+        :param path_destination: (str): Path (directory) for output file
+        :param generator: (str): Name of the generator (from derived class)
+        :param format: (str): File extension for output
+        :param universal: (bool): Flag for universal (True, single file) output or independent (False) files
+        """
         super().__init__()
-        self.extractor_keys = []
-        self.extractor = None
-        self.path_content = path_content
+        self._format = format
+        self._generator = generator
+        self._universal = universal
+        self._path_destination = path_destination
+
+    @property
+    def is_universal(self):
+        return self._universal
+
+    def get_output_path(self, name_parser):
+        if self._universal:
+            return path.join(self._path_destination, self._generator + self._format)
+        return path.join(self._path_destination, f"{self._generator}_{name_parser}{self._format}")
 
     def json_load(self, path_file):
         """Helper to read dict object from JSON
@@ -70,22 +76,22 @@ class Flatten():
                 return {}
             except UnicodeDecodeError as e:
                 return {}
+            if infile:
+                infile.close()
         return {}
 
-    def get_extractor_results(self, extractor_name, path, force_retrieve=False):
-        if not force_retrieve:  # safe way to request without 404/500 error
-            if len(self.extractor_keys) < 1 or self.extractor != extractor_name:  
-                self.extractor_keys = []
-                self.extractor_name = extractor_name
-                dict_raw = self.get_extractor_keys(extractor_name)
-                # except urllib.error.HTTPError as e:
-                if dict_raw is not None and 'keys' in dict_raw:
-                    self.extractor_keys = dict_raw['keys']
-                    self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
-            if path not in self.extractor_keys:   # have the keys, check for presence
-                return None
-        return contentai.get_extractor_results(extractor_name, path)   # checked or brute force request
+    def json_save(self, path_file, dict_source=None, pretty_print=False):
+        """Helper to write dict object to json
 
-    def get_extractor_keys(self, extractor_name):
-        return contentai.get_extractor_result_keys(extractor_name)
-
+        :param path_file: (str): Path for destination file
+        :param dict_source: (dict): The dictionary to write to JSON
+        :param pretty_print: (bool): Write out in more human-readable format
+        :return: bool.  Sueccess of operation and non-empty dictionary.
+        """
+        if dict_source is not None:
+            outfile = gzip.open(path_file, 'wt') if path_file.endswith(".gz") else open(path_file, 'wt')
+            json.dump(dict_source, outfile, indent=4 if pretty_print else None)
+            if outfile:
+                outfile.close()
+            return True
+        return False

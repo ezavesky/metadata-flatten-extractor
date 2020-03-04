@@ -1,0 +1,185 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "timedEvent",
+    "description": "Specification for timed event formatted data.",
+    "version": 1,
+    "definitions": {
+        "timedEvent": {
+            "type": "object",
+            "description": "data describing a single timed event (whole frame or audio)",
+            "properties": {
+                "name": {
+                    "description": "the descriptive text for the event",
+                    "type": "string"
+                },
+                "source": {
+                    "$ref": "#/definitions/eventSource"
+                },
+                "type": {
+                    "$ref": "#/definitions/eventType"
+                },
+                "extractor": {
+                    "description": "the colloquial extractor name (software, service, etc) that produced this event",
+                    "type": "string"
+                },
+                "score": {
+                    "description": "the confidence score for this event",
+                    "type": "number"
+                },
+                "uri": {
+                    "description": "optional external link for more information about this object",
+					"type": "string",
+					"format": "uri"
+				}
+            },
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "source",
+                "type",
+                "extractor",
+                "score"
+            ]
+        },
+        "timedObject": {
+            "type": "object",
+            "description": "data describing a single timed visual object (screen specification provided)",
+            "properties": {
+                "name": {
+                    "description": "the descriptive text for the event",
+                    "type": "string"
+                },
+                "source": {
+                    "$ref": "#/definitions/eventSource"
+                },
+                "type": {
+                    "$ref": "#/definitions/eventType"
+                },
+                "extractor": {
+                    "description": "the colloquial extractor name (software, service, etc) that produced this event",
+                    "type": "string"
+                },
+                "score": {
+                    "description": "the confidence score for this event",
+                    "type": "number"
+                },
+                "uri": {
+                    "description": "optional external link for more information about this object",
+					"type": "string",
+					"format": "uri"
+				},
+                "box": {
+                    "$ref": "#/definitions/boundingBox"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "source",
+                "type",
+                "extractor",
+                "score",
+                "box"
+            ]
+        },
+        "timedText": {
+            "type": "object",
+            "description": "data describing a single textual object (optional visual box if OCR)",
+            "properties": {
+                "name": {
+                    "description": "the descriptive text for the event",
+                    "type": "string"
+                },
+                "source": {
+                    "$ref": "#/definitions/eventSource"
+                },
+                "type": {
+                    "$ref": "#/definitions/eventType"
+                },
+                "extractor": {
+                    "description": "the colloquial extractor name (software, service, etc) that produced this event",
+                    "type": "string"
+                },
+                "score": {
+                    "description": "the confidence score for this event",
+                    "type": "number"
+                },
+                "uri": {
+                    "description": "optional external link for more information about this object",
+					"type": "string",
+					"format": "uri"
+				},
+                "box": {
+                    "$ref": "#/definitions/boundingBox"
+                },
+                "transcript": {
+                    "description": "extracted/recognized transcript (long form text)",
+                    "type": "string"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "source",
+                "type",
+                "extractor",
+                "score",
+                "transcript"
+            ]
+        },
+        "eventType": {
+            "description": "specify the event type (tag=general tag, ocr=OCR text, transcript=speech or OCR transcript, word=text word, shot=shot type, scene=semantic shot collection (scene,audio,credits,commercial,etc), brand=logo/text brand, emotion=emotion text, identity=named object, face=face, moderation=explicit, person=tracked person, topic=text/ad topic, keyword=keyword, sentiment=pos/neg valence)",
+            "enum": [
+                "identity",
+                "transcript",
+                "ocr",
+                "word",
+                "face",
+                "shot",
+                "moderation", 
+                "person",
+                "topic",
+                "keyword",
+                "sentiment",
+                "tag",
+                "brand",
+                "scene",
+                "emotion"
+            ]
+        },
+        "eventSource": {
+            "description": "specify the source modality/media for this event",
+            "enum": [
+                "image",
+                "face",
+                "speech", 
+                "video"
+            ]
+        },
+        "boundingBox": {
+            "description": "specify the exact coordinates of the visual object as fractions of frame dimensions",
+            "type": "object",
+            "properties": {
+                "l": {
+                    "type": "number",
+                    "description": "specify the horizontal component of upper left coordinate as a fraction of frame width"
+                },
+                "t": {
+                    "type": "number",
+                    "description": "specify the vertical component of upper left coordinate as a fraction of frame height"
+                },
+                "w": {
+                    "type": "number",
+                    "description": "specify the spanning width as a fraction of frame width"
+                },
+                "h": {
+                    "type": "number",
+                    "description": "specify the spanning height as a fraction of frame height"
+                }
+            },
+            "required": [
+                "l", "t", "w", "h"
+            ]
+        }
+    }
+}

@@ -145,13 +145,13 @@ class Parser(Flatten):
                                     "score": time_obj["confidence"], "details": json.dumps(details_obj),
                                     "extractor": "azure_videoindexer"})
 
-                if "framePatterns" in insight_obj:  # loop over frame
+                if "framePatterns" in insight_obj:  # loop over frame; update 0.7.0, move to scene type
                     for local_obj in insight_obj['framePatterns']:
                         if "patternType" in local_obj and "instances" in local_obj:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
                                 time_begin = pt_parse(time_obj['start'])
                                 time_end = pt_parse(time_obj['end'])
-                                list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "frame",
+                                list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "scene",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["patternType"],
                                     "score": local_obj['confidence'], "details": "",
                                     "extractor": "azure_videoindexer"})
@@ -225,11 +225,9 @@ class Parser(Flatten):
                 if "ocr" in insight_obj:  # loop over ocr
                     for local_obj in insight_obj['ocr']:
                         if "text" in local_obj and "instances" in local_obj and len(local_obj["text"]) > 0:  # validate object
-                            local_box = {'w': round(local_obj['width'], 4), 
-                                'h': round(local_obj['height'], 4),
-                                'l': round(local_obj['left'], 4), 
-                                't': round(local_obj    ['top'], 4),
-                                'transcript': local_obj['text'] }
+                            local_box = {'box': {'w': round(local_obj['width'], 4), 'h': round(local_obj['height'], 4),
+                                                'l': round(local_obj['left'], 4), 't': round(local_obj    ['top'], 4)},
+                                        'transcript': local_obj['text'] }
                             for time_obj in local_obj["instances"]:  # walk through all appearances
                                 time_begin = pt_parse(time_obj['start'])
                                 time_end = pt_parse(time_obj['end'])
@@ -244,7 +242,7 @@ class Parser(Flatten):
                         if "keyFrames" in local_obj and "instances" in local_obj:  # validate object
                             details_obj = { }
                             if 'tags' in local_obj:
-                                details_obj['tags'] = local_obj['tags']
+                                details_obj['shot_type'] = local_obj['tags']
 
                             time_event = None
                             if 'keyFrames' in local_obj:   # try to get a specific keyframe
