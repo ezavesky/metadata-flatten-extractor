@@ -97,8 +97,12 @@ def main():
                     df[col_name] += input_vars ['time_offset']
 
             for generator_name in map_outputs:  # iterate through auto-discovered packages
-                num_items = map_outputs[generator_name]['module'].generate(map_outputs[generator_name]["path"], input_vars, df)  # attempt to process
-                parsers.Flatten.logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
+                if map_outputs[generator_name]['module'].is_universal or not path.exists(map_outputs[generator_name]["path"]):
+                    num_items = map_outputs[generator_name]['module'].generate(map_outputs[generator_name]["path"], input_vars, df)  # attempt to process
+                    parsers.Flatten.logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
+                else:
+                    parsers.Flatten.logger.info(f"Skipping re-generate of {generator_name} to file '{map_outputs[generator_name]['path']}''...")
+
         pass
 
 if __name__ == "__main__":
