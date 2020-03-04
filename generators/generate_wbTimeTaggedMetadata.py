@@ -22,6 +22,7 @@ from os import path
 import json
 import re
 from pandas import DataFrame
+import hashlib   # for key hashing
 
 from . import Generate
 
@@ -29,6 +30,7 @@ class Generator(Generate):
     def __init__(self, path_destination):
         super().__init__(path_destination, "wbTimeTaggedMetadata", ".json", universal=True)
         self.template_path = path.join(self.PATH_DATA, 'templates', "wbTimeTaggedMetadata.json")
+        self.schema_path = path.join(self.PATH_DATA, 'templates', "metadataEvent.schema.json")
 
     def distill_type(self, output_obj, timed_row):
         """Render input type to the right JSON/object format...
@@ -52,7 +54,7 @@ class Generator(Generate):
                 if 'box' in details_obj:
                     output_obj['box'] = details_obj['box']
                     output_obj["dataTypeId"] = "timedObject"  # object with specific coordinates
-                    full_coverage = True
+                    full_coverage = (timed_row["time_begin"] == timed_row["time_end"])   # only full coverage if singleton event
                 if "uri" in details_obj:
                     output_obj["uri"] = details_obj["uri"]
                 elif "url" in details_obj:
@@ -80,17 +82,26 @@ class Generator(Generate):
                             "wbtcd:frameData": {  } }
             new_frame["wbtcd:frameLocation"]["valueFSTC"] = float(timed_row["time_event"])
             if self.distill_type(new_frame["wbtcd:frameData"], timed_row) is not None:
-                # TODO: hash/check for object collision?
                 output_set["frames"].append(new_frame)
 
         else:   # detect that this is a timespan
             new_span = { "start": float(timed_row["time_begin"]), "end": float(timed_row["time_end"]), "units": "seconds", "accuracy": 0.001 }
             type_update = self.distill_type(new_span, timed_row)
             if type_update is not None:
-                # TODO: hash/check for object collision?
                 type_update = output_set["concreteTimespans" if type_update else "descriptiveTimespans"].append(new_span)
 
         return output_set
+
+    def hash_key(self, obj_new, col_check, raw_str=""):
+        """Hash input data into a specific hex key
+
+        :param: obj_new (dict): input data 
+        :param: col_check (list): list of strings (column names) to combine/bash
+        :param: raw_str (str): external data to include in hash
+        :returns: (int): count of items on successful decoding and export, zero otherwise
+        """
+        raw_str += "_".join([str(obj_new[col_name]) for col_name in col_check])
+        return hashlib.md5(raw_str.encode()).hexdigest()
 
     def generate(self, path_output, run_options, df):
         """Generate wbTimeTaggedMetadata from flattened results
@@ -106,49 +117,70 @@ class Generator(Generate):
             return num_items   # return empty dataframe
 
         obj_out = None
+        output_set = {'descriptiveTimespans':[], 'concreteTimespans':[], 'frames':[]}
         if path.exists(path_output):    # load a prior output
             obj_out = self.json_load(path_output)
-            # TODO: work out logic for loading/appending prior output
-            # TODO: integrate this logic as a parser class as well
 
-            # generators.Generate.logger.info(f"Loaded {len(df_prior)} existing events from {self.path_destination}...")
-            # df = pd.concat([df, df_prior])
-            # num_prior = len(df)
-            # df.drop_duplicates(inplace=True)
-            # generators.Generate.logger.info(f"Duplicates removal shrunk from {num_prior} to {len(df)} surviving events...")
+            if "wbtcd:frames" in obj_out:
+                output_set["frames"] = obj_out["wbtcd:frames"]
+            if "wbtcd:timespans" in obj_out:
+                if "descriptiveTimespans" in obj_out["wbtcd:timespans"]:
+                    output_set["descriptiveTimespans"] = obj_out["wbtcd:timespans"]["descriptiveTimespans"]
+                if "concreteTimespans" in obj_out["wbtcd:timespans"]:
+                    output_set["descriptiveTimespans"] = obj_out["wbtcd:timespans"]["concreteTimespans"]
+
+            # TODO: integrate this logic as a parser class as well
         
         else:   # use template to generate a new output
             obj_out = self.json_load(self.template_path)
+            # TODO: consider dynamically repopulating event groupins with items and objects from schema?
 
-        output_set = {'descriptiveTimespans':[], 'concreteTimespans':[], 'frames':[]}
-
-        # insert empty frames and timespans for processing
-        if "wbtcd:frames" in obj_out:
-            output_set["frames"] = obj_out["wbtcd:frames"]
-        if "wbtcd:timespans" in obj_out:
-            if "descriptiveTimespans" in obj_out["wbtcd:timespans"]:
-                output_set["descriptiveTimespans"] = obj_out["wbtcd:timespans"]["descriptiveTimespans"]
-            if "concreteTimespans" in obj_out["wbtcd:timespans"]:
-                output_set["concreteTimespans"] = obj_out["wbtcd:timespans"]["concreteTimespans"]
-
-        # TODO: generate extra trappings and specific object
         for idx_r, val_r in df.iterrows():   # walk through all rows to generate
             self.append_timed(output_set, val_r)
+        num_prior = 0
 
         # clean up any empty entries for schema compliance
         if len(output_set["frames"]):
-            obj_out["wbtcd:frames"] = output_set["frames"]
-            num_items += len(output_set["frames"])
-        if len(output_set["descriptiveTimespans"]):
-            if "wbtcd:timespans" not in obj_out:
-                obj_out["wbtcd:timespans"] = {}
-            obj_out["wbtcd:timespans"]["descriptiveTimespans"] = output_set["descriptiveTimespans"]
-            num_items += len(output_set["descriptiveTimespans"])
-        if len(output_set["concreteTimespans"]):
-            if "wbtcd:timespans" not in obj_out:
-                obj_out["wbtcd:timespans"] = {}
-            obj_out["wbtcd:timespans"]["concreteTimespans"] = output_set["concreteTimespans"]
-            num_items += len(output_set["concreteTimespans"])
+            column_unique = ["name", "source", "extractor"]   # define some collision columns
+            obj_out["wbtcd:frames"] = []
+            hash_prior = {}
+            num_prior += len(output_set["frames"])   # compute raw count as well
+            for obj_new in output_set["frames"]:   # parse each frame, combine both object data and frame time
+                hash_key = self.hash_key(obj_new["wbtcd:frameData"]["dataObject"], column_unique, 
+                                         str(obj_new["wbtcd:frameLocation"]["valueFSTC"]))
+                if hash_key not in hash_prior:
+                    hash_prior[hash_key] = 1
+                    obj_out["wbtcd:frames"].append(obj_new)
+            num_items += len(obj_out["wbtcd:frames"])
 
+        if len(output_set["descriptiveTimespans"]):
+            column_unique = ["name", "source", "extractor"]   # define some collision columns
+            if "wbtcd:timespans" not in obj_out:
+                obj_out["wbtcd:timespans"] = {}
+            obj_out["wbtcd:timespans"]["descriptiveTimespans"] = []
+            hash_prior = {}
+            num_prior += len(output_set["descriptiveTimespans"])   # compute raw count as well
+            for obj_new in output_set["descriptiveTimespans"]:   # parse each event, all data in event object itself
+                hash_key = self.hash_key(obj_new["dataObject"], column_unique, str(obj_new["start"]))
+                if hash_key not in hash_prior:
+                    hash_prior[hash_key] = 1
+                    obj_out["wbtcd:timespans"]["descriptiveTimespans"].append(obj_new)
+            num_items += len(obj_out["wbtcd:timespans"]["descriptiveTimespans"])
+
+        if len(output_set["concreteTimespans"]):
+            column_unique = ["name", "source", "extractor"]   # parse each event, all data in event object itself
+            if "wbtcd:timespans" not in obj_out:
+                obj_out["wbtcd:timespans"] = {}
+            obj_out["wbtcd:timespans"]["concreteTimespans"] = []
+            hash_prior = {}
+            num_prior += len(output_set["concreteTimespans"])   # compute raw count as well
+            for obj_new in output_set["concreteTimespans"]:
+                hash_key = self.hash_key(obj_new["dataObject"], column_unique, str(obj_new["start"]))
+                if hash_key not in hash_prior:
+                    hash_prior[hash_key] = 1
+                    obj_out["wbtcd:timespans"]["concreteTimespans"].append(obj_new)
+            num_items += len(obj_out["wbtcd:timespans"]["concreteTimespans"])
+
+        self.logger.info(f"Duplicates removal shrunk from {num_prior} to {num_items} surviving events...")
         self.json_save(path_output, obj_out)      # write out json object
         return num_items
