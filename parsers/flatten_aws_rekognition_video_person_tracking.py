@@ -75,7 +75,7 @@ class Parser(Flatten):
                     if "Face" in local_obj and local_obj["Face"]:
                         face_obj = local_obj["Face"]   # skip Pose, Quality, Landmarks
                         if "BoundingBox" in face_obj:
-                            details_obj['Face'] = {'w': round(face_obj['BoundingBox']['Width'], 4), 
+                            details_obj['face'] = {'w': round(face_obj['BoundingBox']['Width'], 4), 
                                 'h': round(face_obj['BoundingBox']['Height'], 4),
                                 'l': round(face_obj['BoundingBox']['Left'], 4), 
                                 't': round(face_obj['BoundingBox']['Top'], 4) }
