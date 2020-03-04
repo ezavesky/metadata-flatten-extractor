@@ -1,0 +1,33 @@
+{
+    "wbtcd:content_info": {
+        "wbtcd:technicalContentInfo": {
+            "framerate": 24,
+            "duration": {
+                "valueFSTC": 1,
+                "units": "seconds"
+            },
+            "eidr3": "10.5240/XXXX-XXXX-XXXX-XXXX-XXXX-C"
+        },
+        "wbtcd:descriptiveContentInfo": {
+            "title": "(unknown asset title)",
+            "xid": "UNKNOWN_XID"
+        }
+    },
+    "wbtcd:object_types": {
+        "metadataEvent": {
+            "version": "1",
+            "schemaDefinition": "file:///timedEvent.schema.json",
+            "identificationGroupings": {
+                "timedEvent": {
+                    "name": {}, "source": {}, "type": {}, "extractor": {}, "score": {}, "uri": {}
+                },
+                "timedObject": {
+                    "name": {}, "source": {}, "type": {}, "extractor": {}, "score": {}, "uri": {}, "box": {}
+                },
+                "timedText": {
+                    "name": {}, "source": {}, "type": {}, "extractor": {}, "score": {}, "uri": {}, "box": {}, "transcript": {}
+                }
+            }
+        }
+    }
+}

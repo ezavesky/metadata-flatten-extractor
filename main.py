@@ -26,6 +26,7 @@ import pandas as pd
 
 import contentai
 import parsers
+import generators
 
 def main():
     # check for a single argument as input for the path as an override
@@ -46,25 +47,34 @@ def main():
     if not path.exists(contentai.result_path):
         makedirs(contentai.result_path)
 
-    list_modules = parsers.modules
+    list_parser_modules = parsers.modules
     if 'extractor' in contentai.metadata:  # add ability to specify sepcific extractor
-        list_modules = [f"flatten_{contentai.metadata['extractor']}"]
+        list_parser_modules = [f"flatten_{contentai.metadata['extractor']}"]
 
-    for extractor_name in list_modules:  # iterate through auto-discovered packages
-        # call process with i/o specified
-        path_output = path.join(contentai.result_path, extractor_name + ".csv")
+    list_generator_modules = generators.modules
+    if 'generator' in contentai.metadata:  # add ability to specify sepcific extractor
+        list_generator_modules = [f"generate_{contentai.metadata['generator']}"]
 
-        # allow injection of parameters from environment
-        input_vars = {'path_result': path_output, "force_overwrite": True, "verbose":False,
-                        "compressed": True, 'all_frames': False, 'time_offset':0}
-        if contentai.metadata is not None:  # see README.md for more info
-            input_vars.update(contentai.metadata)
+    # allow injection of parameters from environment
+    input_vars = {"force_overwrite": True, "verbose":False,
+                    "compressed": True, 'all_frames': False, 'time_offset':0}
+    if contentai.metadata is not None:  # see README.md for more info
+        input_vars.update(contentai.metadata)
 
-        if "compressed" in input_vars and input_vars["compressed"]:  # allow compressed version
-            input_vars["path_result"] += ".gz"
+    need_generation = False
+    map_outputs = {}
+    for extractor_name in list_parser_modules:  # iterate through auto-discovered packages
+        for generator_name in list_generator_modules:  # iterate through auto-discovered packages
+            generator_module = importlib.import_module(f"generators.{generator_name}")  # load module
+            generator_obj = getattr(generator_module, "Generator")   # get class template
+            generator_instance = generator_obj(contentai.result_path)   # create instance
+            map_outputs[generator_name] = {'module': generator_instance, 'path': generator_instance.get_output_path(extractor_name)}
+            if "compressed" in input_vars and input_vars["compressed"]:  # allow compressed version
+                map_outputs[generator_name]["path"] += ".gz"
+            need_generation |= (generator_instance.is_universal or not path.exists(map_outputs[generator_name]["path"]))
 
         df = None
-        if path.exists(input_vars['path_result']) and input_vars['force_overwrite']:
+        if not need_generation and not input_vars['force_overwrite']:
             parsers.Flatten.logger.info(f"Skipping re-process of {input_vars['path_result']}...")
         else:
             parser_module = importlib.import_module(f"parsers.{extractor_name}")  # load module
@@ -75,29 +85,25 @@ def main():
                 parsers.Flatten.logger.info(f"ContentAI argments: {input_vars}")
             df = parser_instance.parse(input_vars)  # attempt to process
 
-        if df is None:  # skip bad results
-            if 'extractor' in contentai.metadata:
-                parsers.Flatten.logger.warning(f"Specified extractor `{contentai.metadata['extractor']}` failed to find data. " \
-                    f"Verify that input directory {contentai.content_path} points directly to file...")
+            if df is None:  # skip bad results
+                if 'extractor' in contentai.metadata:
+                    parsers.Flatten.logger.warning(f"Specified extractor `{contentai.metadata['extractor']}` failed to find data. " \
+                        f"Verify that input directory {contentai.content_path} points directly to file...")
 
-        else:
+        if df is not None:
             if input_vars['time_offset'] != 0:  # need offset?
                 parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{input_vars['path_result']}')...")
                 for col_name in ['time_begin', 'time_end', 'time_event']:
                     df[col_name] += input_vars ['time_offset']
 
-            df_prior = None
-            if path.exists(input_vars['path_result']):
-                df_prior = pd.read_csv(input_vars['path_result'])
-                parsers.Flatten.logger.info(f"Loaded {len(df_prior)} existing events from {input_vars['path_result']}...")
-                df = pd.concat([df, df_prior])
-                num_prior = len(df)
-                df.drop_duplicates(inplace=True)
-                parsers.Flatten.logger.info(f"Duplicates removal shrunk from {num_prior} to {len(df)} surviving events...")
+            for generator_name in map_outputs:  # iterate through auto-discovered packages
+                if map_outputs[generator_name]['module'].is_universal or not path.exists(map_outputs[generator_name]["path"]):
+                    num_items = map_outputs[generator_name]['module'].generate(map_outputs[generator_name]["path"], input_vars, df)  # attempt to process
+                    parsers.Flatten.logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
+                else:
+                    parsers.Flatten.logger.info(f"Skipping re-generate of {generator_name} to file '{map_outputs[generator_name]['path']}''...")
 
-            df.sort_values("time_begin").to_csv(input_vars['path_result'], index=False)
-            parsers.Flatten.logger.info(f"Wrote {len(df)} items to result file '{input_vars['path_result']}'")
-
+        pass
 
 if __name__ == "__main__":
     main()
