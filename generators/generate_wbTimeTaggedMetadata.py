@@ -37,13 +37,36 @@ class Generator(Generate):
         :param: timed_row (pd.Series): a single row for output with some expected column names
         :returns: (bool): time coverage indicator True (concrete and lasting through whole event),  False (descriptive, not necessarily entire timespan), None (unknown type)
         """
+        full_coverage = False
+        col_row = list(timed_row.index)
+        if not ("tag" in col_row and "score" in col_row and "source_event" in col_row):
+            return None
+        output_obj["dataObject"] = {"name": timed_row["tag"], "source": timed_row["source_event"], 
+                                    "score": timed_row["score"], "extractor": timed_row["extractor"] }
+        output_obj["dataTypeId"] = "timedEvent"  # generic audio, visual, or textual tag
+        
+        if "details" in timed_row:    # check for special object
+            details_obj = None
+            if len(timed_row["details"]):    # face identity
+                details_obj = json.loads(timed_row["details"])
+                if 'box' in details_obj:
+                    output_obj['box'] = details_obj['box']
+                    output_obj["dataTypeId"] = "timedObject"  # object with specific coordinates
+                    full_coverage = True
+                if "uri" in details_obj:
+                    output_obj["uri"] = details_obj["uri"]
+                elif "url" in details_obj:
+                    output_obj["uri"] = details_obj["url"]
+                elif "urls" in details_obj:
+                    output_obj["uri"] = details_obj["urls"]
+                if 'transcript' in details_obj:
+                    output_obj["transcript"] = details_obj["transcript"]
+                    output_obj["dataTypeId"] = "timedText"  # object with specific coordinates
+                    full_coverage = True
 
-        if timed_row["tag_type"] == "tag":    # generic audio, visual, or textual tag
-            output_obj["dataTypeId"] = "timedEvent"
-            output_obj["dataObject"] = {"name": timed_row["tag"], "source": timed_row["source_event"], 
-                                        "score": timed_row["score"], "extractor": timed_row["extractor"] }
-            return False
-        return None
+                # TODO: detail JSON : AgeRange (aws face), Pose (aws face), face (bounding box for person, azure), kfcluster (cae), shot_type (shot tags, azure)
+
+        return full_coverage
 
     def append_timed(self, output_set, timed_row):
         """Append timed row as either timespan or frame to output object...

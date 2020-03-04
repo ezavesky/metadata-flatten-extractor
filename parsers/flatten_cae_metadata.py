@@ -165,8 +165,8 @@ class Parser(Flatten):
                 for local_obj in dict_data['mmimg']['images']:  # loop over images for other extraction
                     details_obj = {}
                     img_id = int(local_obj['id'])
-                    if 'type' in local_obj:
-                        details_obj['type'] = local_obj['type']
+                    if 'type' in local_obj:  # udpate 0.7.0, make into an array
+                        details_obj['shot_type'] = [local_obj['type']]
                     # first, publish the shot for this image
                     list_items.append( {"time_begin": img_timing[img_id]['time_begin'], "source_event": "video", "tag_type": "shot",
                         "time_end": img_timing[img_id]['time_end'], "time_event": img_timing[img_id]['time_begin'], "tag": "shot",

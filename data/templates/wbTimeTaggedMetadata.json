@@ -18,8 +18,14 @@
             "version": "1",
             "schemaDefinition": "file:///timedEvent.schema.json",
             "identificationGroupings": {
-                "eventData": {
-                    "name": {}, "source": {}, "extractor": {}, "score": {}
+                "timedEvent": {
+                    "name": {}, "source": {}, "type": {}, "extractor": {}, "score": {}, "uri": {}
+                },
+                "timedObject": {
+                    "name": {}, "source": {}, "type": {}, "extractor": {}, "score": {}, "uri": {}, "box": {}
+                },
+                "timedText": {
+                    "name": {}, "source": {}, "type": {}, "extractor": {}, "score": {}, "uri": {}, "box": {}, "transcript": {}
                 }
             }
         }
