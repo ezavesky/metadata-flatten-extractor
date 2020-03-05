@@ -3,6 +3,12 @@
 A method to flatten generated JSON data into timed CSV events in support of analytic 
 workflows within the [ContentAI Platform](https://www.contentai.io). 
 
+## 0.7
+
+### 0.7.1
+* added truncation/trim of events before zero mark if time offset is negative
+* re-brand extractor as `dsai_metadata_flatten` for ownership consistency
+
 ### 0.7.0
 * create new set of generator class objects for varying output generator
 * add new `generator` input for limiting output to a single type
