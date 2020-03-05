@@ -92,9 +92,10 @@ def main():
 
         if df is not None:
             if input_vars['time_offset'] != 0:  # need offset?
-                parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{input_vars['path_result']}')...")
+                parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{extractor_name}')...")
                 for col_name in ['time_begin', 'time_end', 'time_event']:
                     df[col_name] += input_vars ['time_offset']
+            df.drop(df[df["time_begin"] < 0].index, inplace=True)  # drop rows if trimmed from front
 
             for generator_name in map_outputs:  # iterate through auto-discovered packages
                 if map_outputs[generator_name]['module'].is_universal or not path.exists(map_outputs[generator_name]["path"]):
