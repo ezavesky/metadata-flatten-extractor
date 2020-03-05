@@ -1,8 +1,9 @@
 # metadata-flatten-extractor
 
 A method to flatten generated JSON data into timed CSV events in support of analytic 
-workflows within the [ContentAI Platform](https://www.contentai.io). For interactive
-exploration a [data explorer interface](application.md) was created as a quick starting place for a quick start.
+workflows within the [ContentAI Platform](https://www.contentai.io), published as the
+extractor `dsai_metadata_flatten`. For interactive exploration a [data explorer interface](application.md) 
+was created as a quick starting place for a quick start.
 
 1. [Getting Started](#getting-started)
 2. [Execution](#execution-and-deployment)
@@ -22,7 +23,7 @@ in the [main](main.py) script.
 * `force_overwrite` - *(bool)* - force existing files to be overwritten (*default=False*)
 * `compressed` - *(bool)* - compress output CSVs instead of raw write (*default=True*, e.g. append '.gz')
 * `all_frames` - *(bool)* - for video-based events, log all instances in box or just the center (*default=False*)
-* `time_offset` - *(int)* - when merging events for an asset split into multiple parts, time in seconds (*default=0*)
+* `time_offset` - *(int)* - when merging events for an asset split into multiple parts, time in seconds (*default=0*); negative numbers will cause a truncation (skip) of events happening before the zero time mark *(added v0.7.1)*
 * `verbose` - *(bool)* - verbose input/output configuration printing (*default=False*)
 * `extractor` - *(string)* - specify one extractor to flatten, skipping nested module import (*default=all*, e.g. `cae_metadata`)
 * `generator` - *(string)* - specify one generator for output, skipping nested module import (*default=all*, e.g. `flattened_csv`)
@@ -102,7 +103,7 @@ This allows a simplified command-line specification of a run configuration, whic
 
 ### Local Runs with Timing Offsets
 
-The script `run_local.sh` also searches for a text file called `timing.txt` in each source directory.  If found, it will offset all results by the specified number of seconds before saving them to disk.
+The script `run_local.sh` also searches for a text file called `timing.txt` in each source directory.  If found, it will offset all results by the specified number of seconds before saving them to disk.  Also, negative numbers will cause a truncation (skip) of events happening before the zero time mark.   *(added v0.7.1)*
 
 This capability may be useful if you have to manually split a file into multiple smaller files at a pre-determined time offset (e.g. three hours -> 10800 in `timing.txt`).   *(added v0.5.2)*
 
