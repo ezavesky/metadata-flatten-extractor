@@ -132,22 +132,22 @@ build_app:
     - scp "$CONTAINER_TEST_FILE_APP" "$USER_NAME@$DEPLOY_HOST:$BUILD_STORAGE_APP"
 
 
-# testscr:
-#   stage: test
-#   dependencies:
-#     - setup
-#   script:
-#     # retrieve from back-up server
-#     - scp "$USER_NAME@$DEPLOY_HOST:$BUILD_STORAGE" "$CONTAINER_TEST_FILE"
-#     # otherwise, load docker from tar
-#     - docker image load -i $CONTAINER_TEST_FILE
-#     # note the magic sauce with conda! (https://github.com/tox-dev/tox-conda)
-#     - docker run --rm -v `pwd`:/testrun $BUILD_IMAGE /bin/bash -c "cd /testrun && pip install tox-conda flake8 && pip uninstall -y $DOCKER_PROJECT && pip freeze && tox . && python setup.py bdist_wheel"
-#   artifacts:
-#     paths:
-#       - htmlcov
-#       - dist/*.whl
-#   coverage: '/TOTAL\s*\d+\s+\d+\s+(\d+\.?\d*)%/'
+testscr:
+  stage: test
+  dependencies:
+    - setup
+  script:
+    # retrieve from back-up server
+    - scp "$USER_NAME@$DEPLOY_HOST:$BUILD_STORAGE" "$CONTAINER_TEST_FILE"
+    # otherwise, load docker from tar
+    - docker image load -i $CONTAINER_TEST_FILE
+    # note the magic sauce with conda! (https://github.com/tox-dev/tox-conda)
+    - docker run --rm -v `pwd`:/testrun $BUILD_IMAGE /bin/bash -c "cd /testrun && pip install -r testing/tox-requirements.txt && pip uninstall -y $DOCKER_PROJECT && pip freeze && tox . && python setup.py bdist_wheel"
+  artifacts:
+    paths:
+      - htmlcov
+      - dist/*.whl
+  coverage: '/TOTAL\s*\d+\s+\d+\s+(\d+\.?\d*)%/'
 
 
 launch:
@@ -224,23 +224,22 @@ contentai_push:
     - master
 
 
-
-# docgen:
-#   stage: deploy
-#   image: conda/miniconda3:latest
-#   script:
-#     - pip install Sphinx sphinx_rtd_theme
-#     - sphinx-apidoc -f -o docs/api . setup* --no-toc
-#     - sphinx-build -b html docs build/html
-#     # - rm -rf htmlcov
-#     - ls -l build
-#   artifacts:
-#     paths:
-#     - build
-#   dependencies:
-#     - testscr
-#   before_script:
-#     - echo "Skipping SSH access"
+docgen:
+  stage: deploy
+  image: conda/miniconda3:latest
+  script:
+    - pip install Sphinx sphinx_rtd_theme
+    - sphinx-apidoc -f -o docs/api . setup* --no-toc
+    - sphinx-build -b html docs build/html
+    # - rm -rf htmlcov
+    - ls -l build
+  artifacts:
+    paths:
+    - build
+  dependencies:
+    - testscr
+  before_script:
+    - echo "Skipping SSH access"
 
 
 # docker_publish:
@@ -256,17 +255,15 @@ contentai_push:
 #     - setup
 
 
-# pages:
-#   stage: publish
-#   script:
-#     - mkdir -p public
-#     - cp -R build/html/ public/
-#   only:
-#     - master
-#   artifacts:
-#     paths:
-#     - public
-#   dependencies:
-#     - docgen
-#   before_script:
-#     - echo "Skipping SSH access"
+pages:
+  stage: publish
+  script:
+    - mkdir -p public
+    - cp -R build/html/ public/
+  artifacts:
+    paths:
+    - public
+  dependencies:
+    - docgen
+  before_script:
+    - echo "Skipping SSH access"
