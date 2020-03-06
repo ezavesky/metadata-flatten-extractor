@@ -1,21 +1,19 @@
 FROM python:3.7-slim
 MAINTAINER  Eric Zavesky <ezavesky@research.att.com>
 
+ARG WORKDIR=/usr/src/app
 ARG PYPI_INSTALL=""
-
-# create local copy to install from
-ARG TMPAPP=/tmp/app
-COPY . $TMPAPP
 
 # install pacakages
 WORKDIR $WORKDIR
+COPY . $WORKDIR
 
 RUN python -V \
     # create user ID and run mode
     # && groupadd -g $gid $user && useradd -m -u $uid -g $gid $user \
     # && apt-get update \
     # && apt-get -y install git vim \
-    && cd $TMPAPP && pip install --no-cache-dir . \
+    && pip install --no-cache-dir -r $WORKDIR/requirements.txt \
     # clean up mess from other apt-actions
     && apt-get -qq -y remove \
     && apt-get -qq -y autoremove \
@@ -23,4 +21,4 @@ RUN python -V \
 
 
 EXPOSE 9101
-CMD 
+CMD metadata-flatten
