@@ -268,3 +268,6 @@ pages:
     - docgen
   before_script:
     - echo "Skipping SSH access"
+  only:
+    - master
+
