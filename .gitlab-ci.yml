@@ -228,7 +228,8 @@ docgen:
   stage: deploy
   image: conda/miniconda3:latest
   script:
-    - pip install Sphinx sphinx_rtd_theme
+    - pip install -r requirements.txt
+    - pip install Sphinx sphinx_rtd_theme 
     - sphinx-apidoc -f -o docs/api . setup* --no-toc
     - sphinx-build -b html docs build/html
     # - rm -rf htmlcov
