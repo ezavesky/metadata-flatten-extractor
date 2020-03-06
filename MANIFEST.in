@@ -1,0 +1,3 @@
+# for tox flake8 testing
+include docs
+include requirements.txt
