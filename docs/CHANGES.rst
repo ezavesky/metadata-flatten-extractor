@@ -7,6 +7,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.8
 ---
 
+0.8.1
+~~~~~
+
+- adding music parser `dsai_musicnn` for different audio regions
+
+
 0.8.0
 ~~~~~
 
