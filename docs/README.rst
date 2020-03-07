@@ -38,7 +38,7 @@ defined here.**
 -  ``verbose`` - *(bool)* - verbose input/output configuration printing
    (*default=False*)
 -  ``extractor`` - *(string)* - specify one extractor to flatten,
-   skipping nested module import (*default=all*, e.g. ``cae_metadata``)
+   skipping nested module import (*default=all*, e.g. ``dsai_metadata``)
 -  ``generator`` - *(string)* - specify one generator for output,
    skipping nested module import (*default=all*, e.g. ``flattened_csv``)
 
@@ -134,7 +134,7 @@ explicitly specified. (added v0.6.1)*
 
 .. code:: shell
 
-   ./run_local.sh results/cae_metadata results/ '{"extractor":"cae_metadata"}'
+   ./run_local.sh results/dsai_metadata results/ '{"extractor":"dsai_metadata"}'
 
 Local Runs with Timing Offsets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

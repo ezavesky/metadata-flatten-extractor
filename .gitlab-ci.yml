@@ -78,7 +78,7 @@ setup:
   script:
     - mkdir -p build
     # https://threedots.tech/post/automatic-semantic-versioning-in-gitlab-ci/
-    - "[ -f _version.py ] && export VERSION=$(cat _version.py | grep version | awk '{print $3}' | sed -e 's@\"@@g' )"    #start from file?
+    - "[ -f metadata_flatten/_version.py ] && export VERSION=$(cat metadata_flatten/_version.py | grep version | awk '{print $3}' | sed -e 's@\"@@g' )"    #start from file?
     - "[ -z $VERSION ] && export VERSION=$(date +dev.%Y%m%d.%H%M)"  # not found in a file?
     # - export VERSION=$CI_COMMIT_SHORT_SHA   # use commit hash as dev vesion?
     - "[ -z $BUILD_VER ] && export BUILD_VER=$VERSION"  # not provided in build variables
