@@ -29,7 +29,7 @@ from . import Flatten
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
-        self.EXTRACTOR = "cae_metadata"
+        self.EXTRACTOR = "dsai_metadata"
 
     def parse(self, run_options):
         """Flatten CAE Indexing results
