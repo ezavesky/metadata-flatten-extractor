@@ -23,11 +23,18 @@ import json
 import re
 import pandas as pd
 
-from . import Generate
+from metadata_flatten.generators import Generate
 
 class Generator(Generate):
     def __init__(self, path_destination):
         super().__init__(path_destination, "csv", ".csv")
+
+    @staticmethod
+    def known_types():
+        """Return the output types for this generator
+        :return: list.  List of output types (file types) for this generator
+        """
+        return ["csv"]
 
     def generate(self, path_output, run_options, df):
         """Generate CSV from flattened results

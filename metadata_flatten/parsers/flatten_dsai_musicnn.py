@@ -24,12 +24,19 @@ import json
 
 from pytimeparse import parse as pt_parse
 
-from . import Flatten
+from metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
         self.EXTRACTOR = "dsai_musicnn"
+
+    @staticmethod
+    def known_types():
+        """Return the output types for this generator
+        :return: list.  List of output types (file types) for this generator
+        """
+        return ['tag']
 
     def parse(self, run_options):
         """Flatten DSAI MusicNN results

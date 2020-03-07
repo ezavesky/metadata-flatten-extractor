@@ -25,11 +25,18 @@ import re
 
 from pytimeparse import parse as pt_parse
 
-from . import Flatten
+from metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
+
+    @staticmethod
+    def known_types():
+        """Return the output types for this generator
+        :return: list.  List of output types (file types) for this generator
+        """
+        return ['topic', 'keyword', 'identity', 'sentiment', 'emotion', 'tag', 'scene', 'brand', 'entity', 'shot', 'transcript']
 
     def parse(self, run_options):
         """Flatten Azure Indexing
@@ -231,7 +238,7 @@ class Parser(Flatten):
                             for time_obj in local_obj["instances"]:  # walk through all appearances
                                 time_begin = pt_parse(time_obj['start'])
                                 time_end = pt_parse(time_obj['end'])
-                                list_items.append( {"time_begin": time_begin, "source_event": "image", "tag_type": "ocr",
+                                list_items.append( {"time_begin": time_begin, "source_event": "ocr", "tag_type": "transcript",
                                     "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
                                     "score": float(local_obj["confidence"]), 
                                     "details": json.dumps(local_box),
