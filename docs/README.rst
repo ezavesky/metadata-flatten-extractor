@@ -236,7 +236,14 @@ View Extractor Logs (stdout)
 Testing
 =======
 
-(testing and validation forthcoming)
+Testing is included via tox.  To launch testing for the entire package, just run `tox` at the command line. 
+Testing can also be run for a specific file within the package by setting the evironment variable `TOX_ARGS`.
+
+.. code:: shell
+
+   TOX_ARG=test_basic.py tox 
+   
+
 
 Future Development
 ==================

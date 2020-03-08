@@ -105,26 +105,31 @@ for module_finder, extractor_name, _ in pkgutil.iter_modules(__path__):
     if parser_obj is not None:
         _modules.append({'obj':parser_obj, 'types':parser_obj.known_types(), 'name':extractor_name})
 
-def get_by_type(type_limit=None):
+def get_by_type(type_list=None):
     """Get parsers with a specific filter for type.
-    :param type_limit: (list) list of tag type required in output (e.g. ['shot', 'tag']) (default=None or all available)
+
+    :param local_list: (list) list of tag type required in output (e.g. ['shot', 'tag']) (default=None or all available)
     :return list: list of raw "Parser()" classes that are instiatioed with input file paths
     """
     local_list = []
-    if type_limit is None:
+    if type_list is None:
         local_list = [local_obj for local_obj in _modules]
     else:
-        local_list = [local_obj for local_obj in _modules if local_obj['types'] is None or type_limit in local_obj['types']]
+        if type(type_list) != list:
+            type_list = [type_list]
+        type_list = set(type_list)  # convert to set
+        local_list = [local_obj for local_obj in _modules if local_obj['types'] is None or len(type_list.intersection(set(local_obj['types']))) > 0]
     return local_list
+
 
 def get_by_name(name_limit=None):
     """Get parsers with a specific filter for name.
-    :param name_limit: (list) list of tag type required in output (e.g. ['dsai_metadata', 'azure_videoindexer']) (default=None or all available)
+    :param name_limit: (str) list of tag type required in output (e.g. 'dsai_metadata', 'azure') (default=None or all available)
     :return list: list of raw "Parser()" classes that are instiatioed with input file paths
     """
     local_list = []
     if name_limit is None:
         local_list = [local_obj for local_obj in _modules]
     else:
-        local_list = [local_obj for local_obj in _modules if local_obj['types'] is None or name_limit in local_obj['name']]
+        local_list = [local_obj for local_obj in _modules if name_limit in local_obj['name']]
     return local_list

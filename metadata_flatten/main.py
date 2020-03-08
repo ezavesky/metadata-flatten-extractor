@@ -29,9 +29,9 @@ if __name__ == '__main__':
     if pathRoot not in sys.path:
         sys.path.append(pathRoot)
 
-import contentai
-import parsers
-import generators
+from metadata_flatten import contentai
+from metadata_flatten import parsers
+from metadata_flatten import generators
 
 
 def main():

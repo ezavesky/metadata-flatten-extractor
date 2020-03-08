@@ -1,3 +1,4 @@
 # for tox flake8 testing
 include docs
 include requirements.txt
+include testing/tox-requirements.txt
