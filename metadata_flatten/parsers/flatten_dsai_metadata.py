@@ -69,7 +69,7 @@ class Parser(Flatten):
             for local_type in ["programNE", "epgNE", "commercialNE"]:
                 if local_type in dict_data["smartTags"]:
                     for local_obj in dict_data["smartTags"][local_type]:
-                        if "neType" in local_obj and "namedEntity" in local_obj:  # validate object
+                        if "neType" in local_obj and "namedEntity" in local_obj and "sentNumber" in local_obj:  # validate object
                             insight_obj = {"tag": local_obj["namedEntity"], "tag_type": "entity",  # could be 'brand' too or 'identity'?
                                 "details": {"type": local_obj["neType"], 'description': local_obj['neLabel'], 'weight': local_obj['weight'] } }
                             for sent_id in local_obj["sentNumber"]:
@@ -164,7 +164,7 @@ class Parser(Flatten):
                     if (img_id - 1) in img_timing:  # seek back for end timing
                         img_timing[img_id - 1]['time_end'] = img_timing[img_id]['time_begin'] - 1/1000
                     img_id_last = img_id
-                    if 'kfcluster' in local_obj:
+                    if 'kfcluster' in local_obj and len(local_obj['kfcluster']):
                         kfcluster_max = max(kfcluster_max, float(local_obj['kfcluster']['score']))
                 if img_id_last > -1 and 'duration' in dict_data:  # time the final image/shot
                     img_timing[img_id_last]['time_end'] = float(dict_data['duration'])/1000 - 1/1000
@@ -224,7 +224,7 @@ class Parser(Flatten):
                                 "time_end": img_timing[img_id]['time_end'], "time_event": img_timing[img_id]['time_begin'], 
                                 "tag": insight_obj['name'], "score": round(float(insight_obj['score']), 4), "details": "", "extractor": self.EXTRACTOR})
 
-                    if 'kfcluster' in local_obj:   # process kfcluster (duplicate frames)
+                    if 'kfcluster' in local_obj and len(local_obj['kfcluster']):   # process kfcluster (duplicate frames)
                         details_obj = local_obj['kfcluster']
                         # TODO: investigate whether kfcluster score is a distance or a similarity; this code assumes distance!
                         list_items.append({"time_begin": img_timing[img_id]['time_begin'], "source_event": "image", "tag_type": "scene",
