@@ -14,6 +14,8 @@ variables:
   GROUP_UID: 30755 # required for mount compatibility (group: miracle)
   DEPLOY_HOST: $DEPLOY_HOST # target host for deploy
   DEPLOY_STORAGE: /n/vmtsr02/dockerimg # path on destination for files
+  DEPLOY_MANIFEST: $DEPLOY_MANIFEST  # path to manifest file (check docker run volumes)
+  DEPLOY_VOLUMES: $DEPLOY_VOLUMES  # specific volumes to mount (e.g. -v /n/docroot5/projects:/projects  -v /n/vmtsr01:/vmtsr01)
   DEPLOY_LIMIT: 3  # max number of tar images to leave around
   DEPLOY_PORT_PROD: 9201
   DEPLOY_PORT_DEV: 9203
@@ -88,8 +90,8 @@ setup:
     - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_NAME="$DOCKER_PROJECT" || export BUILD_NAME="$DOCKER_PROJECT-dev" '
     - echo "$BUILD_NAME-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/artifact
     # save where we wrote it so that others could access the file?
-    - echo "$DEPLOY_STORAGE/$DOCKER_PROJECT-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/storage
-    - echo "$DEPLOY_STORAGE/$DOCKER_PROJECT-$BUILD_VER-$CI_COMMIT_SHORT_SHA-app.tar" > build/storage_app
+    - echo "$DEPLOY_STORAGE/$BUILD_NAME-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/storage
+    - echo "$DEPLOY_STORAGE/$BUILD_NAME-$BUILD_VER-$CI_COMMIT_SHORT_SHA-app.tar" > build/storage_app
     - echo "$DOCKER_TAG_BASE-$BUILD_VER-$CI_COMMIT_SHORT_SHA" > build/image
     - echo "$BUILD_VER (commit $CI_COMMIT_SHORT_SHA)"
     - echo "$DEPLOY_HOST"
@@ -159,27 +161,28 @@ launch:
     - setup
   script:
     # find previous docker images 
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export EXISTING_IMAGES=$(ssh $USER_NAME@$DEPLOY_HOST "docker image ls | grep $DOCKER_PROJECT | grep -v dev" | awk "{print \$3}" | xargs echo) || export EXISTING_IMAGES=$(ssh $USER_NAME@$DEPLOY_HOST "docker image ls | grep $DOCKER_PROJECT | grep dev" | awk "{print \$3}" | xargs echo) '
-    # - export EXISTING_IMAGES=$(ssh $USER_NAME@$DEPLOY_HOST "docker image ls | grep $DOCKER_PROJECT " | awk '{print $3}' | xargs echo)
-    - echo "Found Images= $EXISTING_IMAGES"
-    # log in and "deploy" new image, first ingest it into local docker
-    - ssh $USER_NAME@$DEPLOY_HOST "docker load -i $BUILD_STORAGE_APP"
     # if running on master, use proper port; otherwise use debug port for publish on HOST
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_PORT="$DEPLOY_PORT_PROD" || export BUILD_PORT="$DEPLOY_PORT_DEV" '
-    # find only those running on the target port (expanded to find any image that is running any version)
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export EXISTING_CONTAINER=$(ssh $USER_NAME@$DEPLOY_HOST "docker ps -a | grep $DOCKER_PROJECT | grep -v dev" | awk "{print \$1}" | xargs echo) || export EXISTING_IMAGES=$(ssh $USER_NAME@$DEPLOY_HOST "docker ps -a | grep $DOCKER_PROJECT | grep dev" | awk "{print \$1}" | xargs echo ) '
+    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_PORT="$DEPLOY_PORT" || export BUILD_PORT="$DEPLOY_PORT_DEV" '
+    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_NAME="$BUILD_TARGET" || export BUILD_NAME="$BUILD_TARGET-dev" '
+    # find previous docker imaages
+    - export DOCKER_IMAGES=$(ssh $DEPLOY_USER@$DEPLOY_HOST "docker image ls | grep $BUILD_NAME " | awk '{print $3}')
+    - echo "Found Images= $DOCKER_IMAGES"
+    # retrieve from back-up server
+    - scp "$USER_NAME@$DEPLOY_HOST:$BUILD_STORAGE" "$CONTAINER_TEST_FILE"
+    # otherwise, load docker from tar
+    - docker image load -i $CONTAINER_TEST_FILE
+    # get instance name 
+    - export DOCKER_INSTANCE=$(ssh $DEPLOY_USER@$DEPLOY_HOST "docker ps -a | grep $BUILD_NAME | grep $BUILD_PORT " | awk "{print \$1}" | xargs echo) 
+    # get image version (e.g. ads_audfprint:dev.20190913.2037), prepare to remove it
+    - export DOCKER_IMAGE_LASTVER=$(ssh $DEPLOY_USER@$DEPLOY_HOST "docker ps -a | grep $BUILD_NAME | grep $BUILD_PORT "  | awk "{print \$2}" | xargs echo | sed -e 's/.*://g' )
+    - export DOCKER_IMAGE=$(ssh $DEPLOY_USER@$DEPLOY_HOST "docker images $BUILD_TARGET | grep '$DOCKER_IMAGE_LASTVER' "  | awk "{print \$3}" | xargs echo  )
     # if there are some instances to stop, try to do so here
-    - echo "Found Containers= $EXISTING_CONTAINER ; deploy host= $DEPLOY_HOST"
-    # stop and remove the previous docker instances
-    - '[ -z "$EXISTING_CONTAINER" ] || ssh $USER_NAME@$DEPLOY_HOST "docker stop $EXISTING_CONTAINER && docker rm $EXISTING_CONTAINER"'
+    - echo "Found Instances= $DOCKER_INSTANCE; Found Image= $DOCKER_IMAGE"
+    # stop and remove the container and the imge of the previous docker instance (if one existed)
+    - '[ ! -z "$DOCKER_INSTANCE" ] && ssh $DEPLOY_USER@$DEPLOY_HOST "docker stop $DOCKER_INSTANCE && docker rm $DOCKER_INSTANCE"'
+    - '[ ! -z "$DOCKER_INSTANCE" ] && ssh $DEPLOY_USER@$DEPLOY_HOST "docker image rm $DOCKER_IMAGE"'
     # restart new instance with proper port
-    - export DOCKER_RUN="docker run -d -p $BUILD_PORT:8501 --env runmode='server' -t $BUILD_IMAGE-app"
-    - echo "$DOCKER_RUN (disabled for now)"
-    # disabled until multi-asset input is added
-    # - ssh $USER_NAME@$DEPLOY_HOST "$DOCKER_RUN"
-    # - ssh $USER_NAME@$DEPLOY_HOST "nvidia-docker run -u $USER_NAME -d --name $DOCKER_PROJECT -p $BUILD_PORT:6006  -t $BUILD_IMAGE-app"
-    # remove the previous docker images (TODO: fix error condition; right now it's always proceeding)
-    - '[ -z "$EXISTING_IMAGES" ] || ( ssh $USER_NAME@$DEPLOY_HOST "docker image rm $EXISTING_IMAGES" )'
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "docker run -d --name $BUILD_NAME -p $BUILD_PORT:8501  $DEPLOY_VOLUMES -t $BUILD_IMAGE-app --env manifest='$DEPLOY_MANIFEST' "
 
 
 cleanup:
