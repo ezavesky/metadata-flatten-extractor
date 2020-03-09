@@ -20,6 +20,7 @@
 import os
 from setuptools import setup, find_packages
 from setuptools.command.install import install
+from pathlib import Path
 
 
 # extract __version__ from version file. importing will lead to install failures
@@ -32,7 +33,16 @@ with open(os.path.join(setup_dir, 'metadata_flatten', '_version.py')) as file:
 print(setup_dir)
 with open(os.path.join(setup_dir, 'requirements.txt'), encoding='utf-8') as f:
     all_reqs = f.read().split('\n')
-requirement_list = [x.strip() for x in all_reqs if 'git+' not in x and not x.startswith('#')]
+requirement_list = [x.strip() for x in all_reqs if 'git+' not in x and not x.startswith('#') and x]
+
+with open(os.path.join(setup_dir, 'testing', 'tox-requirements.txt'), encoding='utf-8') as f:
+    all_reqs = f.read().split('\n')
+test_requirement_list = [x.strip() for x in all_reqs if 'git+' not in x and not x.startswith('#') and x]
+
+# collect data files and templates
+data_dir = os.path.join(setup_dir, globals_dict['__package__']) + os.path.sep
+# list_data = [str(x.resolve()).replace(data_dir, '') for x in Path(os.path.join(data_dir, 'data')).rglob('*.*')]
+list_data = [str(x.resolve()) for x in Path(os.path.join(data_dir, 'data')).rglob('*.*')]
 
 setup(
     name=globals_dict['__package__'],
@@ -42,16 +52,15 @@ setup(
     description=globals_dict['__description__'],
     long_description=(globals_dict['__description__']),
     license="Apache",
-    package_data={globals_dict['__package__']: ['data/*']},
+    package_data={globals_dict['__package__']: list_data },
     # setup_requires=['pytest-runner'],
     entry_points="""
     [console_scripts]
-    metadata-flatten=metadata_flatten:main
+    metadata-flatten=metadata_flatten.main:main
     """,
-    # setup_requires=['pytest-runner'],
     python_requires='>=3.6',
     install_requires=requirement_list,
-    tests_require=[],
+    tests_require=test_requirement_list,
     # cmdclass={'install': new_install},
     include_package_data=True,
 )

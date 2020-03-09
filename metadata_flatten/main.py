@@ -20,13 +20,19 @@
 
 import sys
 from os import path, makedirs
-import importlib
 
 import pandas as pd
 
-import contentai
-import parsers
-import generators
+if __name__ == '__main__':
+    # patch the path to include this object
+    pathRoot = path.dirname(path.dirname(path.abspath(__file__)))
+    if pathRoot not in sys.path:
+        sys.path.append(pathRoot)
+
+from metadata_flatten import contentai
+from metadata_flatten import parsers
+from metadata_flatten import generators
+
 
 def main():
     # check for a single argument as input for the path as an override
@@ -47,13 +53,9 @@ def main():
     if not path.exists(contentai.result_path):
         makedirs(contentai.result_path)
 
-    list_parser_modules = parsers.modules
-    if 'extractor' in contentai.metadata:  # add ability to specify sepcific extractor
-        list_parser_modules = [f"flatten_{contentai.metadata['extractor']}"]
+    list_parser_modules = parsers.get_by_name(contentai.metadata['extractor'] if 'extractor' in contentai.metadata else None)
 
-    list_generator_modules = generators.modules
-    if 'generator' in contentai.metadata:  # add ability to specify sepcific extractor
-        list_generator_modules = [f"generate_{contentai.metadata['generator']}"]
+    list_generator_modules = generators.get_by_name(contentai.metadata['generator'] if 'generator' in contentai.metadata else None)
 
     # allow injection of parameters from environment
     input_vars = {"force_overwrite": True, "verbose":False,
@@ -63,12 +65,11 @@ def main():
 
     need_generation = False
     map_outputs = {}
-    for extractor_name in list_parser_modules:  # iterate through auto-discovered packages
-        for generator_name in list_generator_modules:  # iterate through auto-discovered packages
-            generator_module = importlib.import_module(f"generators.{generator_name}")  # load module
-            generator_obj = getattr(generator_module, "Generator")   # get class template
-            generator_instance = generator_obj(contentai.result_path)   # create instance
-            map_outputs[generator_name] = {'module': generator_instance, 'path': generator_instance.get_output_path(extractor_name)}
+    for parser_obj in list_parser_modules:  # iterate through auto-discovered packages
+        for generator_obj in list_generator_modules:  # iterate through auto-discovered packages
+            generator_instance = generator_obj['obj'](contentai.result_path)   # create instance
+            generator_name = generator_obj['name']
+            map_outputs[generator_name] = {'module': generator_instance, 'path': generator_instance.get_output_path(parser_obj['name'])}
             if "compressed" in input_vars and input_vars["compressed"]:  # allow compressed version
                 map_outputs[generator_name]["path"] += ".gz"
             need_generation |= (generator_instance.is_universal or not path.exists(map_outputs[generator_name]["path"]))
@@ -77,9 +78,7 @@ def main():
         if not need_generation and not input_vars['force_overwrite']:
             parsers.Flatten.logger.info(f"Skipping re-process of {input_vars['path_result']}...")
         else:
-            parser_module = importlib.import_module(f"parsers.{extractor_name}")  # load module
-            parser_obj = getattr(parser_module, "Parser")   # get class template
-            parser_instance = parser_obj(contentai.content_path)   # create instance
+            parser_instance = parser_obj['obj'](contentai.content_path)   # create instance
         
             if input_vars["verbose"]:
                 parsers.Flatten.logger.info(f"ContentAI argments: {input_vars}")
@@ -92,7 +91,7 @@ def main():
 
         if df is not None:
             if input_vars['time_offset'] != 0:  # need offset?
-                parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{extractor_name}')...")
+                parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{parser_obj['name']}')...")
                 for col_name in ['time_begin', 'time_end', 'time_event']:
                     df[col_name] += input_vars ['time_offset']
             df.drop(df[df["time_begin"] < 0].index, inplace=True)  # drop rows if trimmed from front

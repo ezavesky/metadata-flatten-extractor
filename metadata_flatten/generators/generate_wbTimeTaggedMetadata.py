@@ -24,13 +24,20 @@ import re
 from pandas import DataFrame
 import hashlib   # for key hashing
 
-from . import Generate
+from metadata_flatten.generators import Generate
 
 class Generator(Generate):
     def __init__(self, path_destination):
         super().__init__(path_destination, "wbTimeTaggedMetadata", ".json", universal=True)
         self.template_path = path.join(self.PATH_DATA, 'templates', "wbTimeTaggedMetadata.json")
         self.schema_path = path.join(self.PATH_DATA, 'templates', "metadataEvent.schema.json")
+
+    @staticmethod
+    def known_types():
+        """Return the output types for this generator
+        :return: list.  List of output types (file types) for this generator
+        """
+        return ["json"]
 
     def distill_type(self, output_obj, timed_row):
         """Render input type to the right JSON/object format...

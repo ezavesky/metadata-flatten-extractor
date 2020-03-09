@@ -26,12 +26,52 @@ import shutil
 import pytest
 from os import path
 
-from metadata_flatten import _version
-
 PATH_TEST = path.join(path.dirname(path.dirname(path.abspath(__file__))), 'data')
 
+
 def test_version():
+    from metadata_flatten import _version
     assert _version.__package__ == "metadata_flatten"
+
+
+def test_main():
+    from metadata_flatten import main
+
+
+def test_discovery():
+    from metadata_flatten import generators, parsers
+
+    list_gen = generators.get_by_type('csv')
+    assert len(list_gen) > 0  # at least one member
+
+    list_gen = generators.get_by_type(['csv', 'json'])
+    assert len(list_gen) > 1  # at least one member
+
+    list_gen = generators.get_by_name('csv')
+    assert len(list_gen) > 0  # at least one member
+
+    list_parser = parsers.get_by_type('moderation')
+    assert len(list_parser) > 0  # at least one member
+
+    list_parser = parsers.get_by_type(['shot', 'scene'])
+    assert len(list_parser) > 1  # at least one member
+
+    list_parser = parsers.get_by_name('aws')
+    assert len(list_parser) > 1   # at least one member
+
+
+def test_packages():
+    from metadata_flatten import generators, parsers
+    
+    list_gen = generators.get_by_name('TimeTaggedMetadata')
+    assert len(list_gen) > 0  # at least one member
+
+    instance_gen = list_gen[0]['obj']('junk')
+    assert path.exists(instance_gen.schema_path)   # need to have the template/schema path
+
+
+
+
 
 # validate against input and basic parsing?
 # drop rows if negative index in time

@@ -19,6 +19,8 @@
 # -*- coding: utf-8 -*-
 
 import pkgutil
+import importlib
+
 import json
 import re
 import math
@@ -31,9 +33,7 @@ from sys import stdout as STDOUT
 
 import pandas as pd
 
-import contentai
-
-modules = [name for _, name, _ in pkgutil.iter_modules(__path__)]
+from metadata_flatten import contentai
 
 class Flatten():
     # https://cloud.google.com/video-intelligence/docs/reference/reast/Shared.Types/Likelihood
@@ -52,6 +52,13 @@ class Flatten():
         self.extractor_keys = []
         self.extractor = None
         self.path_content = path_content
+
+    @staticmethod
+    def known_types():
+        """Return the output types for this generator
+        :return: list.  List of output types (file types) for this generator
+        """
+        return None
 
     def json_load(self, path_file):
         """Helper to read dict object from JSON
@@ -89,3 +96,40 @@ class Flatten():
     def get_extractor_keys(self, extractor_name):
         return contentai.get_extractor_result_keys(extractor_name)
 
+# import other modules
+
+_modules = []
+for module_finder, extractor_name, _ in pkgutil.iter_modules(__path__):
+    parser_module = module_finder.find_module(extractor_name).load_module()
+    parser_obj = getattr(parser_module, "Parser")   # get class template
+    if parser_obj is not None:
+        _modules.append({'obj':parser_obj, 'types':parser_obj.known_types(), 'name':extractor_name})
+
+def get_by_type(type_list=None):
+    """Get parsers with a specific filter for type.
+
+    :param local_list: (list) list of tag type required in output (e.g. ['shot', 'tag']) (default=None or all available)
+    :return list: list of raw "Parser()" classes that are instiatioed with input file paths
+    """
+    local_list = []
+    if type_list is None:
+        local_list = [local_obj for local_obj in _modules]
+    else:
+        if type(type_list) != list:
+            type_list = [type_list]
+        type_list = set(type_list)  # convert to set
+        local_list = [local_obj for local_obj in _modules if local_obj['types'] is None or len(type_list.intersection(set(local_obj['types']))) > 0]
+    return local_list
+
+
+def get_by_name(name_limit=None):
+    """Get parsers with a specific filter for name.
+    :param name_limit: (str) list of tag type required in output (e.g. 'dsai_metadata', 'azure') (default=None or all available)
+    :return list: list of raw "Parser()" classes that are instiatioed with input file paths
+    """
+    local_list = []
+    if name_limit is None:
+        local_list = [local_obj for local_obj in _modules]
+    else:
+        local_list = [local_obj for local_obj in _modules if name_limit in local_obj['name']]
+    return local_list

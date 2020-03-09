@@ -24,12 +24,19 @@ import json
 
 from pytimeparse import parse as pt_parse
 
-from . import Flatten
+from metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
         self.EXTRACTOR = "dsai_metadata"
+
+    @staticmethod
+    def known_types():
+        """Return the output types for this generator
+        :return: list.  List of output types (file types) for this generator
+        """
+        return ['keyword', 'identity', 'tag', 'scene', 'topic', 'brand', 'shot', 'transcript']
 
     def parse(self, run_options):
         """Flatten CAE Indexing results
@@ -63,7 +70,7 @@ class Parser(Flatten):
                 if local_type in dict_data["smartTags"]:
                     for local_obj in dict_data["smartTags"][local_type]:
                         if "neType" in local_obj and "namedEntity" in local_obj:  # validate object
-                            insight_obj = {"tag": local_obj["namedEntity"], "tag_type": "identity",  # could be 'brand' too?
+                            insight_obj = {"tag": local_obj["namedEntity"], "tag_type": "entity",  # could be 'brand' too or 'identity'?
                                 "details": {"type": local_obj["neType"], 'description': local_obj['neLabel'], 'weight': local_obj['weight'] } }
                             for sent_id in local_obj["sentNumber"]:
                                 sent_id = int(sent_id)
