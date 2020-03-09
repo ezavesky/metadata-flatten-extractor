@@ -19,6 +19,8 @@
 # -*- coding: utf-8 -*-
 
 import pkgutil
+import importlib
+
 from os import path
 import json
 import gzip
@@ -28,8 +30,6 @@ import warnings
 from sys import stdout as STDOUT
 
 import pandas as pd
-
-modules = [name for _, name, _ in pkgutil.iter_modules(__path__)]
 
 class Generate():
     logger = logging.getLogger()
@@ -53,6 +53,13 @@ class Generate():
     @property
     def is_universal(self):
         return self._universal
+
+    @staticmethod
+    def known_types():
+        """Return the output types for this generator
+        :return: list.  List of output types (file types) for this generator
+        """
+        return None
 
     def get_output_path(self, name_parser):
         if self._universal:
@@ -95,3 +102,43 @@ class Generate():
                 outfile.close()
             return True
         return False
+
+
+# import other moduels
+
+_modules = []
+for module_finder, extractor_name, _ in pkgutil.iter_modules(__path__):
+    generator_module = module_finder.find_module(extractor_name).load_module()
+    generator_obj = getattr(generator_module, "Generator")   # get class template
+    if generator_obj is not None:
+        _modules.append({'obj':generator_obj, 'types':generator_obj.known_types(), 'name':extractor_name})
+
+def get_by_type(type_list=None):
+    """Get parsers with a specific filter for type.
+
+    :param type_list: (list) list of tag type required in output (e.g. ['csv', 'json']) (default=None or all available)
+    :return list: list of raw "Parser()" classes that are instiatioed with input file paths
+    """
+    local_list = []
+    if type_list is None:
+        local_list = [local_obj for local_obj in _modules]
+    else:
+        if type(type_list) != list:
+            type_list = [type_list]
+        type_list = set(type_list)  # convert to set
+        local_list = [local_obj for local_obj in _modules if local_obj['types'] is None or len(type_list.intersection(set(local_obj['types']))) > 0]
+    return local_list
+
+def get_by_name(name_limit=None):
+    """Get parsers with a specific filter for name.
+    
+    :param name_limit: (str) list of tag type required in output (e.g. 'flattened_csv') (default=None or all available)
+    :return list: list of raw "Parser()" classes that are instiatioed with input file paths
+    """
+    local_list = []
+    if name_limit is None:
+        local_list = [local_obj for local_obj in _modules]
+    else:
+        local_list = [local_obj for local_obj in _modules if name_limit in local_obj['name']]
+    return local_list
+

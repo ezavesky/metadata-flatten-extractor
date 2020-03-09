@@ -55,10 +55,10 @@ fields.
 -  ``time_event`` = exact time in seconds (may be equal to time_start if
    instantaneous)
 -  ``source_event`` = source media for event to add granularity for
-   event inpact (e.g. face, video, audio, speech, image)
+   event inpact (e.g. face, video, audio, speech, image, ocr, script)
 -  ``tag`` = simple text word or phrase
--  ``tag_type`` = descriptor for type of tag; e.g. tag=concept/label,
-   shot=segment, moderation=moderation, word=text/speech word,
+-  ``tag_type`` = descriptor for type of tag; e.g. tag=concept/label, keyword=special word,
+   shot=segment, transcript=text, moderation=moderation, word=text/speech word,
    phrase=long utterance, face=face emotion/properties, identity=face
    recognition, scene=semantic scenes, brand=product or logo mention
 -  ``score`` = confidence/probability
@@ -236,7 +236,14 @@ View Extractor Logs (stdout)
 Testing
 =======
 
-(testing and validation forthcoming)
+Testing is included via tox.  To launch testing for the entire package, just run `tox` at the command line. 
+Testing can also be run for a specific file within the package by setting the evironment variable `TOX_ARGS`.
+
+.. code:: shell
+
+   TOX_ARG=test_basic.py tox 
+   
+
 
 Future Development
 ==================

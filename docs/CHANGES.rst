@@ -7,6 +7,14 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.8
 ---
 
+0.8.2
+~~~~~
+
+- slight refactor of how parsers are discovered, to allow search by name or type (for use as package)
+- fix package import for contentai local file
+- switch *tag_type* of `ocr` to `transcript` and `ocr` for *source_type* (`azure_videoindexer`)
+
+
 0.8.1
 ~~~~~
 

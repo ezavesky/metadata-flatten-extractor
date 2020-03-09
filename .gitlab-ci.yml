@@ -7,9 +7,6 @@ image: docker:latest
 # only cache local items.
 # https://docs.gitlab.com/ee/ci/variables/#syntax-of-environment-variables-in-job-scripts
 variables:
-  # CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
-  CONTAINER_TEST_FILE: $DOCKER_PROJECT-$CI_COMMIT_SHORT_SHA.tar
-  CONTAINER_TEST_FILE_APP: $DOCKER_PROJECT-$CI_COMMIT_SHORT_SHA-app.tar
   DOCKER_PROJECT: metadata_flatten
   DOCKER_TAG_BASE: $DOCKER_BASE:$DOCKER_PROJECT  # (also need $DOCKER_PASSWORD, $DOCKER_USER defined)
   USER_NAME: acquire  # required for file access compatibilty
@@ -64,12 +61,14 @@ before_script:
   ##
   - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
   - ssh-keyscan $DEPLOY_HOST >> ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
-  # load build information for each stage
   - export BUILD_VER="$(cat build/version)"
   - export BUILD_ARTIFACT="$(cat build/artifact)"
   - export BUILD_STORAGE="$(cat build/storage)"
   - export BUILD_STORAGE_APP="$(cat build/storage_app)"
   - export BUILD_IMAGE="$(cat build/image)"
+  # derive container file from artifact name
+  - export CONTAINER_TEST_FILE="$BUILD_ARTIFACT"
+  - export CONTAINER_TEST_FILE_APP="$(echo '$CONTAINER_TEST_FILE' | sed -e 's/\.tar$/-app.tar/g')"
   - echo "Build Information-- image- $BUILD_IMAGE ; Ver- $BUILD_VER ; Intermediate- $CONTAINER_TEST_FILE; Storage- $BUILD_STORAGE"
 
 
@@ -79,11 +78,15 @@ setup:
     - mkdir -p build
     # https://threedots.tech/post/automatic-semantic-versioning-in-gitlab-ci/
     - "[ -f metadata_flatten/_version.py ] && export VERSION=$(cat metadata_flatten/_version.py | grep version | awk '{print $3}' | sed -e 's@\"@@g' )"    #start from file?
-    - "[ -z $VERSION ] && export VERSION=$(date +dev.%Y%m%d.%H%M)"  # not found in a file?
-    # - export VERSION=$CI_COMMIT_SHORT_SHA   # use commit hash as dev vesion?
+    # if master, use repo version alone
+    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export VERSION="master.$VERSION" || export VERSION="dev.$VERSION.$(date +%Y%m%d.%H%M)" '
     - "[ -z $BUILD_VER ] && export BUILD_VER=$VERSION"  # not provided in build variables
+    # - export VERSION=$CI_COMMIT_SHORT_SHA   # use commit hash as dev vesion?
     - echo "$BUILD_VER" > build/version
-    - echo "$DOCKER_PROJECT-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/artifact
+    # load build information for each stage
+    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_PORT="$DEPLOY_PORT" || export BUILD_PORT="$DEPLOY_PORT_DEV" '
+    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_NAME="$DOCKER_PROJECT" || export BUILD_NAME="$DOCKER_PROJECT-dev" '
+    - echo "$BUILD_NAME-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/artifact
     # save where we wrote it so that others could access the file?
     - echo "$DEPLOY_STORAGE/$DOCKER_PROJECT-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/storage
     - echo "$DEPLOY_STORAGE/$DOCKER_PROJECT-$BUILD_VER-$CI_COMMIT_SHORT_SHA-app.tar" > build/storage_app

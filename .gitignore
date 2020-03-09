@@ -6,7 +6,6 @@ __pycache__/
 **/*.mp4
 
 # custom data directories
-data
 results
 
 # C extensions

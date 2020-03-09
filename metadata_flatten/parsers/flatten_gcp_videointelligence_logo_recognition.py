@@ -24,12 +24,18 @@ import json
 import math
 from pandas import DataFrame
 
-from . import Flatten
-
+from metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
+
+    @staticmethod
+    def known_types():
+        """Return the output types for this generator
+        :return: list.  List of output types (file types) for this generator
+        """
+        return ['brand']
 
     def parse(self, run_options):
         """Flatten GCP Logo Recognition - https://cloud.google.com/video-intelligence/docs/logo-recognition?
