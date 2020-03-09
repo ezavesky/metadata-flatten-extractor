@@ -23,11 +23,23 @@ from os import path
 
 import streamlit as st
 
-version_path = path.join("..", "_version.py")
+version_path = path.join("..", "metadata_flatten", "_version.py")
 
 import modes
 
-def main_page(data_dir=None, media_file=None, ignore_update=False):
+@st.cache(suppress_st_warning=False)
+def manifest_parse(manifest_file):
+    """Attempt to parse a manifest file, return list of processing directory and file if valid."""
+    if manifest_file is None or len(manifest_file)==0 or not path.exists(manifest_file):
+        return []
+    manifest_obj = json.loads(manifest_file)  # parse the manifest directly
+    # validate columns (name, asset, results)
+    TODO
+
+
+
+
+def main_page(data_dir=None, media_file=None, ignore_update=False, manifest=""):
     """Main page for execution"""
     # read in version information
     version_dict = {}
@@ -39,6 +51,8 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     ux_progress = st.empty()
 
     st.sidebar.markdown('### Discovery Filters')
+
+
     sel_mode = st.sidebar.selectbox("Insight Mode", modes.modules, index=modes.modules.index("overview"))
 
     page_module = importlib.import_module(f"modes.{sel_mode}")  # load module
@@ -63,6 +77,7 @@ def main(args=None):
     submain.add_argument('-d', '--data_dir', dest='data_dir', type=str, default='../results', help='specify the source directory for flattened metadata')
     submain.add_argument('-m', '--media_file', dest='media_file', type=str, default=None, help='specific media file for extracting clips (empty=no clips)')
     submain.add_argument('-i', '--ignore_update', dest='ignore_update', default=False, action='store_true', help="Ignore update files and use bundle directly")
+    submain.add_argument('-l', '--manifest', dest='manifest', type=str, default='', help='specify a manifest file for multiple asset analysis')
 
     if args is None:
         config_defaults = vars(parser.parse_args())
