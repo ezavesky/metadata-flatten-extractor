@@ -126,6 +126,11 @@ An example manifest (JSON) is provided below.
                 "results": "/results/park_mars"
             },
             {
+                "name": "Default Video",
+                "video": "videohd.mp4",
+                "results": "../results"
+            },
+            {
                 "name": "Kinderquake",
                 "video": "/vinyl/wpxke/2019/03/20/videohd.mp4",
                 "results": "/vinyl/wpxke/2019/03/20/contentai"
