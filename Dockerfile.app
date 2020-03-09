@@ -2,6 +2,7 @@ FROM python:3.7-slim
 
 ENV WORKDIR=/src
 ENV VIDEO=/videos/video.mp4
+ENV MANIFEST=/tmp/NO_MANIFEST_PROVIDED
 
 # install pacakages
 COPY . $WORKDIR
@@ -21,7 +22,6 @@ gatherUsageStats = false\n\
 enableCORS = false\n\
 " > /root/.streamlit/config.toml' \
     # install requirements
-    && pip install --no-cache-dir  -r $WORKDIR/requirements.txt \ 
     && pip install --no-cache-dir  -r $WORKDIR/app/requirements.txt \
     # install NLP word model for spacy
     && python -m spacy download en_core_web_sm
@@ -30,4 +30,4 @@ enableCORS = false\n\
 EXPOSE 8501
 
 # run app
-CMD cd $WORKDIR/app && streamlit run timed.py -- --media_file $VIDEO --data_dir /results
+CMD cd $WORKDIR/app && streamlit run timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results
