@@ -20,6 +20,7 @@
 
 import importlib
 from os import path
+import json
 
 import streamlit as st
 
@@ -29,14 +30,28 @@ import modes
 
 @st.cache(suppress_st_warning=False)
 def manifest_parse(manifest_file):
-    """Attempt to parse a manifest file, return list of processing directory and file if valid."""
+    """Attempt to parse a manifest file, return list of processing directory and file if valid. (added v0.8.3)"""
     if manifest_file is None or len(manifest_file)==0 or not path.exists(manifest_file):
         return []
-    manifest_obj = json.loads(manifest_file)  # parse the manifest directly
+    try:
+        with open(manifest_file, 'rt') as f:
+            manifest_obj = json.load(f)  # parse the manifest directly
+            if manifest_obj is None or len(manifest_obj) == 0:
+                return []
+    except Exception as e:
+        print(f"Failed to load requested manifest file {manifest_file}, skipping. ({e})")
+        return []
+
     # validate columns (name, asset, results)
-    TODO
-
-
+    if 'manifest' not in manifest_obj:
+        return []
+    # return only those rows that are valid
+    list_return = []
+    for result_obj in manifest_obj['manifest']:
+        if "name" in result_obj and "video" in result_obj and "results" in result_obj:  # validate objects
+            if path.exists(result_obj['video']) and path.exists(result_obj['results']):  # validate results directory
+                list_return.append(result_obj)
+    return list_return
 
 
 def main_page(data_dir=None, media_file=None, ignore_update=False, manifest=""):
@@ -51,10 +66,18 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, manifest=""):
     ux_progress = st.empty()
 
     st.sidebar.markdown('### Discovery Filters')
+    list_assets = manifest_parse(manifest)
+    print(list_assets)
+    if len(list_assets):
+        dict_assets = { v['name']: v for v in list_assets }
+        names_assets = [v['name'] for v in list_assets]
+        sel_asset = st.sidebar.selectbox("Asset", names_assets)
+        # with a specific asset chosen, override the data directory and media file
+        data_dir = dict_assets[sel_asset]['results']
+        media_file = dict_assets[sel_asset]['video']
 
-
+    # resume normal operation for the specific insight
     sel_mode = st.sidebar.selectbox("Insight Mode", modes.modules, index=modes.modules.index("overview"))
-
     page_module = importlib.import_module(f"modes.{sel_mode}")  # load module
     func_page = getattr(page_module, "main_page")   # get class template
     df_live = func_page(data_dir, media_file, ignore_update)  # attempt to process
