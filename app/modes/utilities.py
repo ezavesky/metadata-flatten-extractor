@@ -311,7 +311,10 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
-    for filepath in sorted(Path(data_dir).rglob(f'flatten_*.csv*')):
+    for filepath in sorted(Path(data_dir).rglob(f'csv_flatten_*.csv*')):
+        list_files.append(filepath)
+        m.update(str(filepath.stat().st_mtime).encode())
+    for filepath in sorted(Path(data_dir).rglob(f'flatten_*.csv*')):   # keep for legacy file discovery  (as of v0.8)
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
 
