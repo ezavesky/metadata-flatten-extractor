@@ -117,8 +117,9 @@ def main_sidebar(df, sort_list=None):
 
     # confidence measure
     value = (df_sub["score"].min(), df_sub["score"].max())
-    score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
-    idx_match &= (df_sub['score'] >= score_bound[0]) & (df_sub['score'] <= score_bound[1])
+    if value[0] != value[1]:
+        score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
+        idx_match &= (df_sub['score'] >= score_bound[0]) & (df_sub['score'] <= score_bound[1])
 
     # sel_keywords = st.sidebar.multiselect("Tags (union search)", list(df[idx_match]['tag'].unique()), default=None)
     # shot_list = set(df[idx_match]['shot'].unique())

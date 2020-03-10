@@ -84,7 +84,7 @@ that they are sent to this app and not to streamlit.
      -m MEDIA_FILE, --media_file MEDIA_FILE
                            specific media file for extracting clips (empty=no clips)
      -i, --ignore_update   Ignore update files and use bundle directly
-     -f --manifest manifest
+     -l --manifest MANIFEST
                            specify a manifest file for multiple asset analysis
 
 -  Currently, the app expects these to be installed in ``data_dir``; by
