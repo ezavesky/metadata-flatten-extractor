@@ -32,11 +32,13 @@ import modes
 def manifest_parse(manifest_file):
     """Attempt to parse a manifest file, return list of processing directory and file if valid. (added v0.8.3)"""
     if manifest_file is None or len(manifest_file)==0 or not path.exists(manifest_file):
+        print(f"Specified manifest file '{manifest_file}' does not exist, skipping.")
         return []
     try:
         with open(manifest_file, 'rt') as f:
             manifest_obj = json.load(f)  # parse the manifest directly
             if manifest_obj is None or len(manifest_obj) == 0:
+                print(f"Specified manifest file '{manifest_file}' contained no valid entries, skipping.")
                 return []
     except Exception as e:
         print(f"Failed to load requested manifest file {manifest_file}, skipping. ({e})")
@@ -44,6 +46,7 @@ def manifest_parse(manifest_file):
 
     # validate columns (name, asset, results)
     if 'manifest' not in manifest_obj:
+        print(f"Specified manifest file '{manifest_file}' syntax error (missing 'manifest' array), skipping.")
         return []
     # return only those rows that are valid
     list_return = []
@@ -67,7 +70,6 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, manifest=""):
 
     st.sidebar.markdown('### Discovery Filters')
     list_assets = manifest_parse(manifest)
-    print(list_assets)
     if len(list_assets):
         dict_assets = { v['name']: v for v in list_assets }
         names_assets = [v['name'] for v in list_assets]
