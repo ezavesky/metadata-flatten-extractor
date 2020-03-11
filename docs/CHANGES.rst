@@ -7,11 +7,20 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.8
 ---
 
+0.8.4
+~~~~~
+
+- add parsers for ``dsai_activity_slowfast`` (activity) and ``dsai_places`` (scene/settings)
+- add *source_type* sub-field to ``event_table`` browsing mode
+
+
 0.8.3
 ~~~~~
 
 - add ``manifest`` option to application for multiple assets
-- fix version reference in application code
+- fix app docker file for placement/generation of code with a specific user ID
+- fix CI/CD integration for auto launch
+- fix app explorer bugs (derive 'words' from transcript/keywords if none)
 
 
 0.8.2
@@ -25,7 +34,7 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 
 - slight refactor of how parsers are discovered, to allow search by name or type (for use as package)
 - fix package import for contentai local file
-- switch *tag_type* of `ocr` to `transcript` and `ocr` for *source_type* (`azure_videoindexer`)
+- switch *tag_type* of ``ocr`` to ``transcript`` and ``ocr`` for *source_type* (``azure_videoindexer``)
 
 
 0.8.1

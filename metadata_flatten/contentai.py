@@ -51,13 +51,15 @@ def get_extractor_result_keys(extractor_name):
 
 
 # get the contents of a particular key
-def get_extractor_results(extractor_name, key):
+def get_extractor_results(extractor_name, key, is_json=True):
     if not running_in_contentai:
         return {}
     url = request.urlopen(
         f'http://127.0.0.1/results/{extractor_name}/{key}')
     data = url.read()
     encoding = url.info().get_content_charset('utf-8')
+    if not is_json:
+        return encoding
     return json.loads(data.decode(encoding))
 
 
