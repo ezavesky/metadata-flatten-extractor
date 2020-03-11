@@ -215,7 +215,7 @@ contentai_push:
     # load this docker image to local host, retag
     - docker load -i $CONTAINER_TEST_FILE
     # deploy via contentai
-    - /tmp/contentai deploy dsai_$DOCKER_PROJECT --cpu 1024 --memory 2048 -i "$BUILD_IMAGE"
+    - /tmp/contentai deploy dsai_$DOCKER_PROJECT --cpu 1024 --memory 8192 -i "$BUILD_IMAGE"
   dependencies:
     - setup
   only:
