@@ -126,6 +126,7 @@ class Generator(Generate):
         obj_out = None
         output_set = {'descriptiveTimespans':[], 'concreteTimespans':[], 'frames':[]}
         if path.exists(path_output):    # load a prior output
+            self.logger.info(f"Loading existing JSON {path_output} ...")
             obj_out = self.json_load(path_output)
 
             if "wbtcd:frames" in obj_out:
@@ -142,12 +143,17 @@ class Generator(Generate):
             obj_out = self.json_load(self.template_path)
             # TODO: consider dynamically repopulating event groupins with items and objects from schema?
 
+        idx_write = 0
         for idx_r, val_r in df.iterrows():   # walk through all rows to generate
             self.append_timed(output_set, val_r)
+            if (idx_write % 20000) == 0:
+                self.logger.info(f"Processing item {idx_write}/{len(df)} ...")
+            idx_write += 1
         num_prior = 0
 
         # clean up any empty entries for schema compliance
         if len(output_set["frames"]):
+            self.logger.info(f"Processing {len(output_set['frames'])} 'frame' events...")
             column_unique = ["name", "source", "extractor"]   # define some collision columns
             obj_out["wbtcd:frames"] = []
             hash_prior = {}
@@ -161,6 +167,7 @@ class Generator(Generate):
             num_items += len(obj_out["wbtcd:frames"])
 
         if len(output_set["descriptiveTimespans"]):
+            self.logger.info(f"Processing {len(output_set['descriptiveTimespans'])} 'descriptiveTimespans' events...")
             column_unique = ["name", "source", "extractor"]   # define some collision columns
             if "wbtcd:timespans" not in obj_out:
                 obj_out["wbtcd:timespans"] = {}
@@ -175,6 +182,7 @@ class Generator(Generate):
             num_items += len(obj_out["wbtcd:timespans"]["descriptiveTimespans"])
 
         if len(output_set["concreteTimespans"]):
+            self.logger.info(f"Processing {len(output_set['concreteTimespans'])} 'concreteTimespans' events...")
             column_unique = ["name", "source", "extractor"]   # parse each event, all data in event object itself
             if "wbtcd:timespans" not in obj_out:
                 obj_out["wbtcd:timespans"] = {}
