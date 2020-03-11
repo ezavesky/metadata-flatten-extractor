@@ -311,7 +311,10 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
-    for filepath in sorted(Path(data_dir).rglob(f'flatten_*.csv*')):
+    for filepath in sorted(Path(data_dir).rglob(f'csv_flatten_*.csv*')):
+        list_files.append(filepath)
+        m.update(str(filepath.stat().st_mtime).encode())
+    for filepath in sorted(Path(data_dir).rglob(f'flatten_*.csv*')):   # keep for legacy file discovery  (as of v0.8)
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
 
@@ -396,6 +399,35 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
 
     # default with tag for keywords
     df.loc[df["tag_type"]=="word", "details"] = df[df["tag_type"]=="word"]
+    if len(df[df["tag_type"]=="word"]) == 0:   # didn't have word source
+        df_enhance = df[df["tag_type"]=="transcript"]
+        if len(df_enhance) != 0:   # pull it from transcript
+            df_enhance = df_enhance.copy()
+            df_enhance["details"] = df_enhance["details"].apply(lambda x: json.loads(x)['transcript'])
+            ux_report.info(f"Extracting words from transcripts, input samples {len(df_enhance)}, attempting to split")
+            pass
+        elif len(df[df["tag_type"]=="keyword"]) != 0:   # pull it from keyword
+            df_enhance = df[df["tag_type"]=="keyword"].copy()
+            df_enhance["details"] = df_enhance["tag"]
+            ux_report.info(f"Extracting words from keywords, input samples {len(df_enhance)}, attempting to split")
+            pass
+        list_append = []
+        idx_search = 0
+        re_clean = re.compile(r"[^0-9A-Za-z]+")
+        for row_idx, row_enhance in df_enhance.iterrows():
+            list_text = re_clean.split(row_enhance["details"].lower())
+            for cur_word in list_text:
+                if len(cur_word) > 1:
+                    row_copy = row_enhance.copy()
+                    row_copy["details"] = cur_word
+                    list_append.append(row_copy)
+        if len(list_append):
+            df_append = pd.DataFrame(list_append)
+            df_append["tag_type"] = "word"
+            df_append["tag"] = df_append["details"]
+            ux_report.info(f"Extracting {len(df_append)} new words for analysis")
+            df = df.append(df_append)
+
     if NLP_TOKENIZE:
         # extract/add NLP tags from transcripts
         ux_report.info(f"... detecting NLP-based textual entities....")

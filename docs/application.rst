@@ -37,7 +37,7 @@ streamlit and a few processing librarieis in your environment.
 
 .. code:: shell
 
-   pip install -r requirements.txt
+   pip install -r app/requirements.txt
 
 The application does use `spaCy <https://spacy.io/>`__ for some basic
 NLP tasks, so after the above installation, run the command below to get
@@ -66,7 +66,9 @@ Explorer Execution
 To execute, you will need to bring your own pre-processed flattened
 metadata and specifically place them into the ``data_dir`` directory.
 You can configure this option from the command-line when the application
-is run. *(v 0.3.2)*
+is run. *(v 0.3.2)*  To simultaneously accommodate multiple assets,
+a ``manifest`` option was added, explained in more detail below in the
+`Manifest File <#Manifest-File>`__ section. *(v 0.8.3)*
 
 To execute, change to this directory and run the below command. Please
 verify that all arguments must be after the double-dash to guarantee
@@ -82,6 +84,8 @@ that they are sent to this app and not to streamlit.
      -m MEDIA_FILE, --media_file MEDIA_FILE
                            specific media file for extracting clips (empty=no clips)
      -i, --ignore_update   Ignore update files and use bundle directly
+     -l --manifest MANIFEST
+                           specify a manifest file for multiple asset analysis
 
 -  Currently, the app expects these to be installed in ``data_dir``; by
    default this is a directory called ``results`` in the parent of this
@@ -97,6 +101,44 @@ that they are sent to this app and not to streamlit.
 *NOTE* All input files (by file extension) under the ``data_dir``
 directory will be ingested, so make note that only relevant file from a
 single asset are included.
+
+
+Manifest File
+-------------
+A new manifest file mode was created to accommodate multiple assets within
+a single application instance.  Specifically, as an input to this application
+a manifest with the format below can be provided in a simple JSON file where multiple
+assets are indicated as nested JSON objects with these attributes:
+
+- ``name`` - the textual or human-readable asset name
+- ``video`` - the video path for providing image and video examples
+- ``results`` - directory where flattened CSV files are stored
+
+An example manifest (JSON) is provided below.
+
+.. code-block:: JSON
+
+    {
+        "manifest": [
+            {
+                "name": "Parking Spots on Mars",
+                "video": "/video/park_marks.mp4",
+                "results": "/results/park_mars"
+            },
+            {
+                "name": "Default Video",
+                "video": "videohd.mp4",
+                "results": "../results"
+            },
+            {
+                "name": "Kinderquake",
+                "video": "/vinyl/wpxke/2019/03/20/videohd.mp4",
+                "results": "/vinyl/wpxke/2019/03/20/contentai"
+            }
+        ]
+    }
+
+
 
 Docker installation & execution
 -------------------------------
@@ -132,6 +174,9 @@ mount the target volumes.
 
    # Run docker container (specific video path)
    docker run --rm -p 8501:8501 -v ${PWD}/results:/results -v ${PWD}/videos:/videos -e VIDEO=/videos/videohd.mp4  streamlit_timed:latest 
+
+   # Run docker container (use a manifest)
+   docker run --rm -p 8501:8501 -v ${PWD}/data:/data -v ${PWD}/vinyl:/vinyl -e MANIFEST=/data/manifest.json  streamlit_timed:latest 
 
 Optionally you can edit the app while running for continuous updates.
 
