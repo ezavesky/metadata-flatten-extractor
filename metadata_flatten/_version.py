@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.8.3"
+__version__ = "0.8.4"
 __package__ = 'metadata_flatten'
 __description__ = "Metadata Flattening Service"
 __copyright__ = "Copyright AT&T Services and Warner Media 2020"
