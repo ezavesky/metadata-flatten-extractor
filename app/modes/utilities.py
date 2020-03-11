@@ -99,7 +99,7 @@ def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
     """Helper function to draw aggregate histograms of tags"""
     df_sub = aggregate_tags(df_live, tag_type, field_group)
     if len(df_sub) == 0:
-        st.markdown("*Sorry, the active filters removed all events for this display.*")
+        st.markdown("*Active filters removed all instances or no events were available for this display.*")
         return None
     # unfortunately, a bug currently overrides sort order
     if show_hist:
@@ -111,11 +111,15 @@ def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
     """Helper function to draw a timeseries for a few top selected tags..."""
     if df_sub is None:
         return
+    if len(df_sub) == 0:
+        st.markdown("*Active filters removed all instances or no events were available for this display.*")
+        return None
     df_subtags = df_live
     if tag_type is not None:
         if type(tag_type) != list:
             tag_type = [tag_type]
         df_subtags = df_live[df_live["tag_type"].isin(tag_type)]
+ 
     add_tag = st.selectbox("Additional Timeline Tag", list(df_sub["tag"].unique()))
     tag_top = list(df_sub["tag"].head(TOP_LINE_N)) + [add_tag]
 
@@ -221,7 +225,7 @@ def clip_video(media_file, media_output, start, duration=1, image_only=False):
 def clip_media(media_file, media_output, start):
     """Helper function to create video clip"""
     status = clip_video(media_file, media_output, start, image_only=True)
-    if status == 0:
+    if status == 0 and path.exists(media_output):
         with open(media_output, 'rb') as f:
             return f.read()
     return None
@@ -268,11 +272,14 @@ def clip_display(df_live, df, media_file, field_group="tag", label_dir=None, df_
         elif status == -1:
             st.markdown("**Error:** ffmpeg not found in path. Cannot create video clip.")
         else:
-            st.markdown("**Error:** creating video clip.")
+            st.markdown(f"**Error:** Could not create video clip for time interval [{time_begin_sec}s, duration {time_duration_sec}s].")
+            st.markdown("_(no instances to display)_")
     else:       # print thumbnail
         media_data = clip_media(media_file, media_image, time_event_sec-DEFAULT_REWIND_FRAME)
         if media_data is not None:
             st.image(media_data, use_column_width=True, caption=caption_str)
+        else:
+            st.markdown(f"**Error:** Could not create image at time offset [{time_begin_sec}s].")
 
     if label_dir is not None:
         label_display(label_dir, df_label, row_sel)
