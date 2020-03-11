@@ -54,6 +54,10 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
         return
+    df_sub = df[df["tag_type"]=="face"]
+    if len(df_sub) < 1:
+        st.error("No face attributes (emotions, etc.) detected with current data, please check input metadata.")
+        return
     df_live = main_sidebar(df)
 
     # Create the runtime info
