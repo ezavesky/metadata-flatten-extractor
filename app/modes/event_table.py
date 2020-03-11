@@ -109,6 +109,12 @@ def main_sidebar(df, sort_list=None):
         df_sub = df[df['tag_type'] == filter_tag]
     idx_match = [True] * len(df_sub)    # start with whole index
 
+    # strict tag source filter
+    source_filter = ["All"] + list(df_sub["source_event"].unique())
+    source_tag = st.sidebar.selectbox("Tag Type for Exploration", source_filter, index=0)
+    if source_tag != "All":
+        idx_match &= (df_sub['source_event'] == source_tag)
+
     # strict timeline slider
     value = (int(df.index.min().seconds // 60), int(df.index.max().seconds // 60))
     time_bound = st.sidebar.slider("Event Time Range (min)", min_value=value[0], max_value=value[1], value=value)
