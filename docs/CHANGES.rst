@@ -7,6 +7,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.8
 ---
 
+0.8.5
+~~~~~
+
+- add parsers for ``dsai_yt8m`` (youtube8M or mediapipe)
+
+
 0.8.4
 ~~~~~
 
