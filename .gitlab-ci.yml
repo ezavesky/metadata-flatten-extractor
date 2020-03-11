@@ -68,7 +68,7 @@ before_script:
   - export BUILD_STORAGE_APP="$(cat build/storage_app)"
   - export BUILD_IMAGE="$(cat build/image)"
   # if running on master, use proper port; otherwise use debug port for publish on HOST
-  - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_PORT="$DEPLOY_PORT" || export BUILD_PORT="$DEPLOY_PORT_DEV" '
+  - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_PORT="$DEPLOY_PORT_PROD" || export BUILD_PORT="$DEPLOY_PORT_DEV" '
   - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_NAME="$DOCKER_PROJECT-master" || export BUILD_NAME="$DOCKER_PROJECT-dev" '
   # derive container file from artifact name
   - export CONTAINER_TEST_FILE="$BUILD_ARTIFACT"
