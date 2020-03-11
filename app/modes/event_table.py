@@ -103,11 +103,17 @@ def main_sidebar(df, sort_list=None):
     # Only show the slider if there is more than one value for that slider, otherwise, don't filter
 
     type_unique = ["All"] + list(df["tag_type"].unique())
-    filter_tag = st.sidebar.selectbox("Tag Type for Exploration", type_unique, index=type_unique.index('identity'))
+    filter_tag = st.sidebar.selectbox("Event Type", type_unique, index=type_unique.index('identity'))
     df_sub = df
     if filter_tag != "All":
         df_sub = df[df['tag_type'] == filter_tag]
     idx_match = [True] * len(df_sub)    # start with whole index
+
+    # strict tag source filter
+    source_filter = ["All"] + list(df_sub["source_event"].unique())
+    source_tag = st.sidebar.selectbox("Event Source", source_filter, index=0)
+    if source_tag != "All":
+        idx_match &= (df_sub['source_event'] == source_tag)
 
     # strict timeline slider
     value = (int(df.index.min().seconds // 60), int(df.index.max().seconds // 60))

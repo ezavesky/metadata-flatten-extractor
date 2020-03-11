@@ -79,7 +79,24 @@ class Flatten():
                 return {}
         return {}
 
-    def get_extractor_results(self, extractor_name, path, force_retrieve=False):
+    def text_load(self, path_file):
+        """Helper to read text object
+
+        :param path_file: (str): Path for source file (can be gzipped)
+        :return: dict.  The loaded dict or an empty dict (`{}`) on error
+        """
+        if path.exists(path_file):
+            if path_file.endswith(".gz"):
+                infile = gzip.open(path_file, 'rt')
+            else:
+                infile = open(path_file, 'rt')
+            try:
+                return infile.read()
+            except UnicodeDecodeError as e:
+                return ""
+        return ""
+
+    def get_extractor_results(self, extractor_name, path, force_retrieve=False, is_json=True):
         if not force_retrieve:  # safe way to request without 404/500 error
             if len(self.extractor_keys) < 1 or self.extractor != extractor_name:  
                 self.extractor_keys = []
@@ -91,7 +108,7 @@ class Flatten():
                     self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
             if path not in self.extractor_keys:   # have the keys, check for presence
                 return None
-        return contentai.get_extractor_results(extractor_name, path)   # checked or brute force request
+        return contentai.get_extractor_results(extractor_name, path, is_json=is_json)   # checked or brute force request
 
     def get_extractor_keys(self, extractor_name):
         return contentai.get_extractor_result_keys(extractor_name)
