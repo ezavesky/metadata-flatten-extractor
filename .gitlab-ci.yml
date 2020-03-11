@@ -8,12 +8,13 @@ image: docker:latest
 # https://docs.gitlab.com/ee/ci/variables/#syntax-of-environment-variables-in-job-scripts
 variables:
   DOCKER_PROJECT: metadata_flatten
-  DOCKER_TAG_BASE: $DOCKER_BASE:$DOCKER_PROJECT  # (also need $DOCKER_PASSWORD, $DOCKER_USER defined)
   USER_NAME: acquire  # required for file access compatibilty
   USER_UID: 29980 # required for mount compatibility (user: acquire)
   GROUP_UID: 30755 # required for mount compatibility (group: miracle)
   DEPLOY_HOST: $DEPLOY_HOST # target host for deploy
   DEPLOY_STORAGE: /n/vmtsr02/dockerimg # path on destination for files
+  DEPLOY_MANIFEST: $DEPLOY_MANIFEST  # path to manifest file (check docker run volumes)
+  DEPLOY_VOLUMES: $DEPLOY_VOLUMES  # specific volumes to mount (e.g. -v /n/docroot5/projects:/projects  -v /n/vmtsr01:/vmtsr01)
   DEPLOY_LIMIT: 3  # max number of tar images to leave around
   DEPLOY_PORT_PROD: 9201
   DEPLOY_PORT_DEV: 9203
@@ -66,10 +67,13 @@ before_script:
   - export BUILD_STORAGE="$(cat build/storage)"
   - export BUILD_STORAGE_APP="$(cat build/storage_app)"
   - export BUILD_IMAGE="$(cat build/image)"
+  # if running on master, use proper port; otherwise use debug port for publish on HOST
+  - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_PORT="$DEPLOY_PORT" || export BUILD_PORT="$DEPLOY_PORT_DEV" '
+  - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_NAME="$DOCKER_PROJECT-master" || export BUILD_NAME="$DOCKER_PROJECT-dev" '
   # derive container file from artifact name
   - export CONTAINER_TEST_FILE="$BUILD_ARTIFACT"
   - export CONTAINER_TEST_FILE_APP="$(echo '$CONTAINER_TEST_FILE' | sed -e 's/\.tar$/-app.tar/g')"
-  - echo "Build Information-- image- $BUILD_IMAGE ; Ver- $BUILD_VER ; Intermediate- $CONTAINER_TEST_FILE; Storage- $BUILD_STORAGE"
+  - echo "Build Information-- image- $BUILD_IMAGE ; Ver- $BUILD_VER ; Intermediate- $CONTAINER_TEST_FILE; Storage- $BUILD_STORAGE; Build Name- $BUILD_NAME"
 
 
 setup:
@@ -79,18 +83,15 @@ setup:
     # https://threedots.tech/post/automatic-semantic-versioning-in-gitlab-ci/
     - "[ -f metadata_flatten/_version.py ] && export VERSION=$(cat metadata_flatten/_version.py | grep version | awk '{print $3}' | sed -e 's@\"@@g' )"    #start from file?
     # if master, use repo version alone
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export VERSION="master.$VERSION" || export VERSION="dev.$VERSION.$(date +%Y%m%d.%H%M)" '
+    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export VERSION="$VERSION" || export VERSION="$VERSION.$(date +%Y%m%d.%H%M)" '
     - "[ -z $BUILD_VER ] && export BUILD_VER=$VERSION"  # not provided in build variables
     # - export VERSION=$CI_COMMIT_SHORT_SHA   # use commit hash as dev vesion?
     - echo "$BUILD_VER" > build/version
-    # load build information for each stage
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_PORT="$DEPLOY_PORT" || export BUILD_PORT="$DEPLOY_PORT_DEV" '
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_NAME="$DOCKER_PROJECT" || export BUILD_NAME="$DOCKER_PROJECT-dev" '
     - echo "$BUILD_NAME-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/artifact
     # save where we wrote it so that others could access the file?
-    - echo "$DEPLOY_STORAGE/$DOCKER_PROJECT-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/storage
-    - echo "$DEPLOY_STORAGE/$DOCKER_PROJECT-$BUILD_VER-$CI_COMMIT_SHORT_SHA-app.tar" > build/storage_app
-    - echo "$DOCKER_TAG_BASE-$BUILD_VER-$CI_COMMIT_SHORT_SHA" > build/image
+    - echo "$DEPLOY_STORAGE/$BUILD_NAME-$BUILD_VER-$CI_COMMIT_SHORT_SHA.tar" > build/storage
+    - echo "$DEPLOY_STORAGE/$BUILD_NAME-$BUILD_VER-$CI_COMMIT_SHORT_SHA-app.tar" > build/storage_app
+    - echo "$DOCKER_BASE:$BUILD_NAME-$BUILD_VER-$CI_COMMIT_SHORT_SHA" > build/image
     - echo "$BUILD_VER (commit $CI_COMMIT_SHORT_SHA)"
     - echo "$DEPLOY_HOST"
   artifacts:
@@ -158,28 +159,22 @@ launch:
   dependencies:
     - setup
   script:
-    # find previous docker images 
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export EXISTING_IMAGES=$(ssh $USER_NAME@$DEPLOY_HOST "docker image ls | grep $DOCKER_PROJECT | grep -v dev" | awk "{print \$3}" | xargs echo) || export EXISTING_IMAGES=$(ssh $USER_NAME@$DEPLOY_HOST "docker image ls | grep $DOCKER_PROJECT | grep dev" | awk "{print \$3}" | xargs echo) '
-    # - export EXISTING_IMAGES=$(ssh $USER_NAME@$DEPLOY_HOST "docker image ls | grep $DOCKER_PROJECT " | awk '{print $3}' | xargs echo)
-    - echo "Found Images= $EXISTING_IMAGES"
-    # log in and "deploy" new image, first ingest it into local docker
-    - ssh $USER_NAME@$DEPLOY_HOST "docker load -i $BUILD_STORAGE_APP"
-    # if running on master, use proper port; otherwise use debug port for publish on HOST
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export BUILD_PORT="$DEPLOY_PORT_PROD" || export BUILD_PORT="$DEPLOY_PORT_DEV" '
-    # find only those running on the target port (expanded to find any image that is running any version)
-    - '[ "$CI_COMMIT_REF_NAME" == "master" ] && export EXISTING_CONTAINER=$(ssh $USER_NAME@$DEPLOY_HOST "docker ps -a | grep $DOCKER_PROJECT | grep -v dev" | awk "{print \$1}" | xargs echo) || export EXISTING_IMAGES=$(ssh $USER_NAME@$DEPLOY_HOST "docker ps -a | grep $DOCKER_PROJECT | grep dev" | awk "{print \$1}" | xargs echo ) '
+    - echo "Deploy Information-- image- $BUILD_IMAGE ; Ver- $BUILD_VER ; Intermediate- $CONTAINER_TEST_FILE_APP; Storage- $BUILD_STORAGE_APP; Manifest= $DEPLOY_MANIFEST"
+    # get instance name 
+    - export DOCKER_INSTANCE=$(ssh $USER_NAME@$DEPLOY_HOST "docker ps -a | grep $BUILD_NAME " | awk "{print \$1}" | xargs echo)
+    # find previous docker imaages
+    - export DOCKER_IMAGE=$(ssh $USER_NAME@$DEPLOY_HOST "docker image ls | grep $BUILD_NAME " | awk "{print \$3}" | xargs echo)
     # if there are some instances to stop, try to do so here
-    - echo "Found Containers= $EXISTING_CONTAINER ; deploy host= $DEPLOY_HOST"
-    # stop and remove the previous docker instances
-    - '[ -z "$EXISTING_CONTAINER" ] || ssh $USER_NAME@$DEPLOY_HOST "docker stop $EXISTING_CONTAINER && docker rm $EXISTING_CONTAINER"'
+    - echo "Found Instances= $DOCKER_INSTANCE; Found Image= $DOCKER_IMAGE "
+    # stop and remove the container and the imge of the previous docker instance (if one existed)
+    - '[ ! -z "$DOCKER_INSTANCE" ] && ssh $USER_NAME@$DEPLOY_HOST "docker stop $DOCKER_INSTANCE && docker rm $DOCKER_INSTANCE"'
+    - '[ ! -z "$DOCKER_IMAGE" ] && ssh $USER_NAME@$DEPLOY_HOST "docker image rm $DOCKER_IMAGE"'
+    # load new docker image from tar
+    - ssh $USER_NAME@$DEPLOY_HOST "docker load -i $BUILD_STORAGE_APP"
     # restart new instance with proper port
-    - export DOCKER_RUN="docker run -d -p $BUILD_PORT:8501 --env runmode='server' -t $BUILD_IMAGE-app"
-    - echo "$DOCKER_RUN (disabled for now)"
-    # disabled until multi-asset input is added
-    # - ssh $USER_NAME@$DEPLOY_HOST "$DOCKER_RUN"
-    # - ssh $USER_NAME@$DEPLOY_HOST "nvidia-docker run -u $USER_NAME -d --name $DOCKER_PROJECT -p $BUILD_PORT:6006  -t $BUILD_IMAGE-app"
-    # remove the previous docker images (TODO: fix error condition; right now it's always proceeding)
-    - '[ -z "$EXISTING_IMAGES" ] || ( ssh $USER_NAME@$DEPLOY_HOST "docker image rm $EXISTING_IMAGES" )'
+    - export RUN_CMD="docker run -d -p $BUILD_PORT:8501 $DEPLOY_VOLUMES  --env MANIFEST='$DEPLOY_MANIFEST' $BUILD_IMAGE-app "
+    - echo "Running= '$RUN_CMD'"
+    - ssh $USER_NAME@$DEPLOY_HOST $RUN_CMD
 
 
 cleanup:

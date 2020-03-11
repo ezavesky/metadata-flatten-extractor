@@ -60,7 +60,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     st.markdown("## frequency analysis")
 
     # frequency bar chart for found labels / tags
-    st.markdown("### popular visual tags")
+    st.markdown("### popular tags")
     df_sub = quick_hist(df_live, "tag")  # quick tag hist
     quick_timeseries(df_live, df_sub, "tag", "scatter")      # time chart of top N 
 
