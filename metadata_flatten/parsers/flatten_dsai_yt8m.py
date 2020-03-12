@@ -34,9 +34,9 @@ class Parser(ParserBase):
 
     def get_source_types(self, column_clean):
         # (yt8m)
-        # file,Time_begin,Time_end,Time_event,label_id0,label0,probability0,label_id1,label1,probability1,label_id2,label2,probability2,label_id3,label3,probability3,label_id4,label4,probability4
-        # output000001.png,2,2,2,231,motel,0.158193097,122,discotheque,0.070194781,158,gas_station,0.062356248,129,elevator/door,0.059626624,177,home_theater,0.055273291
+        # video_clip,Time_begin,Time_end,Time_event,category0,score0,category1,score1,category2,score2
+        # 0,0.0,10.0,0.0,Animation,0.412782,IPhone,0.283587,Video game,0.12803900000000001
 
         if "file" in column_clean:  # suspect it's scene images
-            return {'type': "image", 'column_prefix':['label', 'probability']}
+            return {'type': "video", 'column_prefix':['category', 'score']}
         return None
