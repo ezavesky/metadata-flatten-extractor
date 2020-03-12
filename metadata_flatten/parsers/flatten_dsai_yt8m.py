@@ -37,6 +37,6 @@ class Parser(ParserBase):
         # video_clip,Time_begin,Time_end,Time_event,category0,score0,category1,score1,category2,score2
         # 0,0.0,10.0,0.0,Animation,0.412782,IPhone,0.283587,Video game,0.12803900000000001
 
-        if "file" in column_clean:  # suspect it's scene images
+        if "video_clip" in column_clean:  # suspect it's scene images
             return {'type': "video", 'column_prefix':['category', 'score']}
         return None
