@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # example script for local run
 if [ $# -lt 1 ]; then
 	echo "./run_local.sh <result_json_source> <result_output_sub> [<json_args>] - run flattening for existing director (downloaded from a single job)"
@@ -17,6 +19,6 @@ if [ -f "$1/timing.txt" ]; then
     echo "Overwriting extractor metadata to : '$RUNARGS'"
 fi
 
-EXTRACTOR_METADATA="$RUNARGS" EXTRACTOR_NAME=dsai_metadata-flatten EXTRACTOR_JOB_ID=1 \
+EXTRACTOR_METADATA="$RUNARGS" EXTRACTOR_NAME=dsai_metadata_flatten EXTRACTOR_JOB_ID=1 \
     EXTRACTOR_CONTENT_PATH=$1 EXTRACTOR_CONTENT_URL=file://$1 EXTRACTOR_RESULT_PATH=$2 \
     python -u metadata_flatten/main.py

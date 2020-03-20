@@ -27,9 +27,9 @@ stages:
   - setup
   - build
   - test
-  - deploy
   - publish
-
+  - deploy
+  
 
 before_script:
   # This script, which runs before all jobs will install some componentry
@@ -194,7 +194,7 @@ cleanup:
 
 
 contentai_push:
-  stage: publish
+  stage: deploy
   # stage: brute
   script:
     # This script requires a special ContentAI API Key.
@@ -223,7 +223,7 @@ contentai_push:
 
 
 docgen:
-  stage: deploy
+  stage: publish
   image: conda/miniconda3:latest
   script:
     - pip install -r requirements.txt
@@ -242,7 +242,7 @@ docgen:
 
 
 # docker_publish:
-#   stage: publish
+#   stage: deploy
 #   script:
 #     # retrieve from back-up server
 #     - scp "$USER_NAME@$DEPLOY_HOST:$BUILD_STORAGE" "$CONTAINER_TEST_FILE"
@@ -255,7 +255,7 @@ docgen:
 
 
 pages:
-  stage: publish
+  stage: deploy
   script:
     - mkdir -p public
     - cp -R build/html/ public/
