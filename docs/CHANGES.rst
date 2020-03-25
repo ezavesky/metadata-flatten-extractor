@@ -10,7 +10,7 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.8.6
 ~~~~~
 
-- add parsers for ``pyscenedetect``
+- add parsers for ``pyscenedetect``, ``dsai_sceneboundary``
 
 
 0.8.5
