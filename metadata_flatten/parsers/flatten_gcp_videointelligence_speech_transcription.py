@@ -28,13 +28,14 @@ from metadata_flatten.parsers import Flatten
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
+        self.EXTRACTOR = "gcp_videointelligence_speech_transcription"
 
     @staticmethod
     def known_types():
         """Return the output types for this generator
         :return: list.  List of output types (file types) for this generator
         """
-        return ['keyword', 'transcript']
+        return ['keyword', 'transcript', 'identity']
 
     def parse(self, run_options):
         """Flatten GCP Speech Recognition 
@@ -47,12 +48,12 @@ class Parser(Flatten):
         #   "annotationResults": [ {  "speechTranscriptions": [ {
         #       "alternatives": [ { "transcript": "Play Super Bowl 50 for here tonight. ", "confidence": 0.8140063881874084,
         #       "words": [ { "startTime": "0s", "endTime": "0.400s", "word": "Play", "confidence": 0.9128385782241821 },
-        dict_data = self.get_extractor_results("gcp_videointelligence_speech_transcription", "data.json")
+        dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
         if not dict_data:  # do we need to load it locally?
             if 'extractor' in run_options:
                 path_content = path.join(self.path_content, "data.json")
             else:
-                path_content = path.join(self.path_content, "gcp_videointelligence_speech_transcription", "data.json")
+                path_content = path.join(self.path_content, self.EXTRACTOR, "data.json")
             dict_data = self.json_load(path_content)
             if not dict_data:
                 path_content += ".gz"
@@ -73,10 +74,16 @@ class Parser(Flatten):
                 if "alternatives" not in speech_obj:
                     self.logger.critical(f"Missing nested 'alternatives' in speechTranscriptions chunk '{speech_obj}'")
                     return None
+
                 for alt_obj in speech_obj["alternatives"]:   # walk through speech parts
                     time_end = 0
                     time_begin = 1e200
                     if "words" in alt_obj and len(alt_obj['words']) > 0:  # parse all words for this transcript chunk
+                        speaker_last = None
+                        speaker_begin = None
+                        speaker_end = None
+                        speaker_score = 0
+                        speaker_segments = 0
                         num_words = 0
                         for word_obj in alt_obj["words"]:  # walk through all words
                             # {  "startTime": "0.400s",  "endTime": "0.700s",  "word": "Super", "confidence": 0.9128385782241821 }
@@ -88,15 +95,38 @@ class Parser(Flatten):
                             list_items.append( {"time_begin": time_begin_clean, "source_event": "speech", "tag_type": "word",
                                 "time_end": time_end_clean, "time_event": time_begin_clean, "tag": word_obj["word"],
                                 "score": float(word_obj["confidence"]), "details": "",
-                                "extractor": "gcp_videointelligence_speech_transcription"})
+                                "extractor": self.EXTRACTOR})
                             num_words += 1
+
+                            # { ... "confidence": 0.9128385782241821,  "speakerTag": 3 } ...  (added 0.8.6)
+                            if "speakerTag" in word_obj:  # if speaker is consistent, add it here
+                                reset_speaker = True
+                                if word_obj["speakerTag"] == speaker_last:   # same speaker?
+                                    if time_begin_clean == speaker_end:   # right after last speech segment? extend
+                                        speaker_end = time_end_clean
+                                        speaker_segments += 1
+                                        speaker_score += float(word_obj["confidence"])
+                                        reset_speaker = False
+                                if reset_speaker:   # speaker mismatch or restart
+                                    if speaker_begin is not None:   # close last speaker segment
+                                        list_items.append( {"time_begin": speaker_begin, "source_event": "speech", "tag_type": "identity",
+                                            "time_end": speaker_end, "time_event": speaker_begin, "tag": f"speaker{word_obj['speakerTag']}",
+                                            "score": round(speaker_score / speaker_segments, 5), "details": "",
+                                            "extractor": self.EXTRACTOR})
+                                    speaker_last = word_obj["speakerTag"]
+                                    speaker_begin = time_begin_clean   # reset timing information
+                                    speaker_end = time_end_clean
+                                    speaker_segments = 1
+                                    speaker_score = float(word_obj["confidence"])
 
                         if "transcript" in alt_obj:  # generate top-level transcript item, after going through all words
                             list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "transcript",
                                 "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
                                 "score": float(alt_obj["confidence"]), 
                                 "details": json.dumps({"words": num_words, "transcript": alt_obj["transcript"]}),
-                                "extractor": "gcp_videointelligence_speech_transcription"})
+                                "extractor": self.EXTRACTOR})
+
+
 
         # added duplicate drop 0.4.1 for some reason this extractor has this bad tendency
         if len(list_items) > 0:

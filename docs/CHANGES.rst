@@ -11,6 +11,7 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 ~~~~~
 
 - add parsers for ``pyscenedetect``, ``dsai_sceneboundary``
+- add speaker identity (from speech) to ``gcp_videointelligence_speech_transcription``
 
 
 0.8.5
