@@ -59,7 +59,7 @@ fields.
 -  ``tag`` = simple text word or phrase
 -  ``tag_type`` = descriptor for type of tag; e.g. tag=concept/label, keyword=special word,
    shot=segment, transcript=text, moderation=moderation, word=text/speech word,
-   phrase=long utterance, face=face emotion/properties, identity=face
+   phrase=long utterance, face=face emotion/properties, identity=face or speaker
    recognition, scene=semantic scenes, brand=product or logo mention
 -  ``score`` = confidence/probability
 -  ``details`` = possible bounding box or other long-form (JSON-encoded)
