@@ -50,7 +50,7 @@ class Generator(Generate):
         col_row = list(timed_row.index)
         if not ("tag" in col_row and "score" in col_row and "source_event" in col_row):
             return None
-        output_obj["dataObject"] = {"name": timed_row["tag"], "source": timed_row["source_event"], 
+        output_obj["dataObject"] = {"name": timed_row["tag"], "source": timed_row["source_event"], "type":timed_row["tag_type"],
                                     "score": timed_row["score"], "extractor": timed_row["extractor"] }
         output_obj["dataTypeId"] = "timedEvent"  # generic audio, visual, or textual tag
         
