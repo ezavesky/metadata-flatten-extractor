@@ -248,8 +248,7 @@ Testing can also be run for a specific file within the package by setting the ev
 Future Development
 ==================
 
--  the remaining known extractors… ``pyscenedetect``, ``yolo3``,
-   ``openpose``
+-  the remaining known extractors...  ``openpose``
 -  integration of viewership insights
 -  creation of sentiment and mood-based insights (which tags most
    co-occur here?)
