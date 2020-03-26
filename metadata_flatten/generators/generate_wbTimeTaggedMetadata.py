@@ -50,7 +50,7 @@ class Generator(Generate):
         col_row = list(timed_row.index)
         if not ("tag" in col_row and "score" in col_row and "source_event" in col_row):
             return None
-        output_obj["dataObject"] = {"name": timed_row["tag"], "source": timed_row["source_event"], 
+        output_obj["dataObject"] = {"name": timed_row["tag"], "source": timed_row["source_event"], "type":timed_row["tag_type"],
                                     "score": timed_row["score"], "extractor": timed_row["extractor"] }
         output_obj["dataTypeId"] = "timedEvent"  # generic audio, visual, or textual tag
         
@@ -107,7 +107,7 @@ class Generator(Generate):
         :param: raw_str (str): external data to include in hash
         :returns: (int): count of items on successful decoding and export, zero otherwise
         """
-        raw_str += "_".join([str(obj_new[col_name]) for col_name in col_check])
+        raw_str += "_".join([str(obj_new[col_name]) for col_name in col_check if col_name in obj_new])  # allow optional columns
         return hashlib.md5(raw_str.encode()).hexdigest()
 
     def generate(self, path_output, run_options, df):
@@ -151,16 +151,19 @@ class Generator(Generate):
             idx_write += 1
         num_prior = 0
 
+        column_unique = ["name", "source", "extractor"]   # define some collision columns
+        column_unique_data = ["box"]   # use sparingly, but extra hash aginst data (added 0.8.6)
+
         # clean up any empty entries for schema compliance
         if len(output_set["frames"]):
             self.logger.info(f"Processing {len(output_set['frames'])} 'frame' events...")
-            column_unique = ["name", "source", "extractor"]   # define some collision columns
             obj_out["wbtcd:frames"] = []
             hash_prior = {}
             num_prior += len(output_set["frames"])   # compute raw count as well
             for obj_new in output_set["frames"]:   # parse each frame, combine both object data and frame time
                 hash_key = self.hash_key(obj_new["wbtcd:frameData"]["dataObject"], column_unique, 
                                          str(obj_new["wbtcd:frameLocation"]["valueFSTC"]))
+                hash_key = self.hash_key(obj_new["wbtcd:frameData"], column_unique_data, hash_key)
                 if hash_key not in hash_prior:
                     hash_prior[hash_key] = 1
                     obj_out["wbtcd:frames"].append(obj_new)
@@ -168,7 +171,6 @@ class Generator(Generate):
 
         if len(output_set["descriptiveTimespans"]):
             self.logger.info(f"Processing {len(output_set['descriptiveTimespans'])} 'descriptiveTimespans' events...")
-            column_unique = ["name", "source", "extractor"]   # define some collision columns
             if "wbtcd:timespans" not in obj_out:
                 obj_out["wbtcd:timespans"] = {}
             obj_out["wbtcd:timespans"]["descriptiveTimespans"] = []
@@ -176,6 +178,7 @@ class Generator(Generate):
             num_prior += len(output_set["descriptiveTimespans"])   # compute raw count as well
             for obj_new in output_set["descriptiveTimespans"]:   # parse each event, all data in event object itself
                 hash_key = self.hash_key(obj_new["dataObject"], column_unique, str(obj_new["start"]))
+                hash_key = self.hash_key(obj_new, column_unique_data, hash_key)
                 if hash_key not in hash_prior:
                     hash_prior[hash_key] = 1
                     obj_out["wbtcd:timespans"]["descriptiveTimespans"].append(obj_new)
@@ -183,7 +186,6 @@ class Generator(Generate):
 
         if len(output_set["concreteTimespans"]):
             self.logger.info(f"Processing {len(output_set['concreteTimespans'])} 'concreteTimespans' events...")
-            column_unique = ["name", "source", "extractor"]   # parse each event, all data in event object itself
             if "wbtcd:timespans" not in obj_out:
                 obj_out["wbtcd:timespans"] = {}
             obj_out["wbtcd:timespans"]["concreteTimespans"] = []
@@ -191,6 +193,7 @@ class Generator(Generate):
             num_prior += len(output_set["concreteTimespans"])   # compute raw count as well
             for obj_new in output_set["concreteTimespans"]:
                 hash_key = self.hash_key(obj_new["dataObject"], column_unique, str(obj_new["start"]))
+                hash_key = self.hash_key(obj_new, column_unique_data, hash_key)
                 if hash_key not in hash_prior:
                     hash_prior[hash_key] = 1
                     obj_out["wbtcd:timespans"]["concreteTimespans"].append(obj_new)
