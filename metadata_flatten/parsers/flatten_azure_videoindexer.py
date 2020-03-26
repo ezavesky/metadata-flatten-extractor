@@ -233,7 +233,7 @@ class Parser(Flatten):
                     for local_obj in insight_obj['ocr']:
                         if "text" in local_obj and "instances" in local_obj and len(local_obj["text"]) > 0:  # validate object
                             local_box = {'box': {'w': round(local_obj['width'], 4), 'h': round(local_obj['height'], 4),
-                                                'l': round(local_obj['left'], 4), 't': round(local_obj    ['top'], 4)},
+                                                'l': round(local_obj['left'], 4), 't': round(local_obj['top'], 4)},
                                         'transcript': local_obj['text'] }
                             for time_obj in local_obj["instances"]:  # walk through all appearances
                                 time_begin = pt_parse(time_obj['start'])
