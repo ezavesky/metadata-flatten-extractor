@@ -1,0 +1,17 @@
+name: dsai_metadata_flatten
+
+description: Flattens input metadata into a common format for CSV or JSON reading.  If called after multiple upstream extractors, will attempt to generate flattened files from each.
+
+url: "https://gitlab.research.att.com/turnercode/metadata-flatten-extractor"
+
+contact: acquire@research.att.com
+
+cpu: 1024
+memory: 8192
+
+#environment:
+#  FOO: bar
+#  BAR: baz
+
+#dependencies:
+#  - gcp_upload
