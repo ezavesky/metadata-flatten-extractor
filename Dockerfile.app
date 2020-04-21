@@ -41,4 +41,4 @@ EXPOSE 8501
 USER $user
 
 # run app
-CMD cd $WORKDIR/app && streamlit run timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results
+CMD cd $WORKDIR/app/app_browse && streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results
