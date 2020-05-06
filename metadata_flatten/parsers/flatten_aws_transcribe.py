@@ -55,7 +55,7 @@ class Parser(Flatten):
                 path_content += ".gz"
                 dict_data = self.json_load(path_content)
 
-        if "results" not in dict_data and "items" in dict_data["results"]:
+        if "results" not in dict_data or "items" not in dict_data["results"]:
             if run_options["verbose"]:
                 self.logger.critical(f"Missing nested 'results' from source '{self.EXTRACTOR}'")
             return None

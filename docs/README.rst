@@ -98,7 +98,7 @@ variable as JSON.
 
 .. code:: shell
 
-   EXTRACTOR_METADATA='{"compressed":True}'
+   EXTRACTOR_METADATA='{"compressed":true}'
 
 Locally Run on Results
 ~~~~~~~~~~~~~~~~~~~~~~
