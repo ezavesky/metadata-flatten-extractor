@@ -7,6 +7,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.8
 ---
 
+0.8.8
+~~~~~
+
+- add parser for ``dsai_moderation``
+
+
 0.8.7
 ~~~~~
 

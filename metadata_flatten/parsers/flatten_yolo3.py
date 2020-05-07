@@ -88,5 +88,5 @@ class Parser(Flatten):
             return DataFrame(list_items)
 
         if run_options["verbose"]:
-            self.logger.critical(f"No moderation enties found in source '{self.EXTRACTOR}'")
+            self.logger.critical(f"No tag entries found in source '{self.EXTRACTOR}'")
         return None
