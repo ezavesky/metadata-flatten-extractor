@@ -144,7 +144,6 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     return df_live
 
 
-
 def main_sidebar(df):
     # Generate the slider filters based on the data available in this subset of titles
     # Only show the slider if there is more than one value for that slider, otherwise, don't filter
@@ -165,9 +164,10 @@ def main_sidebar(df):
                     & (df_sub['time_end'] < pd.to_timedelta(time_bound[1], unit='min'))
 
     # confidence measure
-    value = (df_sub["score"].min(), df_sub["score"].max())
-    score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
-    idx_match &= (df_sub['score'] >= score_bound[0]) & (df_sub['score'] <= score_bound[1])
+    if len(df_sub) > 1:  # only if there are more than two samples
+        value = (df_sub["score"].min(), df_sub["score"].max())
+        score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
+        idx_match &= (df_sub['score'] >= score_bound[0]) & (df_sub['score'] <= score_bound[1])
 
     # Filter by slider inputs to only show relevant events
     df_filter = df_sub[idx_match]
