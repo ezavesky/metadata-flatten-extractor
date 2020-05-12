@@ -103,7 +103,10 @@ def main_sidebar(df, sort_list=None):
     # Only show the slider if there is more than one value for that slider, otherwise, don't filter
 
     type_unique = ["All"] + list(df["tag_type"].unique())
-    filter_tag = st.sidebar.selectbox("Event Type", type_unique, index=type_unique.index('identity'))
+    idx_initial = 0
+    if 'identity' in type_unique:
+        idx_initial = type_unique.index('identity')
+    filter_tag = st.sidebar.selectbox("Event Type", type_unique, index=idx_initial)
     df_sub = df
     if filter_tag != "All":
         df_sub = df[df['tag_type'] == filter_tag]
