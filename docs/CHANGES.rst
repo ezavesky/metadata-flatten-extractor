@@ -7,6 +7,11 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.8
 ---
 
+0.8.9
+~~~~~
+
+- fixes to main streamlit app for partial extractors (e.g. missing identity, sparse brand)
+
 0.8.8
 ~~~~~
 
