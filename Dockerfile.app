@@ -26,7 +26,9 @@ gatherUsageStats = false\n\
 [server]\n\
 enableCORS = false\n\
 " > /$user/.streamlit/config.toml' \
-    # install requirements
+    # install requirements (base package)
+    && pip install --no-cache-dir $WORKDIR \
+    # install app requirements
     && pip install --no-cache-dir  -r $WORKDIR/app/requirements.txt \
     # install NLP word model for spacy
     && su $user && python -m spacy download en_core_web_sm \
@@ -41,4 +43,4 @@ EXPOSE 8501
 USER $user
 
 # run app
-CMD cd $WORKDIR/app/app_browse && streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results
+CMD cd $WORKDIR/app && streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results
