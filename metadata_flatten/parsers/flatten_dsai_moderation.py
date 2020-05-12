@@ -44,7 +44,6 @@ class Parser(Flatten):
         :param: run_options (dict): specific runtime information
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        print("CHECKING 1")
         dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json", is_json=True)
         if not dict_data:  # do we need to load it locally?
             if 'extractor' in run_options:
@@ -53,7 +52,6 @@ class Parser(Flatten):
                 path_content = path.join(self.path_content, self.EXTRACTOR, "data.json")
             if not path.exists(path_content):
                 path_content += ".gz"
-            print("CHECKING 2")
             dict_data = self.json_load(path_content)
         if len(dict_data) < 1:
             if run_options["verbose"]:
