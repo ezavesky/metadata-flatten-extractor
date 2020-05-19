@@ -4,6 +4,16 @@ Changes
 A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`__.
 
+0.9
+---
+
+0.9.0
+~~~~~
+
+- add timeline viewing to the ``event_table`` mode of streamlit app
+
+
+
 0.8
 ---
 

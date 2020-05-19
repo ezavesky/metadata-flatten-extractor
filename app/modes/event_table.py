@@ -73,6 +73,8 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
     df_best = df_live.drop_duplicates("tag")
     clip_display(df_best, df, media_file, field_group="tag")
 
+    quick_timeseries(df_live, df_live, df_live["tag_type"].unique()[0], "scatter")      # time chart of top N 
+
     # compute the distribution
     st.markdown("### overall tag distributions")
     df_filter = df_live.copy()
