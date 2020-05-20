@@ -150,10 +150,11 @@ def main_sidebar(df, sort_list=None):
     # extract shot extents (shot length)
     df_shot = df[df["tag_type"]=="shot"]
     value = (int(df_shot["duration"].min()), int(df_shot["duration"].max()))
-    duration_bound = st.sidebar.slider("Shot Duration (sec)", min_value=value[0], max_value=value[1], value=value, step=1)
-    # updated to use duration of shot as filter, not the item directly
-    idx_shot = df_shot[(df_shot['duration'] >= duration_bound[0]) & (df_shot['duration'] <= duration_bound[1])]["shot"].unique()
-    idx_match &= df["shot"].isin(idx_shot)
+    if value[0] != value[1]:
+        duration_bound = st.sidebar.slider("Shot Duration (sec)", min_value=value[0], max_value=value[1], value=value, step=1)
+        # updated to use duration of shot as filter, not the item directly
+        idx_shot = df_shot[(df_shot['duration'] >= duration_bound[0]) & (df_shot['duration'] <= duration_bound[1])]["shot"].unique()
+        idx_match &= df["shot"].isin(idx_shot)
     
     # list for selected shot source
     shot_source = st.sidebar.selectbox("Shot Source", list(df[df["tag_type"]=="shot"]["extractor"].unique()) )
