@@ -52,6 +52,7 @@ SAMPLE_TABLE = 100   # how many samples go in the dataframe table dump
 MAX_LOCK_COUNT = 3   # how many lock loops shoudl we wait (for labels)
 
 UPSAMPLE_TIME = 4  # how many map intervals per second? when grouping shots
+DEFAULT_SHOT_LEN = 10  # if simulating shots (e.g. none found), what is duration?
 
 DEFAULT_REWIND = 2   # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 5   # length of default cllip (sec)
@@ -372,9 +373,21 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     logger.info(f"Known types: {list(df['tag_type'].unique())}")
 
     # extract shot extents
-    ux_report.info(f"... mapping shot id to all events....")
     ux_progress.progress(math.floor(float(task_idx)/task_count*100))
     task_idx += 1
+
+    if len(df[df["tag_type"]=="shot"]) == 0:   # warning, no shots detected!
+        time_max = int(math.floor(df["time_end"].max() * UPSAMPLE_TIME))
+        time_min = int(math.floor(df["time_begin"].min() * UPSAMPLE_TIME))
+        ux_report.info(f"... generating shots at interval {DEFAULT_SHOT_LEN}s [{time_min} - {time_max}]")
+        logger.info(f"... generating shots at interval {DEFAULT_SHOT_LEN}s [{time_min} - {time_max}]")
+        list_new = [{"time_begin":x * DEFAULT_SHOT_LEN, "time_end": (x+1) * DEFAULT_SHOT_LEN,
+                     "extractor": "simulated", "tag_type":"shot", "score": 1.0,
+                     "time_event":(x+0.5) * DEFAULT_SHOT_LEN, "details":"", "source_event": "video" } 
+                     for x in range(math.floor(time_min/DEFAULT_SHOT_LEN), math.floor(time_max/DEFAULT_SHOT_LEN)) ]
+        df = df.append(pd.DataFrame(list_new), sort=False)
+
+    ux_report.info(f"... mapping shot id to all events....")
     df["duration"] = df["time_end"] - df["time_begin"]
     df["shot"] = 0
 
@@ -426,7 +439,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
             for cur_word in list_text:
                 if len(cur_word) > 1:
                     row_copy = row_enhance.copy()
-                    row_copy["details"] = cur_word
+                    row_copy["details"] = cur_word.capitalize()
                     list_append.append(row_copy)
         if len(list_append):
             df_append = pd.DataFrame(list_append)
@@ -547,7 +560,7 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True):
             ux_report = st.empty()
             return tree, list(df.index)
         elif len(list_files) == 0 or ignore_update:  # only allow backup if new files weren't found
-            st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
+            st.sidebar.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
             df = pd.read_pickle(path_backup)
             ux_report.info(f"... building live index on features...")
             tree = BallTree(df)
@@ -652,7 +665,7 @@ def data_label_serialize(data_dir, df_new=None, label_new=None):
             else: 
                 df = pd.read_pickle(path_new)
             return df
-        ux_report.warning(f"Warning, label file `{path_new}` is not found (ignore this on first runs)!")
+        st.sidebar.warning(f"Warning, label file `{path_new}` is not found (ignore this on first runs)!")
         return None
     num_lock = 0
     while path.exists(path_lock):  # if so, load old datafile, skip reload
