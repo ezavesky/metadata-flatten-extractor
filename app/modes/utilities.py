@@ -426,7 +426,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
             for cur_word in list_text:
                 if len(cur_word) > 1:
                     row_copy = row_enhance.copy()
-                    row_copy["details"] = cur_word
+                    row_copy["details"] = cur_word.capitalize()
                     list_append.append(row_copy)
         if len(list_append):
             df_append = pd.DataFrame(list_append)
@@ -547,7 +547,7 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True):
             ux_report = st.empty()
             return tree, list(df.index)
         elif len(list_files) == 0 or ignore_update:  # only allow backup if new files weren't found
-            st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
+            st.sidebar.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
             df = pd.read_pickle(path_backup)
             ux_report.info(f"... building live index on features...")
             tree = BallTree(df)
@@ -652,7 +652,7 @@ def data_label_serialize(data_dir, df_new=None, label_new=None):
             else: 
                 df = pd.read_pickle(path_new)
             return df
-        ux_report.warning(f"Warning, label file `{path_new}` is not found (ignore this on first runs)!")
+        st.sidebar.warning(f"Warning, label file `{path_new}` is not found (ignore this on first runs)!")
         return None
     num_lock = 0
     while path.exists(path_lock):  # if so, load old datafile, skip reload
