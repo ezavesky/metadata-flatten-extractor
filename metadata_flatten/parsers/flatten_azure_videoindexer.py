@@ -226,16 +226,16 @@ class Parser(Flatten):
                                 time_end = pt_parse(time_obj['end'])
                                 list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "transcript",
                                     "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
-                                    "score": float(time_obj["confidence"]), 
-                                    "details": json.dumps({ "transcript": local_obj["transcript"]}),
+                                    "score": float(local_obj["confidence"]), 
+                                    "details": json.dumps({ "transcript": local_obj["text"]}),
                                     "extractor": self.EXTRACTOR})
 
                 if "speakers" in insight_obj:  # loop over speakers (added 0.9.1)
                     for local_obj in insight_obj['speakers']:
                         if "id" in local_obj and "instances" in local_obj and len(local_obj["instances"]) > 0:  # validate object
                             for speaker_obj in local_obj['instances']:
-                                time_begin = pt_parse(time_obj['start'])
-                                time_end = pt_parse(time_obj['end'])
+                                time_begin = pt_parse(speaker_obj['start'])
+                                time_end = pt_parse(speaker_obj['end'])
                                 speaker_label = f"speaker_{local_obj['id']}"
                                 # TODO: should we use recognition probability in this interval instead of just 1.0?
                                 list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "identity",
