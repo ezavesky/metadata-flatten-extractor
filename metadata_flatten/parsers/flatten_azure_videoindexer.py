@@ -30,6 +30,7 @@ from metadata_flatten.parsers import Flatten
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
+        self.EXTRACTOR = "azure_videoindexer"
 
     @staticmethod
     def known_types():
@@ -44,12 +45,12 @@ class Parser(Flatten):
         :param: run_options (dict): specific runtime information
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        dict_data = self.get_extractor_results("azure_videoindexer", "data.json")
+        dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
         if not dict_data:  # do we need to load it locally?
             if 'extractor' in run_options:
                 path_content = path.join(self.path_content, "data.json")
             else:
-                path_content = path.join(self.path_content, "azure_videoindexer", "data.json")
+                path_content = path.join(self.path_content, self.EXTRACTOR, "data.json")
             dict_data = self.json_load(path_content)
             if not dict_data:
                 path_content += ".gz"
@@ -73,7 +74,7 @@ class Parser(Flatten):
                             list_items.append({"time_begin": time_obj['startSeconds'], "source_event": "video", "tag_type": "topic",
                                 "time_end": time_obj['endSeconds'], "time_event": time_obj['startSeconds'], "tag": local_obj["name"],
                                 "score":  local_obj['confidence'], "details": json.dumps(details_obj),
-                                "extractor": "azure_videoindexer"})
+                                "extractor": self.EXTRACTOR})
             # end of processing 'summarized insights'
 
         if "videos" in dict_data:  # overall validation
@@ -90,7 +91,7 @@ class Parser(Flatten):
                                     list_items.append({"time_begin": time_begin, "source_event": "face", "tag_type": "identity",
                                         "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                         "score": local_obj['confidence'], "details": json.dumps(details_obj),
-                                        "extractor": "azure_videoindexer"})
+                                        "extractor": self.EXTRACTOR})
                             # TODO: handle others that ar emarked as 'unknown'?  (maybe not because no boundign rect)
 
                 if "keywords" in insight_obj:  # loop over keywords
@@ -103,7 +104,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": "speech", "tag_type": "keyword",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                     "score": 1.0, "details": "",
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "sentiments" in insight_obj:  # loop over sentiment
                     for local_obj in insight_obj['sentiments']:
@@ -114,7 +115,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "sentiment",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["sentimentType"],
                                     "score": local_obj["averageScore"], "details": "",
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "emotions" in insight_obj:  # loop over emotions
                     for local_obj in insight_obj['emotions']:
@@ -125,7 +126,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "emotion",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["type"],
                                     "score": time_obj["confidence"], "details": "",
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "audioEffects" in insight_obj:  # loop over audio
                     for local_obj in insight_obj['audioEffects']:
@@ -136,7 +137,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": "audio", "tag_type": "tag",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["type"],
                                     "score": 1.0, "details": "",
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "labels" in insight_obj:  # loop over labels
                     for local_obj in insight_obj['labels']:
@@ -150,7 +151,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "tag",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                     "score": time_obj["confidence"], "details": json.dumps(details_obj),
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "framePatterns" in insight_obj:  # loop over frame; update 0.7.0, move to scene type
                     for local_obj in insight_obj['framePatterns']:
@@ -161,7 +162,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "scene",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["patternType"],
                                     "score": local_obj['confidence'], "details": "",
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "brands" in insight_obj:  # loop over frame
                     for local_obj in insight_obj['brands']:
@@ -173,7 +174,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": "speech", "tag_type": "brand",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                     "score":  local_obj['confidence'], "details": json.dumps(details_obj),
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "namedLocations" in insight_obj:  # loop over named entities
                     for local_obj in insight_obj['namedLocations']:
@@ -186,7 +187,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": source_type, "tag_type": "entity",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                     "score":  local_obj['confidence'], "details": json.dumps(details_obj),
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "namedPeople" in insight_obj:  # loop over named entities
                     for local_obj in insight_obj['namedPeople']:
@@ -199,7 +200,7 @@ class Parser(Flatten):
                                 list_items.append({"time_begin": time_begin, "source_event": source_type, "tag_type": "entity",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
                                     "score":  local_obj['confidence'], "details": json.dumps(details_obj),
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 # TODO: consider adding 'textualContentModeration'
 
@@ -215,7 +216,7 @@ class Parser(Flatten):
                                         list_items.append({"time_begin": time_begin, "source_event": "image",  "tag_type": "moderation",
                                             "time_end": time_end, "time_event": time_begin, "tag": score_map[type_moderation],
                                             "score": local_obj[type_moderation], "details": "",
-                                            "extractor": "azure_videoindexer"})
+                                            "extractor": self.EXTRACTOR})
 
                 if "transcript" in insight_obj:  # loop over transcripts
                     for local_obj in insight_obj['transcript']:
@@ -227,7 +228,20 @@ class Parser(Flatten):
                                     "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
                                     "score": float(time_obj["confidence"]), 
                                     "details": json.dumps({ "transcript": local_obj["transcript"]}),
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
+
+                if "speakers" in insight_obj:  # loop over speakers (added 0.9.1)
+                    for local_obj in insight_obj['speakers']:
+                        if "id" in local_obj and "instances" in local_obj and len(local_obj["instances"]) > 0:  # validate object
+                            for speaker_obj in local_obj['instances']:
+                                time_begin = pt_parse(time_obj['start'])
+                                time_end = pt_parse(time_obj['end'])
+                                speaker_label = f"speaker_{local_obj['id']}"
+                                # TODO: should we use recognition probability in this interval instead of just 1.0?
+                                list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "identity",
+                                    "time_end": time_end, "time_event": time_begin, "tag": f"speaker_{speaker_label}",
+                                    "score": 1.0, "details": "",
+                                    "extractor": self.EXTRACTOR})
 
                 if "ocr" in insight_obj:  # loop over ocr
                     for local_obj in insight_obj['ocr']:
@@ -242,7 +256,7 @@ class Parser(Flatten):
                                     "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
                                     "score": float(local_obj["confidence"]), 
                                     "details": json.dumps(local_box),
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "shots" in insight_obj:  # loop over shot
                     for local_obj in insight_obj['shots']:
@@ -265,7 +279,7 @@ class Parser(Flatten):
                                 list_items.append( {"time_begin": time_begin, "source_event": "video", "tag_type": "shot",
                                     "time_end": time_end, "time_event": time_event, "tag": "shot",
                                     "score": 1.0, "details": json.dumps(details_obj),
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
                 if "scenes" in insight_obj:  # loop over scenes
                     for local_obj in insight_obj['scenes']:
@@ -276,7 +290,7 @@ class Parser(Flatten):
                                 list_items.append( {"time_begin": time_begin, "source_event": "video", "tag_type": "scene",
                                     "time_end": time_end, "time_event": time_begin, "tag": "scene",
                                     "score": 1.0, "details": "",
-                                    "extractor": "azure_videoindexer"})
+                                    "extractor": self.EXTRACTOR})
 
         if len(list_items) > 0:   # return the whole thing as dataframe
             return DataFrame(list_items)
