@@ -15,7 +15,7 @@ variables:
   DEPLOY_STORAGE: /n/vmtsr02/dockerimg # path on destination for files
   DEPLOY_MANIFEST: $DEPLOY_MANIFEST  # path to manifest file (check docker run volumes)
   DEPLOY_VOLUMES: $DEPLOY_VOLUMES  # specific volumes to mount (e.g. -v /n/docroot5/projects:/projects  -v /n/vmtsr01:/vmtsr01)
-  DEPLOY_LIMIT: 3  # max number of tar images to leave around
+  DEPLOY_LIMIT: 5  # max number of tar images to leave around (double becuase we have an 'app' output, too)
   DEPLOY_PORT_PROD: 9201
   DEPLOY_PORT_DEV: 9203
 

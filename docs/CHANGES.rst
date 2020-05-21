@@ -7,6 +7,14 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.9
 ---
 
+
+0.9.1
+~~~~~
+
+- fix transcript parsing in ``azure_videoindexer`` component
+- add speaker differentiation as an identity block in ``azure_videoindexer`` (similar to ``aws_transcribe``)
+
+
 0.9.0
 ~~~~~
 
