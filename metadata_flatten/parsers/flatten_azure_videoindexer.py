@@ -217,8 +217,8 @@ class Parser(Flatten):
                                             "score": local_obj[type_moderation], "details": "",
                                             "extractor": "azure_videoindexer"})
 
-                if "transcripts" in insight_obj:  # loop over transcripts
-                    for local_obj in insight_obj['transcripts']:
+                if "transcript" in insight_obj:  # loop over transcripts
+                    for local_obj in insight_obj['transcript']:
                         if "text" in local_obj and "instances" in local_obj and len(local_obj["text"]) > 0:  # validate object
                             for time_obj in local_obj["instances"]:  # walk through all appearances
                                 time_begin = pt_parse(time_obj['start'])
