@@ -49,16 +49,6 @@ class Parser(Flatten):
         #       "alternatives": [ { "transcript": "Play Super Bowl 50 for here tonight. ", "confidence": 0.8140063881874084,
         #       "words": [ { "startTime": "0s", "endTime": "0.400s", "word": "Play", "confidence": 0.9128385782241821 },
         dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
-        if not dict_data:  # do we need to load it locally?
-            if 'extractor' in run_options:
-                path_content = path.join(self.path_content, "data.json")
-            else:
-                path_content = path.join(self.path_content, self.EXTRACTOR, "data.json")
-            dict_data = self.json_load(path_content)
-            if not dict_data:
-                path_content += ".gz"
-                dict_data = self.json_load(path_content)
-
         if "annotationResults" not in dict_data:
             if run_options["verbose"]:
                 self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_speech_transcription'")

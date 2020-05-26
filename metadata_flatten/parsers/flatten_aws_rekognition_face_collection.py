@@ -53,15 +53,6 @@ class Parser(Flatten):
         while last_load_idx >= 0:
             file_search = f"result{last_load_idx}.json"
             dict_data = self.get_extractor_results(self.EXTRACTOR, file_search)
-            if not dict_data:  # do we need to load it locally?
-                if 'extractor' in run_options:
-                    path_content = path.join(self.path_content, file_search)
-                else:
-                    path_content = path.join(self.path_content, self.EXTRACTOR, file_search)
-                dict_data = self.json_load(path_content)
-                if not dict_data:
-                    path_content += ".gz"
-                    dict_data = self.json_load(path_content)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
                     self.logger.info(f"... suppressed {suppressed_matches} duplicate identities on a timestamp...")

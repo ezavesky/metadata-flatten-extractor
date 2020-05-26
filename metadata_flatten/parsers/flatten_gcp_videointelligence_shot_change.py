@@ -48,16 +48,6 @@ class Parser(Flatten):
         #     "endTimeOffset": "19.285933s"
         #   }, ...
         dict_data = self.get_extractor_results("gcp_videointelligence_shot_change", "data.json")
-        if not dict_data:  # do we need to load it locally?
-            if 'extractor' in run_options:
-                path_content = path.join(self.path_content, "data.json")
-            else:
-                path_content = path.join(self.path_content, "gcp_videointelligence_shot_change", "data.json")
-            dict_data = self.json_load(path_content)
-            if not dict_data:
-                path_content += ".gz"
-                dict_data = self.json_load(path_content)
-
         if "annotationResults" not in dict_data:
             if run_options["verbose"]:
                 self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_shot_change'")
