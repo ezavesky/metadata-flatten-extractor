@@ -27,6 +27,7 @@ from metadata_flatten.parsers import Flatten
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
+        self.EXTRACTOR = "aws_rekognition_video_faces"
 
     @staticmethod
     def known_types():
@@ -50,16 +51,7 @@ class Parser(Flatten):
         last_load_idx = 0
         while last_load_idx >= 0:
             file_search = f"result{last_load_idx}.json"
-            dict_data = self.get_extractor_results("aws_rekognition_video_faces", file_search)
-            if not dict_data:  # do we need to load it locally?
-                if 'extractor' in run_options:
-                    path_content = path.join(self.path_content, file_search)
-                else:
-                    path_content = path.join(self.path_content, "aws_rekognition_video_faces", file_search)
-                dict_data = self.json_load(path_content)
-                if not dict_data:
-                    path_content += ".gz"
-                    dict_data = self.json_load(path_content)
+            dict_data = self.get_extractor_results(self.EXTRACTOR, file_search)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
                     return DataFrame(list_items)
@@ -84,13 +76,13 @@ class Parser(Flatten):
                         list_items.append({"time_begin": time_frame, "source_event": "face", 
                             "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
                             "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
-                            "extractor": "aws_rekognition_video_faces"})
+                            "extractor": self.EXTRACTOR})
                     if "Pose" in local_obj:
                         details_obj['pose'] = local_obj["Pose"]
                         list_items.append({"time_begin": time_frame, "source_event": "face", 
                             "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
                             "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
-                            "extractor": "aws_rekognition_video_faces"})
+                            "extractor": self.EXTRACTOR})
 
                     # go through all face features (modified 0.5.4, split face attributes)
                     for f in local_obj:
@@ -112,7 +104,7 @@ class Parser(Flatten):
                             list_items.append({"time_begin": time_frame, "source_event": "face", 
                                 "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
                                 "tag": f, "score": score_feat, "details": json.dumps(details_obj),
-                                "extractor": "aws_rekognition_video_faces"})
+                                "extractor": self.EXTRACTOR})
 
                     # update 0.5.2 - break out emotion to other tag type
                     if "Emotions" in local_obj and local_obj["Emotions"]:
@@ -122,7 +114,7 @@ class Parser(Flatten):
                             list_items.append({"time_begin": time_frame, "source_event": "face", 
                                 "time_end": time_frame, "time_event": time_frame, "tag_type": "emotion",
                                 "tag": emo_obj["Type"].capitalize(), "score": score_emo, 
-                                "details": json.dumps(details_obj), "extractor": "aws_rekognition_video_faces"})
+                                "details": json.dumps(details_obj), "extractor": self.EXTRACTOR})
 
             last_load_idx += 1
 
