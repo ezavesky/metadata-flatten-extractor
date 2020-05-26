@@ -559,7 +559,7 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True):
             tree = BallTree(df)
             ux_report = st.empty()
             return tree, list(df.index)
-        elif len(list_files) == 0 or ignore_update:  # only allow backup if new files weren't found
+        elif df is None or len(df) == 0 or ignore_update:  # only allow backup if new files weren't found
             st.sidebar.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
             df = pd.read_pickle(path_backup)
             ux_report.info(f"... building live index on features...")
