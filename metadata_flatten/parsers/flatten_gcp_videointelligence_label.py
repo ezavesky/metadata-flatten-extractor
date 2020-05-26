@@ -57,13 +57,16 @@ class Parser(Flatten):
             tag_name = "unknown"
             if "entity" in entity_item:
                 # "entity": { "entityId": "/m/0bmgjqz", "description": "sport venue", "languageCode": "en-US"},
+                if "description" not in entity_item["entity"]:   # some entities don't have descriptions (fixed 0.9.2)
+                    return tag_name, details_obj
                 tag_name = entity_item["entity"]["description"]
                 details_obj["entity"] = entity_item["entity"]["entityId"]
             if "categoryEntities" in entity_item:
                 # "categoryEntities": [{ "entityId": "/m/078x4m", "description": "location", "languageCode": "en-US" },
                 details_obj["categories"] = {}
                 for cat_entity in entity_item["categoryEntities"]:
-                    details_obj["categories"][cat_entity["description"]] = cat_entity["entityId"]
+                    if "description" in cat_entity:   # some categories don't have descriptions (fixed 0.9.2)
+                        details_obj["categories"][cat_entity["description"]] = cat_entity["entityId"]
             if as_str:
                 return tag_name, json.dumps(details_obj)
             return tag_name, details_obj
