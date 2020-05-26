@@ -49,15 +49,6 @@ class Parser(Flatten):
         #     "pornographyLikelihood": "VERY_UNLIKELY"
         #   }, ...
         dict_data = self.get_extractor_results("gcp_videointelligence_explicit_content", "data.json")
-        if not dict_data:  # do we need to load it locally?
-            if 'extractor' in run_options:
-                path_content = path.join(self.path_content, "data.json")
-            else:
-                path_content = path.join(self.path_content, "gcp_videointelligence_explicit_content", "data.json")
-            dict_data = self.json_load(path_content)
-            if not dict_data:
-                path_content += ".gz"
-                dict_data = self.json_load(path_content)
 
         if "annotationResults" not in dict_data:
             if run_options["verbose"]:

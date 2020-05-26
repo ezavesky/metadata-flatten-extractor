@@ -8,6 +8,13 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 ---
 
 
+0.9.2
+~~~~~
+
+- add recursion to file-based discovery method for processed assets
+  - unify read of JSON and text files with internalaized function call in extractor base class
+- fix some extractors to use single name reference ``self.EXTRACTOR``
+
 0.9.1
 ~~~~~
 
