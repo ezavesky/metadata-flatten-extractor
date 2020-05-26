@@ -48,15 +48,6 @@ class Parser(Flatten):
         list_items = []
 
         dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
-        if not dict_data:  # do we need to load it locally?
-            if 'extractor' in run_options:
-                path_content = path.join(self.path_content, "data.json")
-            else:
-                path_content = path.join(self.path_content, self.EXTRACTOR, "data.json")
-            dict_data = self.json_load(path_content)
-            if not dict_data:
-                path_content += ".gz"
-                dict_data = self.json_load(path_content)
 
         for local_obj in dict_data:  # traverse items
             if "results" in local_obj or "milliseconds" in local_obj:

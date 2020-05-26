@@ -27,6 +27,7 @@ from metadata_flatten.parsers import Flatten
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
+        self.EXTRACTOR = "aws_rekognition_video_labels"
 
     @staticmethod
     def known_types():
@@ -46,16 +47,7 @@ class Parser(Flatten):
         last_load_idx = 0
         while last_load_idx >= 0:
             file_search = f"result{last_load_idx}.json"
-            dict_data = self.get_extractor_results("aws_rekognition_video_labels", file_search)
-            if not dict_data:  # do we need to load it locally?
-                if 'extractor' in run_options:
-                    path_content = path.join(self.path_content, file_search)
-                else:
-                    path_content = path.join(self.path_content, "aws_rekognition_video_labels", file_search)
-                dict_data = self.json_load(path_content)
-                if not dict_data:
-                    path_content += ".gz"
-                    dict_data = self.json_load(path_content)
+            dict_data = self.get_extractor_results(self.EXTRACTOR, file_search)
             if not dict_data:  # couldn't load anything else...
                 if list_items:
                     return DataFrame(list_items)
@@ -91,7 +83,7 @@ class Parser(Flatten):
                             list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "tag",
                                 "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                                 "score": score_frame, "details": json.dumps(details_obj),
-                                "extractor": "aws_rekognition_video_labels"})
+                                "extractor": self.EXTRACTOR})
             last_load_idx += 1
 
         if run_options["verbose"]:

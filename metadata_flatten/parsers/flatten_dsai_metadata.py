@@ -45,18 +45,8 @@ class Parser(Flatten):
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         dict_data = self.get_extractor_results(self.EXTRACTOR, "metadata.json")
-        if not dict_data:  # do we need to load it locally?
-            if 'extractor' in run_options:
-                path_content = path.join(self.path_content, "metadata.json")
-            else:
-                path_content = path.join(self.path_content, self.EXTRACTOR, "metadata.json")
-            dict_data = self.json_load(path_content)
-            if not dict_data:
-                path_content += ".gz"
-                dict_data = self.json_load(path_content)
 
         list_items = []
- 
         list_keywords = []
         if "keywords" in dict_data:  # loop over keywords
             for local_obj in dict_data['keywords']:

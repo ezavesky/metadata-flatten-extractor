@@ -27,6 +27,8 @@ import math
 import gzip
 from os import path
 
+from pathlib import Path
+
 import logging
 import warnings
 from sys import stdout as STDOUT
@@ -97,6 +99,8 @@ class Flatten():
         return ""
 
     def get_extractor_results(self, extractor_name, path, force_retrieve=False, is_json=True):
+        """Get results from remote or local location.  Return a dictionary or string (dependingn on is_json), empty if not found"""
+        result_data = {} if is_json else ""
         if not force_retrieve:  # safe way to request without 404/500 error
             if len(self.extractor_keys) < 1 or self.extractor != extractor_name:  
                 self.extractor_keys = []
@@ -106,12 +110,33 @@ class Flatten():
                 if dict_raw is not None and 'keys' in dict_raw:
                     self.extractor_keys = dict_raw['keys']
                     self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
-            if path not in self.extractor_keys:   # have the keys, check for presence
-                return None
-        return contentai.get_extractor_results(extractor_name, path, is_json=is_json)   # checked or brute force request
+        if path in self.extractor_keys:   # have the keys, check for presence
+            result_data = contentai.get_extractor_results(extractor_name, path, is_json=is_json)   # checked or brute force request
+
+        if not result_data:  # do we need to load it locally?
+            for dir_search in self.recursive_search(self.path_content, extractor_name):
+                path_file = dir_search.joinpath(path)
+                if is_json:
+                    result_data = self.json_load(str(path_file))
+                    if not result_data:
+                        result_data = self.json_load(str(path_file)+".gz")
+                else:  # not JSON, just return string?
+                    result_data = self.text_load(str(path_file))
+                    if not result_data:
+                        result_data = self.text_load(str(path_file)+".gz")
+        return result_data
+
 
     def get_extractor_keys(self, extractor_name):
         return contentai.get_extractor_result_keys(extractor_name)
+
+    def recursive_search(self, path_root, extractor_name):
+        """Attempt to find a specific extractor directory under the desired path"""
+        list_dirs = []
+        for path_search in Path(path_root).rglob(extractor_name):
+            if path_search.is_dir():
+                list_dirs.append(path_search)
+        return list_dirs
 
 # import other modules
 
