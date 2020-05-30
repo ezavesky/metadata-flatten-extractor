@@ -22,14 +22,12 @@ from os import path
 from pandas import DataFrame
 import json
 
-from pytimeparse import parse as pt_parse
-
 from metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
-        self.EXTRACTOR = "dsai_moderation"
+        self.EXTRACTOR = "dsai_moderation_text"
         self.SCORE_THRESHOLD = 0.05
 
     @staticmethod
@@ -51,51 +49,45 @@ class Parser(Flatten):
                 self.logger.critical(f"Empty result string for extractor '{self.EXTRACTOR}', aborting")
             return None
 
-        # "results": [ ...
         # {
-        #     "sexy": "0.033553965",    -> "racy"
-        #     "drawings": "0.03447094", -> "cartoon"
-        #     "hentai": "0.038157757",  -> "explicit drawing"
-        #     "neutral": "0.15495029",  -> "neutral"
-        #     "porn": "0.7388671",      -> "pornography"
-        #     "time_event": 0.9592916666666667,
-        #     "time_frame": 24
-        # },
-
-        # "results": [ ...
-        # {
-        #    "scores": {
-        #        "sexy": "0.033553965",    -> "racy"
-        #        "drawings": "0.03447094", -> "cartoon"
-        #       "hentai": "0.038157757",  -> "explicit drawing"
-        #       "neutral": "0.15495029",  -> "neutral"
-        #       "porn": "0.7388671",      -> "pornography"
+        #     "config": {
+        #         "version": "1.0.0",
+        #         "extractor": "moderation-text-extractor",
+        #         "input": "/work/samples/veep/video.mp4",
+        #         "timestamp": "2020-05-29 12:58:31.972617"
         #     },
-        #     "time_event": 0.9592916666666667,
-        #     "time_frame": 24
-        # },
+        #     "results": [
+        #         {
+        #             "begin": 97.594,
+        #             "end": 101.923,
+        #             "text": "This gorgeous ****, Gracie, she's wearing a campaign button.",
+        #             "scores": {
+        #                 "toxic": 0.74207,
+        #                 "severe_toxic": 0.00048,
+        #                 "obscene": 0.0226,
+        #                 "threat": 0.00099,
+        #                 "insult": 0.002,
+        #                 "identity_hate": 0.00022
+        #             },
+        #             "source": "speech",
+        #             "extractor": "azure_videoindexer"
+        #         },
 
-        score_mapping = {"sexy": "racy", "drawings": "drawing", "hentai": "explicit drawing", 
-                         "neutral": "neutral", "porn": "pornography"}
         list_items = []
 
         if dict_data is None or 'results' not in dict_data or 'config' not in dict_data:
             self.logger.critical(f"Missing nested 'results' from source '{self.EXTRACTOR}'")
             return None
         for local_obj in dict_data["results"]:
-            score_obj = local_obj
-            if "scores" in score_obj:  # validate object
-                score_obj = local_obj["scores"]
-            if "time_event" in local_obj and "neutral" in score_obj:  # validate object
-                time_event = float(local_obj['time_event'])
-                for score_original in score_mapping:
-                    local_score = 0
-                    if score_original in score_obj:
-                        local_score = float(score_obj[score_original])
+            if "scores" in local_obj and "begin" in local_obj:  # validate object
+                time_begin = float(local_obj['begin'])
+                time_end = float(local_obj['end'])
+                for score_name in local_obj['scores']:
+                    local_score = local_obj['scores'][score_name]
                     if local_score > self.SCORE_THRESHOLD:
-                        list_items.append({"time_begin": time_event, "source_event": "image", "tag_type": "moderation",
-                            "time_end": time_event, "time_event": time_event, "tag": score_mapping[score_original],
-                            "score": local_score, "details": "", "extractor": self.EXTRACTOR})
+                        list_items.append({"time_begin": time_begin, "source_event": local_obj["source"], "tag_type": "moderation",
+                            "time_end": time_end, "time_event": time_begin, "tag": score_name, "score": local_score, 
+                            "details": json.dumps({"extractor_source": local_obj["extractor"]}), "extractor": self.EXTRACTOR})
 
         if len(list_items) > 0:   # return the whole thing as dataframe
             return DataFrame(list_items)

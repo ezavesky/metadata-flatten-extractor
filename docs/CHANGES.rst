@@ -7,6 +7,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.9
 ---
 
+0.9.3
+~~~~~
+
+- add ``dsai_moderation_text`` parser, update ``dsai_moderation`` parser for version robustness
+  - add min threshold (*0.05*) to both moderation detectors
+
 
 0.9.2
 ~~~~~
