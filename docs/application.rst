@@ -60,6 +60,23 @@ python package dependency.
 
    conda install ffmpeg
 
+
+Static File Serving
+-------------------
+
+Files like the input data and created data from the tables can be made
+accessible with a modification to the streamlit package *(added v0.9.4)*.  
+While this is not an ideal solution, it is currently listed as one example 
+within a streamlit 
+`issue solution <https://github.com/streamlit/streamlit/issues/400>`_.
+
+A helper script ``static_link_create.py`` in the application directory can be
+executed to create a symbolic link.  
+This helper script is executed within the docker creation script of the application's
+docker image.
+
+**NOTE: This utility was not tested on windows.**
+
 Explorer Execution
 ==================
 
@@ -86,6 +103,8 @@ that they are sent to this app and not to streamlit.
      -i, --ignore_update   Ignore update files and use bundle directly
      -l --manifest MANIFEST
                            specify a manifest file for multiple asset analysis
+     -s --symlink SYMLINK
+                           specify a symlink directory for serving static assets (empty=disabled)
 
 -  Currently, the app expects these to be installed in ``data_dir``; by
    default this is a directory called ``results`` in the parent of this
@@ -97,6 +116,8 @@ that they are sent to this app and not to streamlit.
    will create a compressed data file in this directory. If you delete
    this file or the directory is not accessble, the app may not function
    properly or will need to regenerate it.
+-  The property ``symlink`` creates the ability for the application to deliver 
+   static files at various points of operation. *(v 0.9.4)*
 
 *NOTE* All input files (by file extension) under the ``data_dir``
 directory will be ingested, so make note that only relevant file from a

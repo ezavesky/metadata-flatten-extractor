@@ -7,6 +7,15 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.9
 ---
 
+0.9.4
+~~~~~
+
+- add static file serving to streamlit app, inspired by this `streamlit issue discussion <https://github.com/streamlit/streamlit/issues/400>`_
+- modify some pages to point to downloadable tables (with button click)
+- create new download page/mode that lists the generated and source files
+- minor refactor of app's docker image for better caching in local creation and testing
+
+
 0.9.3
 ~~~~~
 
