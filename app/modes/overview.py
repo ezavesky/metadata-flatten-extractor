@@ -30,7 +30,7 @@ from .utilities import *
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()

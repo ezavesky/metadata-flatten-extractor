@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 .DS_Store
 **/*.mp4
+*results*
 
 # custom data directories
 results

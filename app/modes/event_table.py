@@ -32,7 +32,7 @@ NUM_SUMMARY = 10
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()
@@ -95,6 +95,9 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
 
     # finally sneak a peak at the raw table
     st.markdown("### sorted data exploration for tag_type")
+    str_url = download_link(symlink, "CSV Table", df_live)
+    if str_url is not None:
+        print("Generated CSV Table URL", str_url)
     st.dataframe(df_sub)
 
     return df_live

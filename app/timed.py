@@ -57,7 +57,7 @@ def manifest_parse(manifest_file):
     return list_return
 
 
-def main_page(data_dir=None, media_file=None, ignore_update=False, manifest=""):
+def main_page(data_dir=None, media_file=None, ignore_update=False, manifest="", symlink=""):
     """Main page for execution"""
     # read in version information
     version_dict = {}
@@ -82,7 +82,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, manifest=""):
     sel_mode = st.sidebar.selectbox("Insight Mode", modes.modules, index=modes.modules.index("overview"))
     page_module = importlib.import_module(f"modes.{sel_mode}")  # load module
     func_page = getattr(page_module, "main_page")   # get class template
-    df_live = func_page(data_dir, media_file, ignore_update)  # attempt to process
+    df_live = func_page(data_dir, media_file, ignore_update, symlink)  # attempt to process
     num_events = f"{len(df_live)} events" if df_live is not None else "(no events detected)"
     ux_report.markdown(f"""<div style="text-align:left; font-size:small; color:#a1a1a1; width=100%;">
                      <span >{version_dict['__package__']} (v {version_dict['__version__']})</span>
@@ -93,7 +93,7 @@ def main(args=None):
     import argparse
     
     parser = argparse.ArgumentParser(
-        description="""A script run the data explorer.""",
+        description="""A script to run the data explorer.""",
         epilog="""Application examples
             # specify the input media file 
             streamlit run timed.py -- -m video.mp4
@@ -103,6 +103,7 @@ def main(args=None):
     submain.add_argument('-m', '--media_file', dest='media_file', type=str, default=None, help='specific media file for extracting clips (empty=no clips)')
     submain.add_argument('-i', '--ignore_update', dest='ignore_update', default=False, action='store_true', help="Ignore update files and use bundle directly")
     submain.add_argument('-l', '--manifest', dest='manifest', type=str, default='', help='specify a manifest file for multiple asset analysis')
+    submain.add_argument('-s', '--symlink', dest='symlink', type=str, default='', help='specify a symlink directory for serving static assets (empty=disabled)')
 
     if args is None:
         config_defaults = vars(parser.parse_args())

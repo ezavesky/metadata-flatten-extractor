@@ -66,6 +66,8 @@ ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts (in sidebar)
 LABEL_TEXT = ['Invalid', 'Unverified', 'Valid']  # -1, 0, 1 for labeling interface
 LABEL_AS_CSV = False   # save labels as CSV or pkl?
 
+URL_SYMLINK_BASE = "static"  # static links from the web
+
 ### ------------ dataframe and chart functions ---------------------
 
 # @st.cache(suppress_st_warning=False)
@@ -466,7 +468,8 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
         idx_sub = 0
 
         for row_idx, row_transcript in df_sub.iterrows():
-            ux_report.info(f"... detecting NLP-based textual entities ({idx_sub}/{len(df_sub)})....")
+            if (idx_sub % 20) == 0:
+                ux_report.info(f"... detecting NLP-based textual entities ({idx_sub}/{len(df_sub)})....")
             # https://spacy.io/usage/linguistic-features#named-entities
             detail_obj = json.loads(row_transcript['details'])
             idx_sub += 1
@@ -492,7 +495,8 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
         map_new = {}
         re_clean = re.compile(r"[^0-9A-Za-z]")
         for idx_sub in range(len(list_new)):
-            ux_report.info(f"... filtering text stop words ({idx_sub}/{len(list_new)})....")
+            if (idx_sub % 20) == 0:
+                ux_report.info(f"... filtering text stop words ({idx_sub}/{len(list_new)})....")
             word_new = nlp(list_new[idx_sub])
             map_new[list_new[idx_sub]] = re_clean.sub('', word_new.text.lower()) if not nlp.vocab[word_new.text].is_stop else NLP_STOPWORD
         # now map to single array of mapping
@@ -529,8 +533,48 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     df.to_pickle(path_new)
     return df
 
+
+def download_link(path_temp, name_link, df=None, path_src=None):
+    path_target = Path(path_temp)
+    m = hashlib.md5()  # get unique code for this table
+    if path_temp is None or len(path_temp)==0:
+        st.markdown("**Downloadable data not available, please check temporary path symlink.**")
+        return
+    if df is not None:
+        m.update(str(len(df)).encode())
+        m.update(str(len(df["time_begin"].unique())).encode())
+        m.update(str(len(df["tag"].unique())).encode())
+    elif path_src is not None:
+        m.update(path_src.encode())
+    else:
+        st.markdown("**Eror: Neither a dataframe nor an input path were detected for downloadable data.**")
+        return
+
+    str_symlink = str(path_target.name)
+    str_unique = m.hexdigest()[:8]
+    str_url = None
+    if df is not None:
+        if st.button("Download Data", key=f"table_{str_unique}"):
+            path_write = path_target.joinpath(f"table_{str_unique}.csv")
+            if not path_write.exists():
+                df.to_csv(str(path_write), index=False)
+                str_url = f"{URL_SYMLINK_BASE}/{str_symlink}/{str(path_write.name)}"
+        else:
+            return None   # otherwise, button not clicked
+    else:       # otherwise, just make a symlink to existing path
+        path_link = path_target.joinpath(f"file_{str_unique}.csv")
+        if not path_link.exists():
+            path_link.symlink_to(path_src, True)
+        str_url = f"{URL_SYMLINK_BASE}/{str_symlink}/{str(path_link.name)}"
+    
+    st.markdown(f"[{name_link}]({str_url})")
+    return str_url
+
+
+
+
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
-def data_index(stem_datafile, data_dir, df, allow_cache=True):
+def data_index(stem_datafile, data_dir, df, allow_cache=True, ignore_update=False):
     """A method to convert raw dataframe into vectorized features and return a hot index for query.
     Returns:
         [BallTree (sklearn.neighbors.BallTree), [shot0, shot1, shot2]] - indexed tree and list of shot ids that correspond to tree's memory view
