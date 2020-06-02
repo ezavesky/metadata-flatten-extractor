@@ -82,6 +82,13 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, manifest="", 
     sel_mode = st.sidebar.selectbox("Insight Mode", modes.modules, index=modes.modules.index("overview"))
     page_module = importlib.import_module(f"modes.{sel_mode}")  # load module
     func_page = getattr(page_module, "main_page")   # get class template
+
+    # fix defaults for these entries...
+    if data_dir is None:
+        data_dir = path.join(path.dirname(version_path), "results")
+    if media_file is None:
+        media_file = path.join(data_dir, "videohd.mp4")
+
     df_live = func_page(data_dir, media_file, ignore_update, symlink)  # attempt to process
     num_events = f"{len(df_live)} events" if df_live is not None else "(no events detected)"
     ux_report.markdown(f"""<div style="text-align:left; font-size:small; color:#a1a1a1; width=100%;">
