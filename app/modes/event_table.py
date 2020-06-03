@@ -32,20 +32,13 @@ NUM_SUMMARY = 10
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    if data_dir is None:
-        data_dir = path.join(path.dirname(version_path), "results")
-    if media_file is None:
-        media_file = path.join(data_dir, "videohd.mp4")
-
     df = data_load("data_bundle", data_dir, True, ignore_update)
-    # TODO: future download capability ...
-    # df.to_csv(path.join(data_dir, "data_bundle.snapshot.csz.gz"), sep='|')
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
         return
@@ -95,6 +88,9 @@ def main_page(data_dir=None, media_file=None, ignore_update=False):
 
     # finally sneak a peak at the raw table
     st.markdown("### sorted data exploration for tag_type")
+    str_url = download_link(symlink, "CSV Table", df_live)
+    if str_url is not None:
+        print("Generated CSV Table URL", str_url)
     st.dataframe(df_sub)
 
     return df_live

@@ -66,6 +66,8 @@ ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts (in sidebar)
 LABEL_TEXT = ['Invalid', 'Unverified', 'Valid']  # -1, 0, 1 for labeling interface
 LABEL_AS_CSV = False   # save labels as CSV or pkl?
 
+URL_SYMLINK_BASE = "static"  # static links from the web
+
 ### ------------ dataframe and chart functions ---------------------
 
 # @st.cache(suppress_st_warning=False)
@@ -210,8 +212,9 @@ def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_inpu
 
 def clip_video(media_file, media_output, start, duration=1, image_only=False):
     """Helper function to create video clip"""
-    if path.exists(media_output):
-        unlink(media_output)
+    path_media = Path(media_output)
+    if path_media.exists():
+        path_media.unlink()
     if (system("which ffmpeg")==0):  # check if ffmpeg is in path
         if not image_only:
             return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy -y {media_output}")
@@ -226,8 +229,9 @@ def clip_video(media_file, media_output, start, duration=1, image_only=False):
 def clip_media(media_file, media_output, start):
     """Helper function to create video clip"""
     status = clip_video(media_file, media_output, start, image_only=True)
-    if status == 0 and path.exists(media_output):
-        with open(media_output, 'rb') as f:
+    path_media = Path(media_output)
+    if status == 0 and path_media.exists():
+        with path_media.open('rb') as f:
             return f.read()
     return None
 
@@ -314,8 +318,7 @@ def label_display(label_dir, df_label, row_sel):
 #     response.headers['Content-disposition'] = f'Content-Disposition: inline; filename="{filename}"'
 
 @st.cache(suppress_st_warning=True)
-def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
-    """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
+def data_discover(stem_datafile, data_dir):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
@@ -326,6 +329,17 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
 
+    # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
+    # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
+    path_new = Path(data_dir).joinpath(f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
+    return list_files, path_new
+
+
+@st.cache(suppress_st_warning=True)
+def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
+    """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
+    list_files, path_new = data_discover(stem_datafile, data_dir)
+
     path_backup = None
     for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
         path_backup = filepath
@@ -335,19 +349,15 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
         logger.error(f"Sorry, no flattened or cached files found, check '{data_dir}'...")
         return None 
 
-    # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
-    # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
-    path_new = path.join(data_dir, f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
-
     # see if checksum matches the datafile (plus stem)
-    if allow_cache and (path.exists(path_new) or path_backup is not None):
-        if path.exists(path_new):  # if so, load old datafile, skip reload
-            return pd.read_pickle(path_new)
+    if allow_cache and (path_new.exists() or path_backup is not None):
+        if path_new.exists():  # if so, load old datafile, skip reload
+            return pd.read_pickle(str(path_new.resolve()))
         elif len(list_files) == 0 or ignore_update:  # only allow backup if new files weren't found
             st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
             return pd.read_pickle(path_backup)
         else:   # otherwise, delete the old backup
-            unlink(path_backup.resolve())
+            path_backup.unlink()
     
     # time_init = pd.Timestamp('2010-01-01T00')  # not used any more
     ux_report = st.empty()
@@ -466,7 +476,8 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
         idx_sub = 0
 
         for row_idx, row_transcript in df_sub.iterrows():
-            ux_report.info(f"... detecting NLP-based textual entities ({idx_sub}/{len(df_sub)})....")
+            if (idx_sub % 20) == 0:
+                ux_report.info(f"... detecting NLP-based textual entities ({idx_sub}/{len(df_sub)})....")
             # https://spacy.io/usage/linguistic-features#named-entities
             detail_obj = json.loads(row_transcript['details'])
             idx_sub += 1
@@ -492,7 +503,8 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
         map_new = {}
         re_clean = re.compile(r"[^0-9A-Za-z]")
         for idx_sub in range(len(list_new)):
-            ux_report.info(f"... filtering text stop words ({idx_sub}/{len(list_new)})....")
+            if (idx_sub % 20) == 0:
+                ux_report.info(f"... filtering text stop words ({idx_sub}/{len(list_new)})....")
             word_new = nlp(list_new[idx_sub])
             map_new[list_new[idx_sub]] = re_clean.sub('', word_new.text.lower()) if not nlp.vocab[word_new.text].is_stop else NLP_STOPWORD
         # now map to single array of mapping
@@ -526,11 +538,53 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     ux_progress.empty()
 
     # save new data file before returning
-    df.to_pickle(path_new)
+    df.to_pickle(str(path_new.resolve()))
     return df
 
+
+def download_link(path_temp, name_link=None, df=None, path_src=None):
+    path_target = Path(path_temp)
+    m = hashlib.md5()  # get unique code for this table
+    if path_temp is None or len(path_temp)==0:
+        st.markdown("**Downloadable data not available, please check temporary path symlink.**")
+        return
+    if df is not None:
+        m.update(str(len(df)).encode())
+        m.update(str(len(df["time_begin"].unique())).encode())
+        m.update(str(len(df["tag"].unique())).encode())
+    elif path_src is not None:
+        m.update(path_src.encode())
+    else:
+        st.markdown("**Eror: Neither a dataframe nor an input path were detected for downloadable data.**")
+        return
+
+    str_symlink = str(path_target.name)
+    str_unique = m.hexdigest()[:8]
+    str_url = None
+    if df is not None:
+        if st.button("Download Data", key=f"table_{str_unique}"):
+            path_write = path_target.joinpath(f"table_{str_unique}.csv.gz")
+            if not path_write.exists():
+                df.to_csv(str(path_write), index=False)
+                str_url = f"{URL_SYMLINK_BASE}/{str_symlink}/{str(path_write.name)}"
+            st.markdown(f"[{name_link}]({str_url})")
+        else:
+            return None   # otherwise, button not clicked
+    else:       # otherwise, just make a symlink to existing path
+        suffixes = "".join(Path(path_src).suffixes)
+        str_file = f"file_{str_unique}{suffixes}"
+        if name_link is not None:
+            str_file = f"file_{name_link}_{str_unique}{suffixes}"
+        path_link = path_target.joinpath(str_file)
+        if not path_link.exists():
+            path_link.symlink_to(path_src, True)
+        str_url = f"{URL_SYMLINK_BASE}/{str_symlink}/{str(path_link.name)}"
+    
+    return str_url
+
+
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
-def data_index(stem_datafile, data_dir, df, allow_cache=True):
+def data_index(stem_datafile, data_dir, df, allow_cache=True, ignore_update=False):
     """A method to convert raw dataframe into vectorized features and return a hot index for query.
     Returns:
         [BallTree (sklearn.neighbors.BallTree), [shot0, shot1, shot2]] - indexed tree and list of shot ids that correspond to tree's memory view
@@ -548,13 +602,13 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True):
 
     # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
     # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
-    path_new = path.join(data_dir, f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
+    path_new = Path(data_dir).joinpath(f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
     ux_report = st.empty()
     
     # see if checksum matches the datafile (plus stem)
-    if allow_cache and (path.exists(path_new) or path_backup is not None):
-        if path.exists(path_new):  # if so, load old datafile, skip reload
-            df = pd.read_pickle(path_new)
+    if allow_cache and (path_new.exists() or path_backup is not None):
+        if path_new.exists():  # if so, load old datafile, skip reload
+            df = pd.read_pickle(str(path_new.resolve()))
             ux_report.info(f"... building live index on features...")
             tree = BallTree(df)
             ux_report = st.empty()
@@ -567,7 +621,7 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True):
             ux_report = st.empty()
             return tree, list(df.index)
         else:   # otherwise, delete the old backup
-            unlink(path_backup.resolve())
+            path_backup.unlink()
     
     # time_init = pd.Timestamp('2010-01-01T00')  # not used any more
     ux_progress = st.empty()
@@ -637,7 +691,7 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True):
     ux_progress.empty()
 
     # save new data file before returning
-    df_vector.to_pickle(path_new)
+    df_vector.to_pickle(str(path_new.resolve()))
     return tree, list(df_vector.index)
 
 
@@ -650,25 +704,25 @@ def data_label_serialize(data_dir, df_new=None, label_new=None):
     :return bool: True/False on success of save
     """
     if LABEL_AS_CSV:
-        path_new = path.join(data_dir, f"data_labels.csv.gz")
-        path_lock = path.join(data_dir, f"data_labels.LOCK.csv.gz")
+        path_new = Path(data_dir).joinpath(f"data_labels.csv.gz")
+        path_lock = Path(data_dir).joinpath(f"data_labels.LOCK.csv.gz")
     else:
-        path_new = path.join(data_dir, f"data_labels.pkl.gz")
-        path_lock = path.join(data_dir, f"data_labels.LOCK.pkl.gz")
+        path_new = Path(data_dir).joinpath(f"data_labels.pkl.gz")
+        path_lock = Path(data_dir).joinpath( f"data_labels.LOCK.pkl.gz")
     ux_report = st.empty()
     if df_new is None or label_new is None:
-        if path.exists(path_new):
+        if path_new.exists():
             if LABEL_AS_CSV:
-                df = pd.read_csv(path_new)
+                df = pd.read_csv(str(path_new.resolve()))
                 df["time_begin"] = pd.to_timedelta(df["time_begin"])
                 df["label"] = df["label"].astype(int)
             else: 
-                df = pd.read_pickle(path_new)
+                df = pd.read_pickle(str(path_new.resolve()))
             return df
         st.sidebar.warning(f"Warning, label file `{path_new}` is not found (ignore this on first runs)!")
         return None
     num_lock = 0
-    while path.exists(path_lock):  # if so, load old datafile, skip reload
+    while path_lock.exists():  # if so, load old datafile, skip reload
         num_lock += 1
         if num_lock > MAX_LOCK_COUNT:
             ux_report.error(f"Label file `{path_new}` is permanently locked, please clear the file or ask for help!")
@@ -678,25 +732,26 @@ def data_label_serialize(data_dir, df_new=None, label_new=None):
         sleep(2)  # sleep a couple of seconds...
     ux_report.info("Writing new label...")
     ts_now = pd.Timestamp.now()
-    with open(path_lock, 'wt') as f:
+    with path_lock.open('wt') as f:
         f.write(str(ts_now))
     col_primary = ["time_begin", "tag_type", "tag", "extractor"]
     df = pd.DataFrame([], columns=col_primary)
-    if path.exists(path_new):
+    if path_new.exists():
         if LABEL_AS_CSV:
-            df = pd.read_csv(path_new)
+            df = pd.read_csv(str(path_new.resolve()))
             df["time_begin"] = pd.to_timedelta(df["time_begin"])
             df["label"] = df["label"].astype(int)
         else: 
-            df = pd.read_pickle(path_new)
+            df = pd.read_pickle(str(path_new.resolve()))
     df_new = df_new[col_primary].copy()
     df_new["timestamp"] = ts_now  # add new timestamp (now)
     df_new["label"] = int(label_new)   # add new label
     df = pd.concat([df_new, df], sort=False, ignore_index=True).drop_duplicates(col_primary)  # drop duplicate labels
     if LABEL_AS_CSV:
-        df.to_csv(path_new, index=False)
+        df.to_csv(str(path_new.resolve()), index=False)
     else:
-        df.to_pickle(path_new)
+        df.to_pickle(str(path_new.resolve()))
     ux_report.empty()
-    unlink(path_lock)
+    if path_lock.exists():
+        path_lock.unlink()
     return True
