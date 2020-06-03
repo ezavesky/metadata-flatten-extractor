@@ -30,24 +30,17 @@ from .utilities import *
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    if data_dir is None:
-        data_dir = path.join(path.dirname(version_path), "results")
-    if media_file is None:
-        media_file = path.join(data_dir, "videohd.mp4")
-
     df = data_load("data_bundle", data_dir, True, ignore_update)
-    tree_query, tree_shots = data_index("data_vectors", data_dir, df)   # convert data to numbers
+    tree_query, tree_shots = data_index("data_vectors", data_dir, df, ignore_update=ignore_update)   # convert data to numbers
     df_label = data_label_serialize(data_dir)
     # print(tree_query.data.shape)
 
-    # TODO: future download capability ...
-    # df.to_csv(path.join(data_dir, "data_bundle.snapshot.csz.gz"), sep='|')
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
         return
