@@ -542,7 +542,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
     return df
 
 
-def download_link(path_temp, name_link, df=None, path_src=None):
+def download_link(path_temp, name_link=None, df=None, path_src=None):
     path_target = Path(path_temp)
     m = hashlib.md5()  # get unique code for this table
     if path_temp is None or len(path_temp)==0:
@@ -563,22 +563,24 @@ def download_link(path_temp, name_link, df=None, path_src=None):
     str_url = None
     if df is not None:
         if st.button("Download Data", key=f"table_{str_unique}"):
-            path_write = path_target.joinpath(f"table_{str_unique}.csv")
+            path_write = path_target.joinpath(f"table_{str_unique}.csv.gz")
             if not path_write.exists():
                 df.to_csv(str(path_write), index=False)
                 str_url = f"{URL_SYMLINK_BASE}/{str_symlink}/{str(path_write.name)}"
+            st.markdown(f"[{name_link}]({str_url})")
         else:
             return None   # otherwise, button not clicked
     else:       # otherwise, just make a symlink to existing path
-        path_link = path_target.joinpath(f"file_{str_unique}.csv")
+        suffixes = "".join(Path(path_src).suffixes)
+        str_file = f"file_{str_unique}{suffixes}"
+        if name_link is not None:
+            str_file = f"file_{name_link}_{str_unique}{suffixes}"
+        path_link = path_target.joinpath(str_file)
         if not path_link.exists():
             path_link.symlink_to(path_src, True)
         str_url = f"{URL_SYMLINK_BASE}/{str_symlink}/{str(path_link.name)}"
     
-    st.markdown(f"[{name_link}]({str_url})")
     return str_url
-
-
 
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
