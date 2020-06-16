@@ -11,7 +11,7 @@ ENV SYMLINK=metadata-static
 
 # install pacakages
 COPY requirements.txt $WORKDIR/requirements.txt
-COPY app/requirements.txt $WORKDIR/app/requirements.txt
+COPY app/browse/requirements.txt $WORKDIR/app/browse/requirements.txt
 
 RUN python -V \
     && groupadd -g $gid $user && useradd -m -u $uid -g $gid $user \
@@ -31,7 +31,7 @@ enableCORS = false\n\
     # install requirements (base package)
     && pip install --no-cache-dir -r $WORKDIR/requirements.txt \
     # install app requirements
-    && pip install --no-cache-dir -r $WORKDIR/app/requirements.txt \
+    && pip install --no-cache-dir -r $WORKDIR/app/browse/requirements.txt \
     # install NLP word model for spacy
     && su $user && python -m spacy download en_core_web_sm \
     # convert to user permissions
@@ -56,4 +56,7 @@ EXPOSE 8501
 USER $user
 
 # run app
-CMD cd $WORKDIR/app && streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results --symlink /tmp/$SYMLINK
+CMD cd $WORKDIR/app/browse && \
+    streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results --symlink /tmp/$SYMLINK
+
+
