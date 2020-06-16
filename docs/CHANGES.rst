@@ -7,6 +7,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.9
 ---
 
+0.9.5
+~~~~~
+
+- update to parse new version of `dsai_places`
+- add new parser for `detectron2` extractor
+
 0.9.4
 ~~~~~
 
