@@ -40,7 +40,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    list_files, path_new = data_discover(PATH_BASE_BUNDLE, data_dir, True)
+    list_files, path_new = data_discover(PATH_BASE_BUNDLE, data_dir, bundle_files=True)
 
     df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update)
     if df is None:
@@ -55,19 +55,19 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
         return
 
     st.markdown("Explore and download source files or data exceprts for events that are analyzed in the browser.")
-    df_files = pd.DataFrame([[str(x.name), x.stat().st_size, str(x.resolve())] for x in list_files], columns=["name", "size", "path"])
-    df_files["events"] = 0
-    df_files["stem"] = df_files["name"]
+    df_files = pd.DataFrame([[str(x.name), x.stat().st_size, str(x.resolve()), str(x.stem)] for x in list_files], 
+                            columns=["name", "size", "path", "stem"])
+    df_files["events"] = len(df)
     df_files["url"] = ""
     
+    for idx, row in df_files.iterrows():
+        str_url = download_link(symlink, name_link=row["stem"], path_src=row["path"])
+        df_files.loc[idx, "url"] = str_url
+        df_files.loc[idx, "name"] = f"<a href='{str_url}' target='_blank' title='extractor source data for {row['stem']}'>{row['stem']}</a>"
     list_extractors = df_live["extractor"].unique()
 
-    import logging
-    logger = logging.getLogger()
-    logger.info(df_files)
-
     for name_extractor in list_extractors:
-        rows = df_files[df_files["name"].str.contains(name_extractor)]
+        rows = df_files[df_files["stem"].str.contains(name_extractor)]
         num_events = len(df_live[df_live["extractor"] == name_extractor])
         for idx, row in rows.iterrows():
             df_files.loc[idx, "events"] = num_events
@@ -78,11 +78,10 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
 
     list_html = ["<table style='font-size:smaller'><thead><tr><th>extractor</th><th>file</th><th>events</th><th>size</th></tr></thead><tbody>"]
     for idx, row in df_files.iterrows():
-        if row["events"] > 0:
-            list_html.append("<tr>")
-            for col in ["name", "stem", "events", "size"]:
-                list_html.append(f"<td>{row[col]}</td>")
-            list_html.append("</tr>")
+        list_html.append("<tr>")
+        for col in ["name", "stem", "events", "size"]:
+            list_html.append(f"<td>{row[col]}</td>")
+        list_html.append("</tr>")
     list_html.append("</tbody></table>")
     st.markdown("## Extractor data sources with matching events")
     st.write("".join(list_html), unsafe_allow_html=True)

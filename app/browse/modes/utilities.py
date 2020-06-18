@@ -281,7 +281,7 @@ def label_display(label_dir, df_label, row_sel):
 
 @st.cache(suppress_st_warning=True)
 def data_discover(stem_datafile, data_dir, bundle_files):
-    return preprocessing.data_discover(stem_datafile, data_dir, bundle_files)
+    return preprocessing.data_discover_raw(stem_datafile, data_dir, bundle_files)
 
 @st.cache(suppress_st_warning=True)
 def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):

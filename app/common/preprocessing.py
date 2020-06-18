@@ -130,7 +130,7 @@ def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_inpu
 
 ## ---- data load functions --- 
 
-def data_discover(stem_datafile, data_dir, bundle_files=False):
+def data_discover_raw(stem_datafile, data_dir, bundle_files=False):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
@@ -153,7 +153,7 @@ def data_discover(stem_datafile, data_dir, bundle_files=False):
 
 def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
-    list_files, path_new = data_discover(stem_datafile, data_dir)
+    list_files, path_new = data_discover_raw(stem_datafile, data_dir)
 
     path_backup = None
     for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
