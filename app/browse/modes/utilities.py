@@ -42,8 +42,6 @@ from .common import preprocessing, media
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-NLP_TOKENIZE = True
-NLP_STOPWORD = "_stopword_"
 
 TOP_HISTOGRAM_N = 15   # max number of elements to show in histogram
 TOP_LINE_N = 5   # max number of samples to show in timeseries plot
@@ -51,9 +49,6 @@ MIN_INSIGHT_COUNT = 3   # min count for samples in 'insight' viewing (e.g. brand
 NLP_FILTER = 0.025   # if stop word analysis not ready, what is HEAD/TAIL trim for frequencyy?
 SAMPLE_TABLE = 100   # how many samples go in the dataframe table dump
 MAX_LOCK_COUNT = 3   # how many lock loops shoudl we wait (for labels)
-
-UPSAMPLE_TIME = 4  # how many map intervals per second? when grouping shots
-DEFAULT_SHOT_LEN = 10  # if simulating shots (e.g. none found), what is duration?
 
 DEFAULT_REWIND = 2   # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 5   # length of default cllip (sec)
@@ -65,7 +60,6 @@ ALTAIR_SIDEBAR_WIDTH = 280   # width of charts (in sidebar)
 ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts (in sidebar)
 
 LABEL_TEXT = ['Invalid', 'Unverified', 'Valid']  # -1, 0, 1 for labeling interface
-LABEL_AS_CSV = False   # save labels as CSV or pkl?
 
 URL_SYMLINK_BASE = "static"  # static links from the web
 
@@ -286,8 +280,8 @@ def label_display(label_dir, df_label, row_sel):
 #     response.headers['Content-disposition'] = f'Content-Disposition: inline; filename="{filename}"'
 
 @st.cache(suppress_st_warning=True)
-def data_discover(stem_datafile, data_dir):
-    return preprocessing.data_discover(stem_datafile, data_dir)
+def data_discover(stem_datafile, data_dir, bundle_files):
+    return preprocessing.data_discover(stem_datafile, data_dir, bundle_files)
 
 @st.cache(suppress_st_warning=True)
 def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
@@ -306,8 +300,8 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
                 ux_report.empty()
                 ux_progress.empty()
 
-    return preprocessing.data_load(stem_datafile, data_dir, allow_cache=allow_cache,
-                                            ignore_update=ignore_update, fn_callback=_local_update)
+    return preprocessing.data_load_callback(stem_datafile, data_dir, allow_cache=allow_cache,
+                                           ignore_update=ignore_update, fn_callback=_local_update)
 
 
 def download_link(path_temp, name_link=None, df=None, path_src=None):
@@ -355,7 +349,6 @@ def download_link(path_temp, name_link=None, df=None, path_src=None):
 def data_index(stem_datafile, data_dir, df, allow_cache=True, ignore_update=False):
     ux_report = st.empty()
     ux_progress = st.progress(0)
-
     def _local_update(str_new="", progress=0, is_warning=False):   # simple callback from load process
         if is_warning:
             st.sidebar.warning(str_new)
@@ -368,68 +361,20 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True, ignore_update=Fals
                 ux_report.empty()
                 ux_progress.empty()
 
-    return preprocessing.data_index(stem_datafile, data_dir=data_dir, df=df, allow_cache=allow_cache, 
-                                            ignore_update=ignore_update, fn_callback=_local_update)
+    return preprocessing.data_index_callback(stem_datafile, data_dir=data_dir, df=df, allow_cache=allow_cache, 
+                                              ignore_update=ignore_update, fn_callback=_local_update)
 
 
 
 def data_label_serialize(data_dir, df_new=None, label_new=None):
-    """Method to load labels and append them to the primary data frame
-
-    :param stem_datafile: (str): Stem for active label files
-    :param data_dir: (str): Absolute/relative path for label file
-    :param label_new: (int): Label for row (-1=false, 1=true, 0=unknown)
-    :return bool: True/False on success of save
-    """
-    if LABEL_AS_CSV:
-        path_new = Path(data_dir).joinpath(f"data_labels.csv.gz")
-        path_lock = Path(data_dir).joinpath(f"data_labels.LOCK.csv.gz")
-    else:
-        path_new = Path(data_dir).joinpath(f"data_labels.pkl.gz")
-        path_lock = Path(data_dir).joinpath( f"data_labels.LOCK.pkl.gz")
     ux_report = st.empty()
-    if df_new is None or label_new is None:
-        if path_new.exists():
-            if LABEL_AS_CSV:
-                df = pd.read_csv(str(path_new.resolve()))
-                df["time_begin"] = pd.to_timedelta(df["time_begin"])
-                df["label"] = df["label"].astype(int)
-            else: 
-                df = pd.read_pickle(str(path_new.resolve()))
-            return df
-        st.sidebar.warning(f"Warning, label file `{path_new}` is not found (ignore this on first runs)!")
-        return None
-    num_lock = 0
-    while path_lock.exists():  # if so, load old datafile, skip reload
-        num_lock += 1
-        if num_lock > MAX_LOCK_COUNT:
-            ux_report.error(f"Label file `{path_new}` is permanently locked, please clear the file or ask for help!")
-            logger.error(f"Label file `{path_new}` is permanently locked, please clear the file or ask for help!")
-            return False
-        ux_report.warning(f"Label file `{path_new}` is temporarily locked, retry {num_lock} momentarily...")
-        sleep(2)  # sleep a couple of seconds...
-    ux_report.info("Writing new label...")
-    ts_now = pd.Timestamp.now()
-    with path_lock.open('wt') as f:
-        f.write(str(ts_now))
-    col_primary = ["time_begin", "tag_type", "tag", "extractor"]
-    df = pd.DataFrame([], columns=col_primary)
-    if path_new.exists():
-        if LABEL_AS_CSV:
-            df = pd.read_csv(str(path_new.resolve()))
-            df["time_begin"] = pd.to_timedelta(df["time_begin"])
-            df["label"] = df["label"].astype(int)
-        else: 
-            df = pd.read_pickle(str(path_new.resolve()))
-    df_new = df_new[col_primary].copy()
-    df_new["timestamp"] = ts_now  # add new timestamp (now)
-    df_new["label"] = int(label_new)   # add new label
-    df = pd.concat([df_new, df], sort=False, ignore_index=True).drop_duplicates(col_primary)  # drop duplicate labels
-    if LABEL_AS_CSV:
-        df.to_csv(str(path_new.resolve()), index=False)
-    else:
-        df.to_pickle(str(path_new.resolve()))
-    ux_report.empty()
-    if path_lock.exists():
-        path_lock.unlink()
-    return True
+    def _local_update(str_new="", progress=0, is_warning=False):   # simple callback from load process
+        if is_warning:
+            st.sidebar.warning(str_new)
+        else:
+            if len(str_new):
+                ux_report.info(str_new)
+            else:
+                ux_report.empty()
+
+    return preprocessing.data_label_serialize_callback(label_dir, row_sel, label_new - 1, fn_callback=_local_update)

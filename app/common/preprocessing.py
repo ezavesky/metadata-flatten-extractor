@@ -42,6 +42,11 @@ logger.setLevel(logging.DEBUG)
 NLP_TOKENIZE = True
 NLP_STOPWORD = "_stopword_"
 
+PATH_BASE_PREFIX = "data_"
+PATH_BASE_BUNDLE = f"{PATH_BASE_PREFIX}bundle"
+PATH_BASE_LABELS = f"{PATH_BASE_PREFIX}labels"
+PATH_BASE_VECTORS = f"{PATH_BASE_PREFIX}vectors"
+
 TOP_HISTOGRAM_N = 15   # max number of elements to show in histogram
 TOP_LINE_N = 5   # max number of samples to show in timeseries plot
 MIN_INSIGHT_COUNT = 3   # min count for samples in 'insight' viewing (e.g. brand, text, event)
@@ -56,15 +61,8 @@ DEFAULT_REWIND = 2   # how early to start clip from max score (sec)
 DEFAULT_CLIPLEN = 5   # length of default cllip (sec)
 DEFAULT_REWIND_FRAME = -0.25   # rewind for frame-specific starts
 
-ALTAIR_DEFAULT_WIDTH = 660   # width of charts
-ALTAIR_DEFAULT_HEIGHT = 220   # height of charts
-ALTAIR_SIDEBAR_WIDTH = 280   # width of charts (in sidebar)
-ALTAIR_SIDEBAR_HEIGHT = 180   # height of charts (in sidebar)
-
 LABEL_TEXT = ['Invalid', 'Unverified', 'Valid']  # -1, 0, 1 for labeling interface
 LABEL_AS_CSV = False   # save labels as CSV or pkl?
-
-URL_SYMLINK_BASE = "static"  # static links from the web
 
 ### ------------ dataframe and chart functions ---------------------
 
@@ -132,7 +130,7 @@ def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_inpu
 
 ## ---- data load functions --- 
 
-def data_discover(stem_datafile, data_dir):
+def data_discover(stem_datafile, data_dir, bundle_files=False):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
@@ -142,6 +140,10 @@ def data_discover(stem_datafile, data_dir):
     for filepath in sorted(Path(data_dir).rglob(f'flatten_*.csv*')):   # keep for legacy file discovery  (as of v0.8)
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
+    if bundle_files:
+        for filepath in sorted(Path(data_dir).rglob(f'{PATH_BASE_PREFIX}*.gz')):   # keep for bundle and data file (as of v0.9.6)
+            list_files.append(filepath)
+            m.update(str(filepath.stat().st_mtime).encode())
 
     # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
     # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
@@ -149,7 +151,7 @@ def data_discover(stem_datafile, data_dir):
     return list_files, path_new
 
 
-def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None):
+def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
     list_files, path_new = data_discover(stem_datafile, data_dir)
 
@@ -368,7 +370,7 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn
     return df
 
 
-def data_index(stem_datafile, data_dir, df, allow_cache=True, ignore_update=False, fn_callback=None):
+def data_index_callback(stem_datafile, data_dir, df, allow_cache=True, ignore_update=False, fn_callback=None):
     """A method to convert raw dataframe into vectorized features and return a hot index for query.
     Returns:
         [BallTree (sklearn.neighbors.BallTree), [shot0, shot1, shot2]] - indexed tree and list of shot ids that correspond to tree's memory view
@@ -481,7 +483,7 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True, ignore_update=Fals
     return tree, list(df_vector.index)
 
 
-def data_label_serialize(data_dir, df_new=None, label_new=None, fn_callback=None):
+def data_label_serialize_callback(data_dir, df_new=None, label_new=None, fn_callback=None):
     """Method to load labels and append them to the primary data frame
 
     :param stem_datafile: (str): Stem for active label files
@@ -490,11 +492,11 @@ def data_label_serialize(data_dir, df_new=None, label_new=None, fn_callback=None
     :return bool: True/False on success of save
     """
     if LABEL_AS_CSV:
-        path_new = Path(data_dir).joinpath(f"data_labels.csv.gz")
-        path_lock = Path(data_dir).joinpath(f"data_labels.LOCK.csv.gz")
+        path_new = Path(data_dir).joinpath(f"{PATH_BASE_LABELS}.csv.gz")
+        path_lock = Path(data_dir).joinpath(f"{PATH_BASE_LABELS}.LOCK.csv.gz")
     else:
-        path_new = Path(data_dir).joinpath(f"data_labels.pkl.gz")
-        path_lock = Path(data_dir).joinpath( f"data_labels.LOCK.pkl.gz")
+        path_new = Path(data_dir).joinpath(f"{PATH_BASE_LABELS}.pkl.gz")
+        path_lock = Path(data_dir).joinpath( f"{PATH_BASE_LABELS}.LOCK.pkl.gz")
     if fn_callback is not None:
         fn_callback("")
     if df_new is None or label_new is None:
