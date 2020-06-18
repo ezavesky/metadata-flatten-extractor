@@ -79,9 +79,9 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, manifest="", 
         media_file = dict_assets[sel_asset]['video']
 
     # resume normal operation for the specific insight
-    sel_mode = st.sidebar.selectbox("Insight Mode", modes.modules, index=modes.modules.index("overview"))
-    page_module = importlib.import_module(f"modes.{sel_mode}")  # load module
-    func_page = getattr(page_module, "main_page")   # get class template
+    list_keys = list(modes.modules.keys())
+    sel_mode = st.sidebar.selectbox("Insight Mode", list_keys, index=list_keys.index("overview"))
+    func_page = modes.modules[sel_mode]
 
     # fix defaults for these entries...
     if data_dir is None:

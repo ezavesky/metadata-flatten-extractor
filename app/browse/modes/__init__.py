@@ -20,8 +20,12 @@
 
 # Imports
 import pkgutil
+import importlib
 
 # save module list at this level
-modules = [name for _, name, _ in pkgutil.iter_modules(__path__) if name != "utilities"]
-
-# TODO check for attribute "main_page"
+modules = {}
+for _, _name, _ in pkgutil.iter_modules(__path__):
+    page_module = importlib.import_module(f"modes.{_name}")  # load module
+    if hasattr(page_module, "main_page"):
+        func_main = getattr(page_module, "main_page")   # get class template
+        modules[_name] = func_main
