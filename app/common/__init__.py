@@ -23,5 +23,3 @@ import pkgutil
 
 # save module list at this level
 modules = [name for _, name, _ in pkgutil.iter_modules(__path__) if name != "utilities"]
-
-# TODO check for attribute "main_page"

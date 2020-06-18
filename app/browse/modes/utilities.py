@@ -38,6 +38,7 @@ import logging
 import warnings
 from sys import stdout as STDOUT
 
+from .common import preprocessing, media
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -70,20 +71,6 @@ URL_SYMLINK_BASE = "static"  # static links from the web
 
 ### ------------ dataframe and chart functions ---------------------
 
-# @st.cache(suppress_st_warning=False)
-def aggregate_tags(df_live, tag_type, field_group="tag"):
-    df_sub = df_live
-    if tag_type is not None:
-        if type(tag_type) != list:
-            tag_type = [tag_type]
-        df_sub = df_live[df_live["tag_type"].isin(tag_type)]
-    # df_sub = df_sub.resample('1S', base=0).max().dropna().groupby(field_group)["score"] \  # consider resampling to seconds/minutnes?
-    df_sub = df_sub.groupby(field_group)["score"] \
-                .agg(['count', 'mean', 'max', 'min']).reset_index(drop=False) \
-                .sort_values(["count", "mean"], ascending=False)
-    df_sub[["mean", "min", "max"]] = df_sub[["mean", "min", "max"]].apply(lambda x: round(x, 3))
-    return df_sub
-
 
 def quick_sorted_barchart(df_sub, field_group="tag"):
     """Create bar chart (e.g. histogram) with no axis sorting..."""
@@ -100,7 +87,7 @@ def quick_sorted_barchart(df_sub, field_group="tag"):
 
 def quick_hist(df_live, tag_type, show_hist=True, field_group="tag"):
     """Helper function to draw aggregate histograms of tags"""
-    df_sub = aggregate_tags(df_live, tag_type, field_group)
+    df_sub = preprocessing.aggregate_tags(df_live, tag_type, field_group)
     if len(df_sub) == 0:
         st.markdown("*Active filters removed all instances or no events were available for this display.*")
         return None
@@ -163,11 +150,6 @@ def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
 
 ### ------------ util/format ---------------------
 
-def timedelta_str(timedelta, format="%H:%M:%S"):
-    """Create timedelta string with datetime formatting"""
-    dt_print = pd.Timestamp("2020-01-01T00:00:00", tz="UTC") + timedelta
-    return dt_print.strftime(format)
-
 
 def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_input_shots=True):
     """Method to query for samples against a created tree/index
@@ -210,25 +192,11 @@ def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_inpu
 
 ### ------------ content functions ---------------------
 
-def clip_video(media_file, media_output, start, duration=1, image_only=False):
-    """Helper function to create video clip"""
-    path_media = Path(media_output)
-    if path_media.exists():
-        path_media.unlink()
-    if (system("which ffmpeg")==0):  # check if ffmpeg is in path
-        if not image_only:
-            return system(f"ffmpeg -ss {start} -i {media_file} -t {duration} -c copy -y {media_output}")
-        else: 
-            # TODO: do we allow force of an aspect ratio for bad video transcode?  e.g. -vf 'scale=640:360' 
-            return system(f"ffmpeg  -ss {start} -i {media_file} -r 1 -t 1 -f image2 -y {media_output}")  
-    else:
-        return -1
-
 
 @st.cache(suppress_st_warning=False)
 def clip_media(media_file, media_output, start):
     """Helper function to create video clip"""
-    status = clip_video(media_file, media_output, start, image_only=True)
+    status = media.clip_video(media_file, media_output, start, image_only=True)
     path_media = Path(media_output)
     if status == 0 and path_media.exists():
         with path_media.open('rb') as f:
@@ -243,7 +211,7 @@ def clip_display(df_live, df, media_file, field_group="tag", label_dir=None, df_
         time_duration_sec = float(val_r["duration"])  # use shot duration
         str_duration = "" if time_duration_sec < 0.1 else f"({round(time_duration_sec, 2)}s)"
         list_sel.append(f"{len(list_sel)} - (score: {round(val_r['score'],4)}) " \
-            f"@ {timedelta_str(val_r['time_begin'])} {str_duration} ({val_r[field_group]})")
+            f"@ {preprocessing.timedelta_str(val_r['time_begin'])} {str_duration} ({val_r[field_group]})")
         if len(list_sel) >= SAMPLE_TABLE:
             break
     if not list_sel:
@@ -263,14 +231,14 @@ def clip_display(df_live, df, media_file, field_group="tag", label_dir=None, df_
     if time_duration_sec < DEFAULT_CLIPLEN:   # min clip length
         time_duration_sec = DEFAULT_CLIPLEN
     caption_str = f"*Tag: {row_sel['tag'][0]}, Instance: {instance_idx} (score: {round(row_sel['score'][0], 4)}) @ " \
-        f"{timedelta_str(row_first['time_begin'][0])} ({round(time_duration_sec, 2)}s)*"
+        f"{preprocessing.timedelta_str(row_first['time_begin'][0])} ({round(time_duration_sec, 2)}s)*"
 
     _, clip_ext = path.splitext(path.basename(media_file))
     media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
     media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
 
     if st.button("Play Clip", key=f"{field_group}_{time_begin_sec}"):
-        status = clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
+        status = media.clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
         if status == 0: # play clip
             st.video(open(media_clip, 'rb'))
             st.markdown(caption_str)
@@ -319,227 +287,27 @@ def label_display(label_dir, df_label, row_sel):
 
 @st.cache(suppress_st_warning=True)
 def data_discover(stem_datafile, data_dir):
-    # generate a checksum of the input files
-    m = hashlib.md5()
-    list_files = []
-    for filepath in sorted(Path(data_dir).rglob(f'csv_flatten_*.csv*')):
-        list_files.append(filepath)
-        m.update(str(filepath.stat().st_mtime).encode())
-    for filepath in sorted(Path(data_dir).rglob(f'flatten_*.csv*')):   # keep for legacy file discovery  (as of v0.8)
-        list_files.append(filepath)
-        m.update(str(filepath.stat().st_mtime).encode())
-
-    # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
-    # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
-    path_new = Path(data_dir).joinpath(f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
-    return list_files, path_new
-
+    return preprocessing.data_discover(stem_datafile, data_dir)
 
 @st.cache(suppress_st_warning=True)
 def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
-    """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
-    list_files, path_new = data_discover(stem_datafile, data_dir)
-
-    path_backup = None
-    for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
-        path_backup = filepath
-        break
-
-    if not list_files and path_backup is None:
-        logger.error(f"Sorry, no flattened or cached files found, check '{data_dir}'...")
-        return None 
-
-    # see if checksum matches the datafile (plus stem)
-    if allow_cache and (path_new.exists() or path_backup is not None):
-        if path_new.exists():  # if so, load old datafile, skip reload
-            return pd.read_pickle(str(path_new.resolve()))
-        elif len(list_files) == 0 or ignore_update:  # only allow backup if new files weren't found
-            st.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
-            return pd.read_pickle(path_backup)
-        else:   # otherwise, delete the old backup
-            path_backup.unlink()
-    
-    # time_init = pd.Timestamp('2010-01-01T00')  # not used any more
     ux_report = st.empty()
-    ux_progress = st.empty()
-    ux_report.info(f"Data has changed, regenerating core data bundle file {path_new}...")
-
-    # Add a placeholder
-    latest_iteration = st.empty()
     ux_progress = st.progress(0)
-    task_buffer = 6   # account for time-norm, sorting, shot-mapping, named entity, dup-dropping
-    task_count = len(list_files)+task_buffer
 
-    df = None
-    for task_idx in range(len(list_files)):
-        f = list_files[task_idx]
-        ux_progress.progress(math.floor(float(task_idx)/task_count*100))
-        ux_report.info(f"Loading file '{f.name}'...")
-        df_new = pd.read_csv(str(f.resolve()))
-        df = df_new if df is None else pd.concat([df, df_new], axis=0, sort=False)
-    df["details"].fillna("", inplace=True)
-
-    logger.info(f"Known columns: {list(df.columns)}")
-    logger.info(f"Known types: {list(df['tag_type'].unique())}")
-
-    # extract shot extents
-    ux_progress.progress(math.floor(float(task_idx)/task_count*100))
-    task_idx += 1
-
-    if len(df[df["tag_type"]=="shot"]) == 0:   # warning, no shots detected!
-        time_max = int(math.floor(df["time_end"].max() * UPSAMPLE_TIME))
-        time_min = int(math.floor(df["time_begin"].min() * UPSAMPLE_TIME))
-        ux_report.info(f"... generating shots at interval {DEFAULT_SHOT_LEN}s [{time_min} - {time_max}]")
-        logger.info(f"... generating shots at interval {DEFAULT_SHOT_LEN}s [{time_min} - {time_max}]")
-        list_new = [{"time_begin":x * DEFAULT_SHOT_LEN, "time_end": (x+1) * DEFAULT_SHOT_LEN,
-                     "extractor": "simulated", "tag_type":"shot", "score": 1.0,
-                     "time_event":(x+0.5) * DEFAULT_SHOT_LEN, "details":"", "source_event": "video" } 
-                     for x in range(math.floor(time_min/DEFAULT_SHOT_LEN), math.floor(time_max/DEFAULT_SHOT_LEN)) ]
-        df = df.append(pd.DataFrame(list_new), sort=False)
-
-    ux_report.info(f"... mapping shot id to all events....")
-    df["duration"] = df["time_end"] - df["time_begin"]
-    df["shot"] = 0
-
-    # TODO: allow multiple shot providers
-
-    # build look-up table for all shots by second
-    shot_timing = range(int(math.ceil(df["time_begin"].max())) * UPSAMPLE_TIME)  # create index
-    # for speed, we generate a mapping that can round the time into a reference...
-    #   [t0, t1, t2, t3, ....] and use that mapping shot id (update 2/16/20 - don't overwrite "duration" field)
-    shot_lookup = None
-    for idx_shots, df_shots in df[df["tag_type"]=="shot"].groupby("extractor"):
-        if shot_lookup is not None:
-            break
-        shot_lookup = []
-        # logger.info(f"Generating shot mapping from type '{df_shots['extractor'][0]}'...")
-        df_shots = df_shots.sort_values("time_begin")
-        idx_shot = 0
-        for row_idx, row_shot in df_shots.iterrows():
-            ref_shot = int(math.floor(row_shot["time_begin"] * UPSAMPLE_TIME))
-            # print("check", ref_shot, idx_shot, row_shot["duration"])
-            while ref_shot >= len(shot_lookup):
-                shot_lookup.append(idx_shot)
-            idx_shot += 1
-    ref_shot = int(math.floor(df["time_begin"].max() * UPSAMPLE_TIME))
-    while ref_shot >= len(shot_lookup):   # extend the mapping array until max time
-        shot_lookup.append(shot_lookup[-1])
-
-    df["shot"] = df["time_begin"].apply(lambda x: shot_lookup[int(math.floor(x * UPSAMPLE_TIME))])     # now map the time offset 
-
-    # default with tag for keywords
-    df.loc[df["tag_type"]=="word", "details"] = df[df["tag_type"]=="word"]
-    if len(df[df["tag_type"]=="word"]) == 0:   # didn't have word source
-        df_enhance = df[df["tag_type"]=="transcript"]
-        if len(df_enhance) != 0:   # pull it from transcript
-            df_enhance = df_enhance.copy()
-            df_enhance["details"] = df_enhance["details"].apply(lambda x: json.loads(x)['transcript'])
-            ux_report.info(f"Extracting words from transcripts, input samples {len(df_enhance)}, attempting to split")
-            pass
-        elif len(df[df["tag_type"]=="keyword"]) != 0:   # pull it from keyword
-            df_enhance = df[df["tag_type"]=="keyword"].copy()
-            df_enhance["details"] = df_enhance["tag"]
-            ux_report.info(f"Extracting words from keywords, input samples {len(df_enhance)}, attempting to split")
-            pass
-        list_append = []
-        idx_search = 0
-        re_clean = re.compile(r"[^0-9A-Za-z]+")
-        for row_idx, row_enhance in df_enhance.iterrows():
-            list_text = re_clean.split(row_enhance["details"].lower())
-            for cur_word in list_text:
-                if len(cur_word) > 1:
-                    row_copy = row_enhance.copy()
-                    row_copy["details"] = cur_word.capitalize()
-                    list_append.append(row_copy)
-        if len(list_append):
-            df_append = pd.DataFrame(list_append)
-            df_append["tag_type"] = "word"
-            df_append["tag"] = df_append["details"]
-            ux_report.info(f"Extracting {len(df_append)} new words for analysis")
-            df = df.append(df_append)
-
-    if NLP_TOKENIZE:
-        # extract/add NLP tags from transcripts
-        ux_report.info(f"... detecting NLP-based textual entities....")
-        ux_progress.progress(math.floor(float(task_idx)/task_count*100))
-        task_idx += 1
-        try:
-            import spacy
-        except Exception as e:
-            logger.critical("Missing `spacy`? Consider installing the library (`pip install spacy`) and data model once more. (e.g. python -m spacy download en_core_web_sm)")
-        # models - https://spacy.io/models/en 
-        # execute -- python -m spacy download en_core_web_sm
-        # https://github.com/explosion/spacy-models/releases/download/en_core_web_md-2.2.5/en_core_web_md-2.2.5.tar.gz
-        nlp = spacy.load('en_core_web_sm')
-        list_new = []
-        df_sub = df[df["tag_type"]=="transcript"]
-        idx_sub = 0
-
-        for row_idx, row_transcript in df_sub.iterrows():
-            if (idx_sub % 20) == 0:
-                ux_report.info(f"... detecting NLP-based textual entities ({idx_sub}/{len(df_sub)})....")
-            # https://spacy.io/usage/linguistic-features#named-entities
-            detail_obj = json.loads(row_transcript['details'])
-            idx_sub += 1
-            if "transcript" in detail_obj:
-                for entity in nlp(detail_obj["transcript"]).ents:
-                    row_new = row_transcript.to_dict()
-                    row_new["details"] = entity.label_
-                    row_new["tag"] = entity.text
-                    row_new["tag_type"] = "entity"
-                    list_new.append(row_new)
-        ux_report.info(f"... integrating {len(list_new)} new text entities....")
-        df_entity = pd.DataFrame(list_new)
-        df = pd.concat([df, df_entity], sort=False)
-        list_new = None
-        df_entity = None
-
-        # Create list of word tokens
-        ux_report.info(f"... filtering text stop words....")
-        ux_progress.progress(math.floor(float(task_idx)/task_count*100))
-        task_idx += 1
-        # from spacy.lang.en.stop_words import STOP_WORDS
-        list_new = df[df["tag_type"]=="word"]["tag"].unique()
-        map_new = {}
-        re_clean = re.compile(r"[^0-9A-Za-z]")
-        for idx_sub in range(len(list_new)):
-            if (idx_sub % 20) == 0:
-                ux_report.info(f"... filtering text stop words ({idx_sub}/{len(list_new)})....")
-            word_new = nlp(list_new[idx_sub])
-            map_new[list_new[idx_sub]] = re_clean.sub('', word_new.text.lower()) if not nlp.vocab[word_new.text].is_stop else NLP_STOPWORD
-        # now map to single array of mapping
-        df.loc[df["tag_type"]=="word", "details"] =  df[df["tag_type"]=="word"]["tag"].apply(lambda x: map_new[x])
-
-    ux_report.info(f"... normalizing time signatures...")
-    ux_progress.progress(math.floor(float(task_idx)/task_count*100))
-    task_idx += 1
-    for tf in ["time_event", "time_begin", "time_end"]:  # convert to pandas time (for easier sampling)
-        if False:
-            df[tf] = df[tf].apply(lambda x: pd.Timestamp('2010-01-01T00') + pd.Timedelta(x, 'seconds'))
+    def _local_update(str_new="", progress=0, is_warning=False):   # simple callback from load process
+        if is_warning:
+            st.sidebar.warning(str_new)
         else:
-            df[tf] = pd.to_timedelta(df[tf], unit='s')
-            df[tf].fillna(pd.Timedelta(seconds=0), inplace=True)
+            if len(str_new):
+                ux_report.info(str_new)
+                if progress > 0:
+                    ux_progress.progress(progress)
+            else:
+                ux_report.empty()
+                ux_progress.empty()
 
-    ux_report.info(f"... pruning duplicates from {len(df)} events...")
-    ux_progress.progress(math.floor(float(task_idx)/task_count*100))
-    df.drop_duplicates(inplace=True)
-    task_idx += 1
-    
-    ux_report.info(f"... sorting and indexing {len(df)} events...")
-    ux_progress.progress(math.floor(float(task_idx)/task_count*100))
-    task_idx += 1
-    df.sort_values(["time_begin", "time_end"], inplace=True)
-    df.set_index("time_event", drop=True, inplace=True)
-
-    # extract faces (emotion)
-
-    ux_report.info(f"... loaded {len(df)} rows across {len(list_files)} files.")
-    ux_report.empty()
-    ux_progress.empty()
-
-    # save new data file before returning
-    df.to_pickle(str(path_new.resolve()))
-    return df
+    return preprocessing.data_load(stem_datafile, data_dir, allow_cache=allow_cache,
+                                            ignore_update=ignore_update, fn_callback=_local_update)
 
 
 def download_link(path_temp, name_link=None, df=None, path_src=None):
@@ -585,114 +353,24 @@ def download_link(path_temp, name_link=None, df=None, path_src=None):
 
 @st.cache(suppress_st_warning=True, allow_output_mutation=True)
 def data_index(stem_datafile, data_dir, df, allow_cache=True, ignore_update=False):
-    """A method to convert raw dataframe into vectorized features and return a hot index for query.
-    Returns:
-        [BallTree (sklearn.neighbors.BallTree), [shot0, shot1, shot2]] - indexed tree and list of shot ids that correspond to tree's memory view
-    """
-
-    # generate a checksum of the input files
-    m = hashlib.md5()
-    for data_time in sorted(df["time_begin"].unique()):
-        m.update(str(data_time).encode())
-
-    path_backup = None
-    for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
-        path_backup = filepath
-        break
-
-    # NOTE: according to this article, we should use 'feather' but it has depedencies, so we use pickle
-    # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
-    path_new = Path(data_dir).joinpath(f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
     ux_report = st.empty()
-    
-    # see if checksum matches the datafile (plus stem)
-    if allow_cache and (path_new.exists() or path_backup is not None):
-        if path_new.exists():  # if so, load old datafile, skip reload
-            df = pd.read_pickle(str(path_new.resolve()))
-            ux_report.info(f"... building live index on features...")
-            tree = BallTree(df)
-            ux_report = st.empty()
-            return tree, list(df.index)
-        elif df is None or len(df) == 0 or ignore_update:  # only allow backup if new files weren't found
-            st.sidebar.warning(f"Warning: Using datafile `{path_backup.name}` with no grounded reference.  Version skew may occur.")
-            df = pd.read_pickle(path_backup)
-            ux_report.info(f"... building live index on features...")
-            tree = BallTree(df)
-            ux_report = st.empty()
-            return tree, list(df.index)
-        else:   # otherwise, delete the old backup
-            path_backup.unlink()
-    
-    # time_init = pd.Timestamp('2010-01-01T00')  # not used any more
-    ux_progress = st.empty()
-    ux_report.info(f"Data has changed, regenerating core data bundle file {path_new}...")
-
-    # Add a placeholder
-    latest_iteration = st.empty()
     ux_progress = st.progress(0)
-    task_buffer = 4   # account for pivot, index, duration
-    task_idx = 0
 
-    re_encode = re.compile(r"[^0-9a-zA-Z]")
+    def _local_update(str_new="", progress=0, is_warning=False):   # simple callback from load process
+        if is_warning:
+            st.sidebar.warning(str_new)
+        else:
+            if len(str_new):
+                ux_report.info(str_new)
+                if progress > 0:
+                    ux_progress.progress(progress)
+            else:
+                ux_report.empty()
+                ux_progress.empty()
 
-    list_pivot = []
-    tuple_groups = df.groupby(["tag", "tag_type"])   # run once but get length for progress bar
-    task_count = len(tuple_groups)+task_buffer
-    num_group = 0
-    ux_progress.progress(math.floor(task_idx/task_buffer*100))
+    return preprocessing.data_index(stem_datafile, data_dir=data_dir, df=df, allow_cache=allow_cache, 
+                                            ignore_update=ignore_update, fn_callback=_local_update)
 
-    # average by shot
-    # tuple_groups = df.groupby(["shot"])   # run once but get length for progress bar
-    # for idx_shot, df_shots in tuple_groups:
-    #     ux_report.info(f"... averaging {num_group}/{len(tuple_groups)} tag/tag_type shots...")
-    #     # print(df_mean, idx_shot, idx_group)
-
-    #     # group by tag_type, tag
-    #     for idx_group, df_group in df_shots.groupby(["tag", "tag_type"]):
-    #         list_pivot.append([idx_shot, re_encode.sub('_', '_'.join(idx_group)), df_group["score"].mean()])
-    #     num_group += 1
-
-    # group by tag_type, tag
-    for idx_group, df_group in tuple_groups:
-        if (num_group % 100) == 0:
-            ux_report.info(f"... vectorizing {num_group}/{len(tuple_groups)} tag/tag_type shots...")
-        # average by shot
-        df_mean = df_group.groupby('shot')['score'].mean().reset_index(drop=False)
-        df_mean["tag"] = re_encode.sub('_', '_'.join(idx_group))
-        list_pivot += list(df_mean.values)
-        num_group += 1
-
-    # pivot to make a shot-wise row view
-    task_idx += 1
-    tuple_groups = None
-    ux_progress.progress(math.floor(task_idx/task_buffer*100))
-    ux_report.info(f"... pivoting table for score reporting...")
-    df_vector_raw = pd.DataFrame(list_pivot, columns=["shot", "score", "tag"])
-    df_vector = pd.pivot_table(df_vector_raw, index=["shot"], values="score", columns=["tag"], fill_value=0).sort_index()
-    df_vector.index = df_vector.index.astype(int)
-    df_vector_raw = None
-
-    # append duration
-    task_idx += 1
-    ux_progress.progress(math.floor(task_idx/task_buffer*100))
-    ux_report.info(f"... linking shot duration to vectors...")
-    df_sub = df[df["tag_type"]=="shot"][["shot", "duration", "score"]].set_index("shot", drop=True)
-    df_vector = df_vector.join(df_sub["duration"])  # grab duration from original data
-    df_sub = None
-
-    # train new hot-index object for fast kNN query
-    # https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.BallTree.html#sklearn.neighbors.BallTree.query
-    task_idx += 1
-    ux_progress.progress(math.floor(task_idx/task_buffer*100))
-    ux_report.info(f"... building live index on features...")
-    tree = BallTree(df_vector)
-
-    ux_report.empty()
-    ux_progress.empty()
-
-    # save new data file before returning
-    df_vector.to_pickle(str(path_new.resolve()))
-    return tree, list(df_vector.index)
 
 
 def data_label_serialize(data_dir, df_new=None, label_new=None):

@@ -24,7 +24,7 @@ import json
 
 import streamlit as st
 
-version_path = path.join("..", "metadata_flatten", "_version.py")
+version_path = path.join("..", "..", "metadata_flatten", "_version.py")
 
 import modes
 

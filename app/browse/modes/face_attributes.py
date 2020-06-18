@@ -27,6 +27,7 @@ import math
 import altair as alt
 
 from .utilities import *
+from .common.preprocessing import *
 
 
 LIST_NOFACE_TAGS = ["Face", "Age"]

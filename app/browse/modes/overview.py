@@ -27,6 +27,7 @@ import math
 import altair as alt
 
 from .utilities import *
+from .common.preprocessing import *
 
 ### ------------ main rendering page and sidebar ---------------------
 

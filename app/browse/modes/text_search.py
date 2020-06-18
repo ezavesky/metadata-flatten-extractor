@@ -27,6 +27,7 @@ import math
 import altair as alt
 
 from .utilities import *
+from .common.preprocessing import *
 
 # https://stackoverflow.com/a/16710842 - split, but save quotes
 REGEX_SEARCH = re.compile(r'(?:[^\s,"]|"(?:\\.|[^"])*")+')
