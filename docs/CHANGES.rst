@@ -9,9 +9,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 
 0.9.6
 ~~~~~
-
 - small tweaks/normalization of rounding factor for extractors
 - correct emotion souce type for azure
+- refactor app location for primary streamlit browser
+  - fix mode discovery for modules with specific UX interface
+- update file listing to show data bundle files as well
+- refactor utilities script for reuse in other apps
 
 0.9.5
 ~~~~~

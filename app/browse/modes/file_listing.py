@@ -28,6 +28,7 @@ import math
 import altair as alt
 
 from .utilities import *
+from .common.preprocessing import *
 
 NUM_SUMMARY = 10
 
@@ -39,9 +40,9 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    list_files, path_new = data_discover("data_bundle", data_dir)
+    list_files, path_new = data_discover(PATH_BASE_BUNDLE, data_dir, True)
 
-    df = data_load("data_bundle", data_dir, True, ignore_update)
+    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update)
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
         return
@@ -60,6 +61,10 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     df_files["url"] = ""
     
     list_extractors = df_live["extractor"].unique()
+
+    import logging
+    logger = logging.getLogger()
+    logger.info(df_files)
 
     for name_extractor in list_extractors:
         rows = df_files[df_files["name"].str.contains(name_extractor)]

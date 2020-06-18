@@ -39,7 +39,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    df = data_load("data_bundle", data_dir, True, ignore_update)
+    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update)
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
         return
