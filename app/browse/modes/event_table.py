@@ -27,6 +27,7 @@ import math
 import altair as alt
 
 from .utilities import *
+from .common.preprocessing import *
 
 NUM_SUMMARY = 10
 
