@@ -19,14 +19,12 @@
 # -*- coding: utf-8 -*-
 
 # Imports
-from os import path, system
 import subprocess
 from pathlib import Path
 
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-
 
 _FFMPEG_VALID = None
 

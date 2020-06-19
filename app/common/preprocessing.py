@@ -21,7 +21,6 @@
 # Imports
 import pandas as pd
 import numpy as np
-from os import path, system, unlink
 from pathlib import Path
 import re
 import hashlib
@@ -33,9 +32,6 @@ from time import sleep
 from sklearn.neighbors import BallTree
 
 import logging
-import warnings
-from sys import stdout as STDOUT
-
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
