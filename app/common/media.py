@@ -28,7 +28,7 @@ logger.setLevel(logging.DEBUG)
 
 _FFMPEG_VALID = None
 
-def clip_video(media_file, media_output, start, duration=1, image_only=False):
+def clip_media(media_file, media_output, start, duration=1, image_only=False):
     """Helper function to create video clip"""
     global _FFMPEG_VALID
     path_media = Path(media_output)
@@ -64,3 +64,31 @@ def clip_video(media_file, media_output, start, duration=1, image_only=False):
             list_results.append(line)
     logger.info(f"Source: {media_file}; Destination: (time: {start}s, duration: {duration}s) -> Output: {media_output} [[{list_results}]]")
     return 0 if path_media.exists() else -1
+
+
+def manifest_parse(manifest_file):
+    """Attempt to parse a manifest file, return list of processing directory and file if valid. (added v0.8.3)"""
+    if manifest_file is None or len(manifest_file)==0 or not path.exists(manifest_file):
+        logger.info(f"Specified manifest file '{manifest_file}' does not exist, skipping.")
+        return []
+    try:
+        with open(manifest_file, 'rt') as f:
+            manifest_obj = json.load(f)  # parse the manifest directly
+            if manifest_obj is None or len(manifest_obj) == 0:
+                logger.info(f"Specified manifest file '{manifest_file}' contained no valid entries, skipping.")
+                return []
+    except Exception as e:
+        logger.info(f"Failed to load requested manifest file {manifest_file}, skipping. ({e})")
+        return []
+
+    # validate columns (name, asset, results)
+    if 'manifest' not in manifest_obj:
+        logger.info(f"Specified manifest file '{manifest_file}' syntax error (missing 'manifest' array), skipping.")
+        return []
+    # return only those rows that are valid
+    list_return = []
+    for result_obj in manifest_obj['manifest']:
+        if "name" in result_obj and "video" in result_obj and "results" in result_obj:  # validate objects
+            if path.exists(result_obj['video']) and path.exists(result_obj['results']):  # validate results directory
+                list_return.append(result_obj)
+    return list_return

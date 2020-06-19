@@ -138,7 +138,12 @@ def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
 
 
 @st.cache(suppress_st_warning=False)
-def clip_media(media_file, media_output, start):
+def manifest_parse_cached(manifest_file):
+    return preprocessing.manifest_parse(manifest_file)
+
+
+@st.cache(suppress_st_warning=False)
+def clip_media_cached(media_file, media_output, start):
     """Helper function to create video clip"""
     status = media.clip_video(media_file, media_output, start, image_only=True)
     path_media = Path(media_output)
@@ -192,7 +197,7 @@ def clip_display(df_live, df, media_file, field_group="tag", label_dir=None, df_
             st.markdown(f"**Error:** Could not create video clip for time interval [{time_begin_sec}s, duration {time_duration_sec}s].")
             st.markdown("_(no instances to display)_")
     else:       # print thumbnail
-        media_data = clip_media(media_file, media_image, time_event_sec-DEFAULT_REWIND_FRAME)
+        media_data = clip_media_cached(media_file, media_image, time_event_sec-DEFAULT_REWIND_FRAME)
         if media_data is not None:
             st.image(media_data, use_column_width=True, caption=caption_str)
         else:
