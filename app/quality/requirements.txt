@@ -1,0 +1,7 @@
+gunicorn
+gevent
+flask
+dash
+pandas
+es_pandas
+pandasticsearch
