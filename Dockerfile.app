@@ -12,6 +12,7 @@ ENV SYMLINK=metadata-static
 # install pacakages
 COPY requirements.txt $WORKDIR/requirements.txt
 COPY app/browse/requirements.txt $WORKDIR/app/browse/requirements.txt
+COPY app/quality/requirements.txt $WORKDIR/app/quality/requirements.txt
 
 RUN python -V \
     && groupadd -g $gid $user && useradd -m -u $uid -g $gid $user \
@@ -32,6 +33,7 @@ enableCORS = false\n\
     && pip install --no-cache-dir -r $WORKDIR/requirements.txt \
     # install app requirements
     && pip install --no-cache-dir -r $WORKDIR/app/browse/requirements.txt \
+    && pip install --no-cache-dir -r $WORKDIR/app/quality/requirements.txt \
     # install NLP word model for spacy
     && su $user && python -m spacy download en_core_web_sm \
     # convert to user permissions
@@ -50,13 +52,15 @@ RUN python -V \
     && chmod a+wx /tmp/$SYMLINK
 
 # exposing default port for streamlit
-EXPOSE 8501
+EXPOSE 8501 8601
 
 # launch as a specific user
 USER $user
 
-# run app
+# run apps
 CMD cd $WORKDIR/app/browse && \
-    streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results --symlink /tmp/$SYMLINK
+    streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results --symlink /tmp/$SYMLINK && \
+    cd $WORKDIR/app/quality && \
+    gunicorn -k gevent --workers=1 --bind=0.0.0.0:8601 -t 90  "server:app(manifest='$MANIFEST', media_file='$VIDEO', data_dir='/results')"
 
 
