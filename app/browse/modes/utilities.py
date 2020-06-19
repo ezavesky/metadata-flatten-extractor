@@ -21,22 +21,13 @@
 # Imports
 import pandas as pd
 import numpy as np
-from os import path, system, unlink
 from pathlib import Path
-import re
 import hashlib
-import glob
-import math
-import json
-from time import sleep
 
 import altair as alt
-from sklearn.neighbors import BallTree
 import streamlit as st
 
 import logging
-import warnings
-from sys import stdout as STDOUT
 
 from .common import preprocessing, media
 
@@ -142,47 +133,6 @@ def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
             tooltip=['tag','utchoursminutes(time)','score'])
     st.altair_chart(chart.interactive().properties(width=ALTAIR_DEFAULT_WIDTH, height=ALTAIR_DEFAULT_HEIGHT))
 
-### ------------ util/format ---------------------
-
-
-def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_input_shots=True):
-    """Method to query for samples against a created tree/index
-
-    :param tree_query: (dict): Hot-indexed kNN object (e.g. BallTree from `data_index`) 
-    :param tree_shots: (list): The returned index/map from the absolute position in the tree to known/input shots
-    :param shot_input: (list): Known shots to use for query (they will be mapped with `tree_shots`)
-    :param num_neighbors: (int): Max number of neighbors to return after query
-    :param exclude_input_shots: (bool): Should items from `shot_input` be excluded from restuls?
-    :return: (DataFrame): dataframe of `shot` and `score` resulting from tree query
-
-    """
-    # NOTE: filter by those active shots that have query samples
-    #       we have to copy into a new array because memory views don't let us index randomly
-    # e.g. tree_query.data[[0,1,4,5], :]
-    #   https://www.programiz.com/python-programming/methods/built-in/memoryview
-    data_query = None
-    for raw_shot in shot_input:
-        if raw_shot in tree_shots:  # need to deref to index in memory view
-            if data_query is None:
-                data_query = tree_query.data[tree_shots.index(raw_shot)]
-            else:
-                data_query = np.vstack((data_query, tree_query.data[tree_shots.index(raw_shot), :]))
-    if len(data_query.shape) == 1:   # fix if we're querying with just a single sample
-        data_query = np.vstack((data_query, ))
-   
-    # execute query, but pad with length of our query
-    query_dist, query_ind = tree_query.query(data_query, num_neighbors + data_query.shape[0])
-    # massage results into an easy to handle dataframe
-    df_expand = pd.DataFrame(np.vstack([np.hstack(query_dist), np.hstack(query_ind)]).T, columns=['distance', 'shot'])
-    df_expand["shot"] = df_expand["shot"].apply(lambda x: int(tree_shots[int(x)]))   # map back from query/tree
-    # exclude input shots from neighbors (yes, they will always be there otherwise!)
-    if exclude_input_shots:
-        df_expand = df_expand[~df_expand["shot"].isin(shot_input)]
-    # finally, group by shot number, push it to column, sort by best score
-    return df_expand.groupby('shot').max() \
-                    .reset_index(drop=False) \
-                    .sort_values('distance', ascending=True)
-
 
 ### ------------ content functions ---------------------
 
@@ -227,9 +177,9 @@ def clip_display(df_live, df, media_file, field_group="tag", label_dir=None, df_
     caption_str = f"*Tag: {row_sel['tag'][0]}, Instance: {instance_idx} (score: {round(row_sel['score'][0], 4)}) @ " \
         f"{preprocessing.timedelta_str(row_first['time_begin'][0])} ({round(time_duration_sec, 2)}s)*"
 
-    _, clip_ext = path.splitext(path.basename(media_file))
-    media_clip = path.join(path.dirname(media_file), "".join(["temp_clip", clip_ext]))
-    media_image = path.join(path.dirname(media_file), "temp_thumb.jpg")
+    dir_media = Path(media_file).parent
+    media_clip = dir_media.joinpath(".".join(["temp_clip", Path(media_file).suffix]))
+    media_image = dir_media.joinpath("temp_thumb.jpg")
 
     if st.button("Play Clip", key=f"{field_group}_{time_begin_sec}"):
         status = media.clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
