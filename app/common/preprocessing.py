@@ -371,7 +371,6 @@ def data_index_callback(stem_datafile, data_dir, df, allow_cache=True, ignore_up
     Returns:
         [BallTree (sklearn.neighbors.BallTree), [shot0, shot1, shot2]] - indexed tree and list of shot ids that correspond to tree's memory view
     """
-
     # generate a checksum of the input files
     m = hashlib.md5()
     for data_time in sorted(df["time_begin"].unique()):

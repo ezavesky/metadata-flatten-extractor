@@ -40,14 +40,14 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update)
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
-        return
+        return None
     df_live = main_sidebar(df)
 
     # Create the runtime info
     if len(df_live) < TOP_LINE_N:
         st.markdown("## Too few samples")
         st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
-        return
+        return None
 
     # logger.info(list(df.columns))
 
