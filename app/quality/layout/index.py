@@ -27,20 +27,13 @@ import pandas as pd
 
 import datetime as dt
 
-try:
-    import dash
-    import dash_core_components as dcc
-    import dash_html_components as html
-    import dash_bootstrap_components as dbc
-    from dash.dependencies import Input, Output, State
-    import plotly.graph_objects as go
-    from dash.exceptions import PreventUpdate
-except Exception as e:
-    print("""
-        Failed to import Dash dependency.  If you're trying to use this capability
-        directly from the library, be you may need to install the `dash`
-        packge as an additional dependency.  The docker image shoud have this 
-        dependency properly included.""")
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+import dash_bootstrap_components as dbc
+from dash.dependencies import Input, Output, State
+import plotly.graph_objects as go
+from dash.exceptions import PreventUpdate
 
 
 from . import utils

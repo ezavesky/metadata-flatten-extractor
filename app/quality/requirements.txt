@@ -5,3 +5,4 @@ dash
 pandas
 es_pandas
 pandasticsearch
+dash_bootstrap_components
