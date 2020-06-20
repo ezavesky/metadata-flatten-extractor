@@ -58,9 +58,11 @@ EXPOSE 8501 8601
 USER $user
 
 # run apps
-CMD cd $WORKDIR/app/browse && \
-    streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results --symlink /tmp/$SYMLINK && \
-    cd $WORKDIR/app/quality && \
-    gunicorn -k gevent --workers=1 --bind=0.0.0.0:8601 -t 90  "server:app(manifest='$MANIFEST', media_file='$VIDEO', data_dir='/results')"
-
-
+CMD python -V && \
+    echo "cd $WORKDIR/app/quality" > /tmp/run_script.sh  && \
+    echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8601 -t 90  \"server:app(manifest='$MANIFEST', media_file='$VIDEO', data_dir='/results')\" & " >> /tmp/run_script.sh && \
+    echo "cd $WORKDIR/app/browse" >>  /tmp/run_script.sh && \
+    echo "nohup streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results --symlink /tmp/$SYMLINK & " >> /tmp/run_script.sh && \
+    echo "tail -f  $WORKDIR/app/browse/nohup.out $WORKDIR/app/quality/nohup.out " >> /tmp/run_script.sh && \
+    chmod +x /tmp/run_script.sh && \
+    /tmp/run_script.sh
