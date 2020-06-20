@@ -68,7 +68,7 @@ def clip_media(media_file, media_output, start, duration=1, image_only=False):
 
 def manifest_parse(manifest_file):
     """Attempt to parse a manifest file, return list of processing directory and file if valid. (added v0.8.3)"""
-    if manifest_file is None or len(manifest_file)==0 or not path.exists(manifest_file):
+    if manifest_file is None or len(manifest_file)==0 or not Path(manifest_file).exists():
         logger.info(f"Specified manifest file '{manifest_file}' does not exist, skipping.")
         return []
     try:
@@ -89,6 +89,6 @@ def manifest_parse(manifest_file):
     list_return = []
     for result_obj in manifest_obj['manifest']:
         if "name" in result_obj and "video" in result_obj and "results" in result_obj:  # validate objects
-            if path.exists(result_obj['video']) and path.exists(result_obj['results']):  # validate results directory
+            if Path(result_obj['video']).exists() and Path(result_obj['results']).exists():  # validate results directory
                 list_return.append(result_obj)
     return list_return

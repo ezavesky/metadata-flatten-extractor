@@ -139,13 +139,13 @@ def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
 
 @st.cache(suppress_st_warning=False)
 def manifest_parse_cached(manifest_file):
-    return preprocessing.manifest_parse(manifest_file)
+    return media.manifest_parse(manifest_file)
 
 
 @st.cache(suppress_st_warning=False)
 def clip_media_cached(media_file, media_output, start):
     """Helper function to create video clip"""
-    status = media.clip_video(media_file, media_output, start, image_only=True)
+    status = media.clip_media(media_file, media_output, start, image_only=True)
     path_media = Path(media_output)
     if status == 0 and path_media.exists():
         with path_media.open('rb') as f:
@@ -321,7 +321,7 @@ def data_index(stem_datafile, data_dir, df, allow_cache=True, ignore_update=Fals
 
 
 
-def data_label_serialize(data_dir, df_new=None, label_new=None):
+def data_label_serialize(label_dir, df_new=None, label_new=None):
     ux_report = st.empty()
     def _local_update(str_new="", progress=0, is_warning=False):   # simple callback from load process
         if is_warning:
@@ -332,4 +332,4 @@ def data_label_serialize(data_dir, df_new=None, label_new=None):
             else:
                 ux_report.empty()
 
-    return preprocessing.data_label_serialize_callback(label_dir, row_sel, label_new - 1, fn_callback=_local_update)
+    return preprocessing.data_label_serialize_callback(label_dir, df_new, label_new, fn_callback=_local_update)

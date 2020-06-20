@@ -38,20 +38,20 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
     ux_progress = st.empty()
 
     df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update)
-    tree_query, tree_shots = data_index(PATH_BASE_VECTORS, data_dir, df, ignore_update=ignore_update)   # convert data to numbers
-    df_label = data_label_serialize(data_dir)
     # print(tree_query.data.shape)
 
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
-        return
+        return None
+    tree_query, tree_shots = data_index(PATH_BASE_VECTORS, data_dir, df, ignore_update=ignore_update)   # convert data to numbers
+    df_label = data_label_serialize(data_dir)
     df_live = main_sidebar(df)
 
     # Create the runtime info
     if len(df_live) < MIN_INSIGHT_COUNT:
         st.markdown("## Too few samples")
         st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
-        return
+        return None
 
     # plunk down a dataframe for people to explore as they want
     st.markdown(f"## brand expansion (top {min(SAMPLE_TABLE, len(df_live))}/{len(df_live)} events)")
