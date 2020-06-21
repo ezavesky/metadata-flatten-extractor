@@ -4,6 +4,13 @@ Changes
 A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`__.
 
+1.0
+---
+
+1.0.0
+~~~~~
+- add new `dash/plotly <https://dash.plotly.com/>`__ driven quality check application
+
 0.9
 ---
 
@@ -15,6 +22,7 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
   - fix mode discovery for modules with specific UX interface
 - update file listing to show data bundle files as well
 - refactor utilities script for reuse in other apps
+
 
 0.9.5
 ~~~~~

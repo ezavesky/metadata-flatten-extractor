@@ -1,5 +1,3 @@
-
-
 # -*- coding: utf-8 -*-
 #! python
 # ===============LICENSE_START=======================================================
@@ -36,7 +34,7 @@ import plotly.graph_objects as go
 from dash.exceptions import PreventUpdate
 
 
-from . import utils
+from quality.layout import coverage, assets, utils
 
 _app_obj = None   # our one dash app instance
 
@@ -125,10 +123,11 @@ def layout_generate():
             ], width=3),
             dbc.Col([ 
                 dbc.Tabs(id="tab_selection", active_tab='coverage', persistence=True, className='border-bottom-0', children=[
-                    dbc.Tab(label='Event Coverage', tab_id='coverage'),
-                    dbc.Tab(label='Extractor Comparison', tab_id='extractors'),
-                    dbc.Tab(label='Visual Region', tab_id='regions'),
-                    dbc.Tab(label='Search', tab_id='search'),
+                    dbc.Tab(label='Event Coverage', tab_id='coverage', disabled=False),
+                    dbc.Tab(label='Extractor Comparison', tab_id='extractors', disabled=True),
+                    dbc.Tab(label='Visual Region', tab_id='regions', disabled=True),
+                    dbc.Tab(label='Search', tab_id='search', disabled=True),
+                    dbc.Tab(label='Asset List', tab_id='assets'),
                 ])
                 # dcc.Input(id="search_text", placeholder="(e.g. Kit Harrington in the snow)", 
                 #     style={'width': '100%'}, debounce=True, className="rounded")
@@ -143,8 +142,8 @@ def layout_generate():
             ],
             color="primary", dark=True, className="row p-0 app-header bg-dark text-capitalize text-light"),
         dbc.Row([
-            dbc.Collapse([], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded mr-1 ml-1 border-dark"),
-            dbc.Col([], id="core_tabs", className="border border-1 dark rounded mr-1 ml-1 border-dark")
+            dbc.Collapse([], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded p-1 mr-1 ml-1 border-dark"),
+            dbc.Col([], id="core_tabs", className="border border-1 dark rounded mr-1 ml-1 p-1 border-dark")
         ], className="rounded h-100 mt-1"),
         
         # Hidden div inside the app that stores the intermediate value
@@ -158,36 +157,23 @@ def layout_generate():
     ], id="mainContainer", className="container-fluid h-100")
 
 def callback_create(app):
-    global _app_obj
-
-    # validate trigger input
-    def has_trigger(prop_name, is_prefix=False):
-        """Quick check that name is in property inputs"""
-        for obj in dash.callback_context.triggered:
-            if obj['value'] is not None:
-                if is_prefix:
-                    if obj['prop_id'].startswith(prop_name): 
-                        return obj
-                else:
-                    if obj['prop_id'].endswith(prop_name): 
-                        return obj
-        return None
+    assets.callback_create(app)
 
     result_names = [f"result_{idx}" for idx in range(app.settings['result_count'])]
-
-
     @app.callback([Output('core_tabs', 'children'), Output('core_filter', 'children')],
                 [Input('tab_selection', 'active_tab')])
     def render_content(tab):
         if tab == 'coverage':
-            from . import coverage
-            return [coverage.layout_generate(_app_obj), coverage.sidebar_generate(_app_obj)]
+            return [coverage.layout_generate(app), coverage.sidebar_generate(app)]
         elif tab == 'extractors':
             return [[], []] # tab1.layout
         elif tab == 'regions':
             return [[], []] # tab1.layout
         elif tab == 'search':
             return [[], []] # tab2.layout
+        elif tab == 'assets':
+            from . import assets
+            return [assets.layout_generate(app), assets.sidebar_generate(app)]
 
 
     # @app.callback(

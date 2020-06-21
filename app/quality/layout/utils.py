@@ -23,23 +23,8 @@ import datetime as dt
 import uuid  # for generating random uuid
 import math
 
-
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
-from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
-from dash.exceptions import PreventUpdate
-
-import logging
-
-logger = logging.getLogger()
-formatter = logging.Formatter(fmt='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-logger.handlers = []
-logger.addHandler(handler)
-logger.propagate = False
 
 
 ### ------------------------------------------------
@@ -109,3 +94,16 @@ def generate_filters(store):
     """generate filters to be used"""
     return []
 
+
+# validate trigger input
+def has_trigger(prop_name, is_prefix=False):
+    """Quick check that name is in property inputs"""
+    for obj in dash.callback_context.triggered:
+        if obj['value'] is not None:
+            if is_prefix:
+                if obj['prop_id'].startswith(prop_name): 
+                    return obj
+            else:
+                if obj['prop_id'].endswith(prop_name): 
+                    return obj
+    return None

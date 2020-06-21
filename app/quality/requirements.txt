@@ -2,7 +2,9 @@ gunicorn
 gevent
 flask
 dash
+dash_bootstrap_components==7.8.0
 pandas
+elasticsearch
 es_pandas
+progressbar2
 pandasticsearch
-dash_bootstrap_components
