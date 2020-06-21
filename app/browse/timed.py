@@ -40,7 +40,6 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, manifest="", 
 
     ux_report = st.empty()
     ux_progress = st.empty()
-    print("A")
     st.sidebar.markdown('### Discovery Filters')
     list_assets = manifest_parse_cached(manifest)
     if len(list_assets):
@@ -63,7 +62,6 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, manifest="", 
         media_file = path.join(data_dir, "videohd.mp4")
 
     df_live = func_page(data_dir, media_file, ignore_update, symlink)  # attempt to process
-    print(df_live)
     num_events = f"{len(df_live)} events" if df_live is not None else "(no events detected)"
     ux_report.markdown(f"""<div style="text-align:left; font-size:small; color:#a1a1a1; width=100%;">
                      <span >{version_dict['__package__']} (v {version_dict['__version__']})</span>

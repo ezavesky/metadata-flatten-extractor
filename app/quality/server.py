@@ -25,18 +25,26 @@ import sys
 from os.path import dirname, abspath, join as path_join, exists
 from os import makedirs
 
+import logging
+
+logger = logging.getLogger()
+formatter = logging.Formatter(fmt='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+logger.handlers = []
+logger.addHandler(handler)
+logger.propagate = False
 
 from flask import request, render_template, send_from_directory, Flask
 
-_ROOT = dirname(abspath(__file__))
+_ROOT = dirname(dirname(abspath(__file__)))
 
 if __name__ == '__main__':
     # patch the path to include this object
     if _ROOT not in sys.path:
         sys.path.append(_ROOT)
 
-from layout.utils import logger
-from layout.index import callback_create, layout_generate, create_dash_app, get_dash_app
+from quality.layout.index import callback_create, layout_generate, create_dash_app, get_dash_app
 
 
 ### ------------------------------------------------
@@ -60,10 +68,8 @@ def create_app(argv=sys.argv[1:]):
     parser.add_argument("-r", "--refresh_interval", type=int, default=2000, help="Refresh interval for log (in millis)")
     parser.add_argument("--verbose", "-v", action="count")
     subparse = parser.add_argument_group('elastic server configuration')
-    subparse.add_argument("-S", "--elastic_server", dest='elastic_server',
-                          default=None, type=str, help="server or host for redis")
-    subparse.add_argument("-P", "--elastic_port", dest='elastic_port',
-                          default=9200, type=int, help="port for redis connectivity")
+    subparse.add_argument("--elastic_url", dest='elastic_url',
+                          default='', required=True, type=str, help="server or host and port (e.g. http://localhost:9200")
     subparse = parser.add_argument_group('media configuration')
     subparse.add_argument("--manifest", type=str, default='/static/content', help="specify a manifest file for multiple asset analysis")
     subparse.add_argument("--url_media", type=str, default='/static/content', help="URL base for video and images")
@@ -88,8 +94,11 @@ def create_app(argv=sys.argv[1:]):
     app_obj = create_dash_app(__name__, server, run_settings['log_size'])   # NOTE: this updates _app_obj
 
     app_obj.title = app_title
+    app_obj.logger = logger
     app_obj.settings = run_settings
     app_obj.layout = layout_generate
+
+    app_obj.config.suppress_callback_exceptions = True
 
     callback_create(app_obj)
 
