@@ -33,10 +33,14 @@ from sklearn.neighbors import BallTree
 
 import logging
 
+from metadata_flatten import parsers
+
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 NLP_TOKENIZE = True
 NLP_STOPWORD = "_stopword_"
+
+PARSER_BASE_PREFIX = "flatten_"
 
 PATH_BASE_PREFIX = "data_"
 PATH_BASE_BUNDLE = f"{PATH_BASE_PREFIX}bundle"
@@ -130,10 +134,10 @@ def data_discover_raw(stem_datafile, data_dir, bundle_files=False):
     # generate a checksum of the input files
     m = hashlib.md5()
     list_files = []
-    for filepath in sorted(Path(data_dir).rglob(f'csv_flatten_*.csv*')):
+    for filepath in sorted(Path(data_dir).rglob(f'csv_{PARSER_BASE_PREFIX}*.csv*')):
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
-    for filepath in sorted(Path(data_dir).rglob(f'flatten_*.csv*')):   # keep for legacy file discovery  (as of v0.8)
+    for filepath in sorted(Path(data_dir).rglob(f'{PARSER_BASE_PREFIX}*.csv*')):   # keep for legacy file discovery  (as of v0.8)
         list_files.append(filepath)
         m.update(str(filepath.stat().st_mtime).encode())
     if bundle_files:
@@ -145,6 +149,27 @@ def data_discover_raw(stem_datafile, data_dir, bundle_files=False):
     # https://towardsdatascience.com/the-best-format-to-save-pandas-data-414dca023e0d
     path_new = Path(data_dir).joinpath(f"{stem_datafile}.{m.hexdigest()[:8]}.pkl.gz")
     return list_files, path_new
+
+
+def data_parser_list():
+    re_sub = re.compile(f".*{PARSER_BASE_PREFIX}")
+    return {re_sub.sub('', x["name"]):x["types"] for x in parsers.get_by_name()}
+
+
+def data_parse_callback(path_input, extractor_name, fn_callback=None, verbose=True):
+    list_parser_modules = parsers.get_by_name(extractor_name)
+
+    run_options = {"verbose": verbose}
+    df_output = None
+
+    for parser_obj in list_parser_modules:  # iterate through auto-discovered packages
+        parser_instance = parser_obj['obj'](path_input)   # create instance
+        df = parser_instance.parse(run_options)  # attempt to process
+        if df_output is None:
+            df_output = df
+        else:
+            df_output = pd.concat([df, df_output]).drop_duplicates()
+    return df_output
 
 
 def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None):

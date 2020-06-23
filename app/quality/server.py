@@ -28,12 +28,13 @@ from os import makedirs
 import logging
 
 logger = logging.getLogger()
-formatter = logging.Formatter(fmt='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-logger.handlers = []
-logger.addHandler(handler)
-logger.propagate = False
+
+# formatter = logging.Formatter(fmt='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
+# handler = logging.StreamHandler()
+# handler.setFormatter(formatter)
+# logger.handlers = []
+# logger.addHandler(handler)
+# logger.propagate = False
 
 from flask import request, render_template, send_from_directory, Flask
 
@@ -43,6 +44,15 @@ if __name__ == '__main__':
     # patch the path to include this object
     if _ROOT not in sys.path:
         sys.path.append(_ROOT)
+    # monkeypatch to import metadata_flatten package
+    try:
+        from metadata_flatten import parsers
+    except Exception as e:
+        _PACKAGE = dirname(_ROOT)
+        logger.warning(f"Force-import metadata package... {_PACKAGE}")
+        if _PACKAGE not in sys.path:
+            sys.path.append(_PACKAGE)
+
 
 from quality.layout.index import callback_create, layout_generate, create_dash_app, get_dash_app
 

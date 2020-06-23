@@ -4,7 +4,4 @@ flask
 dash
 dash_bootstrap_components==7.8.0
 pandas
-elasticsearch
-es_pandas
-progressbar2
-pandasticsearch
+elasticsearch-dsl>=7.0.0,<8.0.0
