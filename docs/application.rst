@@ -292,7 +292,8 @@ Installation
 ------------
 
 To install dependencies, just run the following. This will insert
-streamlit and a few processing librarieis in your environment.
+streamlit and a few processing librarieis in your environment.  You will
+also need to point to a running elasticsearch instance as decribed below.
 
 .. code:: shell
 
@@ -318,3 +319,21 @@ python package dependency.
 .. code:: shell
 
    conda install ffmpeg
+
+Elasticsearch
+~~~~~~~~~~~~~
+
+`Elasticsearch <https://www.elastic.co/>`__ is a tuned OSS overlay of 
+Apache's no-SQL `Lucene <https://lucene.apache.org/>`__ engine. It provides
+a number of enterprise-ready optmizations and has a standardized full-stack
+solution for logging, distributed compute, etc.  
+
+The QualityCheck application uses Elasticsearch as the primary indexing 
+engine for generated metadata events.  To properly run the application you
+will need a running instance of ElasticSearch.  The line below demonstrates
+how to run a local instance from a standardized docker image.
+
+.. code:: shell
+
+    docker run -d  --name es -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node"  elasticsearch:7.7.1
+    docker logs es -f
