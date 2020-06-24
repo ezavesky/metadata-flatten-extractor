@@ -45,7 +45,7 @@ SELECT_INVALID = "(invalid)"
 
 def callback_create(app):
     """Create callbacks for the assets tab..."""
-
+    
     # callback for turning on input options
     @app.callback(
         [Output('asset_group_disk', "is_open"), Output('asset_group_jobs', "is_open"), Output('asset_group_media', "is_open")],
@@ -114,11 +114,12 @@ def callback_create(app):
             shutil.rmtree(path_temp)   # cleanup
 
         if df is not None:
-            dict_asset = {"title_name": asset_name, "dataset": "default", "episode_id": asset_episode, 
-                            "content_quality": asset_quality, "media_url": asset_url }   # content_id is auto-gen here
+            dict_asset = {"title_name": asset_name, "dataset": ["default"], "episode_id": asset_episode, 
+                            "quality": asset_quality, "media_url": asset_url }   # content_id is auto-gen here
             app.logger.info(f"ADD_ASSET (event teaser): {dict_asset, df})")
 
-            content_id = transforms.asset_create(session_data, app.logger, dict_asset, df, delete_prior=False)
+            transforms.intialize(session_data, app.logger, False)   # onetime init of database?
+            content_id, num_unique = transforms.asset_create(dict_asset, df)
             return [html.Span(f"New ContentID: {content_id}")]
         return [html.Span(f"Content Add Error")]
 
@@ -129,16 +130,20 @@ def callback_create(app):
         [State('session', 'data')]
     )
     def asset_refresh(n_clicks, session_data):
-        div_empty = [html.I("No valid events or assets available."),
-            html.Pre(f"Configuration: {json.dumps(session_data, indent=4, sort_keys=True)}", 
-                     className="text-muted small bg-light border p-1 mt-2 border-dark rounded")]
+        div_update = html.Div(f"(updated {utils.dt_format()})", className="small text-muted")
+        div_empty = [html.I(f"No valid events or assets available."), div_update,
+                     html.Pre(f"Configuration: {json.dumps(session_data, indent=4, sort_keys=True)}", 
+                            className="text-muted small bg-light border p-1 mt-2 border-dark rounded")]
         if n_clicks is None:
             return div_empty
-        df_result = transforms.asset_retrieve(session_data, app.logger)
-        app.logger.info(f"LIST: {df_result}")
-        if len(df_result):
-            return dbc.Table(df_result, striped=True, bordered=True, hover=True, id="table_assets")
-        return div_empty
+        transforms.intialize(session_data, app.logger, False)   # onetime init of database?
+        df_result, num_result = transforms.asset_retrieve()
+        if not len(df_result):
+            return div_empty
+        # df_result["dataset"] = df_result["dataset"].apply(lambda x: ",".join(x))
+        print(df_result)
+        return [dbc.Table.from_dataframe(df_result, striped=True, bordered=True, responsive=True, 
+                                        size='sm', hover=True, id="table_assets"), div_update]
 
 
 def sidebar_generate(app):
