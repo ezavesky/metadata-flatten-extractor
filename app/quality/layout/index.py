@@ -56,48 +56,6 @@ def create_dash_app(name, server, log_size=0):
     return _app_obj
 
 
-def generate_results(df_result=None, session_data=None):
-    list_return = []
-    if df_result is not None and session_data is not None:
-        for idx, df_row in df_result.iterrows():
-            int_time = int(df_row['milliseconds']/1000)
-            int_sec = int_time % 60
-            int_time = int((int_time - int_sec) / 60)
-            int_min = int_time % 60
-            int_hour = int((int_time - int_sec) / 60)
-            path_image = f"{int_hour:0{2}}-{int_min:0{2}}-{int_sec:0{2}}.jpg"
-
-            div_new = html.Div([
-                html.Div([
-                    # https://getbootstrap.com/docs/4.0/layout/media-object/#alignment
-                    html.Img(src=f"{session_data['url_media']}/{df_row['filename']}/{path_image}",
-                                className="align-self-start mr-3", style={'max-width': '350px'}),
-                    html.Div([
-                        html.Div([
-                            f"{df_row['franchise']}, S{df_row['season']}, E{df_row['episode']}"
-                            ], className="mt-0 h6"),
-                        html.Div([
-                            f"{int_hour:0{2}}:{int_min:0{2}}:{int_sec:0{2}}"
-                            ], className="p"),
-                        html.Div([
-                            f"{df_row['confidence']:{2.3}}% match"
-                            ], className="p text-muted")
-
-                            # "franchise": "Game of Thrones",
-                            # "season": 1,
-                            # "episode": 7,
-                            # "title": "you win or die",
-                            # "milliseconds": 1171000,
-                            # "confidence": 5.485599,
-                            # "filename": "ai_got_07_you_win_or_die_264675_PRO35_10-out.mp4"
-                        ], className="media-body")
-                    ], className="media col-xl-8 col-md-10 col-sm-12 mx-auto")
-                ], id=f"result_{idx}", hidden=False, className="mb-3")
-            # utils.logger.info(f"RESULT: {df_row}")
-            list_return.append(div_new)
-    return list_return
-
-
 def session_load(app, settings):
     if hasattr(app, 'store') and hasattr(app.store, 'data'):
         return app.store.data
@@ -143,7 +101,7 @@ def layout_generate():
             color="primary", dark=True, className="row p-0 app-header bg-dark text-capitalize text-light"),
         dbc.Row([
             dbc.Collapse([], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded p-1 mr-1 ml-1 border-dark"),
-            dbc.Col([], id="core_tabs", className="border border-1 dark rounded mr-1 ml-1 p-1 border-dark")
+            dbc.Col([], id="core_tabs", md=8, width=8, sm=12, className="border border-1 dark rounded mr-1 ml-1 p-1 border-dark")
         ], className="rounded h-100 mt-1"),
         
         # Hidden div inside the app that stores the intermediate value
