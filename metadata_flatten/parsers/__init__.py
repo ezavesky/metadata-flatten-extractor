@@ -175,3 +175,7 @@ def get_by_name(name_limit=None):
     else:
         local_list = [local_obj for local_obj in _modules if name_limit in local_obj['name']]
     return local_list
+
+def empty_dataframe():
+    return pd.DataFrame([], columns=["time_begin", "time_end", "source_event", "tag_type", 
+                                        "time_event", "tag", "score", "details", "extractor"])
