@@ -114,7 +114,8 @@ class Parser(Flatten):
                             for time_obj in local_obj["instances"]:  # walk through all appearances
                                 time_begin = pt_parse(time_obj['start'])
                                 time_end = pt_parse(time_obj['end'])
-                                list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "emotion",
+                                # update to audio-only indicator for azure emotion
+                                list_items.append({"time_begin": time_begin, "source_event": "audio", "tag_type": "emotion",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["type"],
                                     "score": time_obj["confidence"], "details": "",
                                     "extractor": self.EXTRACTOR})
