@@ -76,14 +76,6 @@ def callback_create(app):
                 return ["success", False, num_files]
         return ["secondary", True, num_files]
 
-    # callback for turning on rename and delete options
-    @app.callback(
-        [Output('asset_rename', "color"), Output('asset_rename', "disabled"), Output('asset_delete', "color"), Output('asset_delete', "disabled")],
-        [Input('asset_add_source', 'value')]
-    )
-    def update_modify_button(source_add):
-        return ["secondary", True, "secondary", True]
-
     # callback for adding new asset
     @app.callback(
         Output('asset_add_div', 'children'),
@@ -100,7 +92,7 @@ def callback_create(app):
             return []
 
         df = None
-        app.logger.info(f"ADD_ASSET: {[n_clicks, list_of_names, list_of_dates, extractor_type, asset_name, asset_quality, asset_episode, asset_url, asset_jobs, source_add, session_data]}")
+        # app.logger.info(f"ADD_ASSET: {[n_clicks, list_of_names, list_of_dates, extractor_type, asset_name, asset_quality, asset_episode, asset_url, asset_jobs, source_add, session_data]}")
         if list_of_names is not None and len(list_of_names):
             path_temp = tempfile.mkdtemp()  # get temp dir
             path_extractor = Path(path_temp).joinpath(extractor_type)
@@ -137,13 +129,91 @@ def callback_create(app):
         if n_clicks is None:
             return div_empty
         transforms.intialize(session_data, app.logger, False)   # onetime init of database?
-        df_result, num_result = transforms.asset_retrieve()
-        if not len(df_result):
+        df, num_result = transforms.asset_retrieve()
+        if not len(df):
             return div_empty
-        # df_result["dataset"] = df_result["dataset"].apply(lambda x: ",".join(x))
-        print(df_result)
-        return [dbc.Table.from_dataframe(df_result, striped=True, bordered=True, responsive=True, 
-                                        size='sm', hover=True, id="table_assets"), div_update]
+        # df["dataset"] = df["dataset"].apply(lambda x: ",".join(x))
+        # print(df)
+        return [div_update,
+            html.Div(id='datatable-interactivity-container'),
+            dash_table.DataTable(   # formatting madness -- https://dash.plotly.com/datatable/width
+                id='datatable-interactivity',
+                columns=[
+                    {"name": i, "id": i, "deletable": False, "selectable": False} for i in df.columns
+                ],
+                data=df.to_dict('records'),
+                derived_virtual_data=df.to_dict(orient='records'),
+                editable=False,
+                filter_action="native",
+                sort_action="native",
+                sort_mode="multi",
+                column_selectable=False,
+                row_selectable="single",
+                row_deletable=False,
+                selected_columns=[],
+                selected_rows=[],
+                page_action="native",
+                page_current= 0,
+                page_size= 10,
+                # fixed_rows={'headers': True},
+                # style_cell_conditional=[
+                #     {
+                #         'if': {'column_id': c},
+                #         'textAlign': 'left'
+                #     } for c in ['Date', 'Region']
+                # ],
+                style_data_conditional=[
+                    {
+                        'if': {'row_index': 'odd'},
+                        'backgroundColor': 'rgb(248, 248, 248)'
+                    }
+                ],
+                style_header={
+                    'backgroundColor': 'rgb(230, 230, 230)',
+                    'fontWeight': 'bold'
+                },
+                # style_table={'overflowX': 'auto'},                
+                style_cell={
+                    'height': 'auto',
+                    # all three widths are needed
+                    'minWidth': '95px', 'width': '95px', 'maxWidth': '95px',
+                    'overflow': 'hidden', 'textOverflow': 'ellipsis',
+                    'whiteSpace': 'normal'
+                }),
+            ]
+
+    @app.callback(
+        [Output('datatable-interactivity-container', "children"),
+         Output('asset_rename', "color"), Output('asset_rename', "disabled"),
+         Output('asset_delete', "color"), Output('asset_delete', "disabled")],
+        [Input('datatable-interactivity', "derived_virtual_data"),
+         Input('datatable-interactivity', "derived_virtual_selected_rows")])
+    def update_graphs(rows, selected_rows):
+        # When the table is first rendered, `derived_virtual_data` and
+        # `derived_virtual_selected_rows` will be `None`. This is due to an
+        # idiosyncracy in Dash (unsupplied properties are always None and Dash
+        # calls the dependent callbacks when the component is first rendered).
+        # So, if `rows` is `None`, then the component was just rendered
+        # and its value will be the same as the component's dataframe.
+        # Instead of setting `None` in here, you could also set
+        # `derived_virtual_data=df.to_rows('dict')` when you initialize
+        # the component.
+
+        list_results = [[], "secondary", True, "secondary", True]
+        if selected_rows is None or not selected_rows:
+            return list_results
+
+        selected_rows = rows[selected_rows[0]]
+
+        # table_header = [
+        #     html.Thead(html.Tr([html.Th("First Name"), html.Th("Last Name")]))
+        # ]
+        table_rows = html.Tbody([ html.Tr([html.Th(k), html.Td(selected_rows[k])]) for k in selected_rows ])
+        list_results[0] = [html.H5(f"Selected Asset: {selected_rows['title_name']}"), 
+                            dbc.Table(table_rows, bordered=True, hover=True, responsive=True, striped=True, size='sm')]
+        list_results[2] = list_results[4] = False
+        list_results[1] = list_results[3] = "danger"
+        return list_results
 
 
 def sidebar_generate(app):
@@ -152,8 +222,6 @@ def sidebar_generate(app):
 
     return [
         dbc.Row(dbc.Col(dbc.Button("Refresh", id="asset_refresh", block=True, outline=False, color="primary")), className="m-2" ),
-        dbc.Row(dbc.Col(dbc.Button("Rename", id="asset_rename", block=True, outline=False, color="secondary")), className="m-2" ),
-        dbc.Row(dbc.Col(dbc.Button("Delete", id="asset_delete", block=True, outline=False, color="secondary")), className="m-2" ),
         dbc.Row(dbc.Col([
             dbc.Row(dbc.Col(
                 dbc.FormGroup([
@@ -215,9 +283,11 @@ def sidebar_generate(app):
                     ], id="asset_group_media", is_open=True)
                 ), className="mb-1"),
             dbc.Row( dbc.Col([
-                dbc.Button("Add", id="asset_add", block=True, color="secondary", outline=False), 
+                dbc.Button("Add", id="asset_add", block=True, color="secondary", disabled=True, outline=False), 
                 html.Div(id='asset_add_div')]), className="mb-1 text-muted small" ),
-        ]), className="m-1 border border-1 dark rounded")
+        ]), className="m-1 border border-1 dark rounded"),
+        dbc.Row(dbc.Col(dbc.Button("Change Datasets", id="asset_rename", block=True, outline=False, disabled=True, color="secondary")), className="m-2" ),
+        dbc.Row(dbc.Col(dbc.Button("Delete", id="asset_delete", block=True, outline=False, disabled=True, color="secondary")), className="m-2" ),
     ] 
 
 
