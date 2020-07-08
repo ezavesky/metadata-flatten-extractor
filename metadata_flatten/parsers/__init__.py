@@ -42,6 +42,8 @@ class Flatten():
     GCP_LIKELIHOOD_MAP = { "LIKELIHOOD_UNSPECIFIED": 0.0, "VERY_UNLIKELY": 0.1, "UNLIKELY": 0.25,
                            "POSSIBLE": 0.5, "LIKELY": 0.75, "VERY_LIKELY": 0.9 }
     TAG_TRANSCRIPT = "_transcript_"
+    ROUND_DIGITS = 5
+    SCORE_DEFAULT = 0.5
 
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)

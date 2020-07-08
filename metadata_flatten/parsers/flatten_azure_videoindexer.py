@@ -31,6 +31,7 @@ class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
         self.EXTRACTOR = "azure_videoindexer"
+        self.SCORE_DEFAULT = 0.75
 
     @staticmethod
     def known_types():
@@ -93,7 +94,7 @@ class Parser(Flatten):
                                 time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "speech", "tag_type": "keyword",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["name"],
-                                    "score": 1.0, "details": "",
+                                    "score": self.SCORE_DEFAULT, "details": "",
                                     "extractor": self.EXTRACTOR})
 
                 if "sentiments" in insight_obj:  # loop over sentiment
@@ -126,7 +127,7 @@ class Parser(Flatten):
                                 time_end = pt_parse(time_obj['end'])
                                 list_items.append({"time_begin": time_begin, "source_event": "audio", "tag_type": "tag",
                                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["type"],
-                                    "score": 1.0, "details": "",
+                                    "score": self.SCORE_DEFAULT, "details": "",
                                     "extractor": self.EXTRACTOR})
 
                 if "labels" in insight_obj:  # loop over labels
@@ -230,14 +231,14 @@ class Parser(Flatten):
                                 # TODO: should we use recognition probability in this interval instead of just 1.0?
                                 list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "identity",
                                     "time_end": time_end, "time_event": time_begin, "tag": f"speaker_{speaker_label}",
-                                    "score": 1.0, "details": "",
+                                    "score": self.SCORE_DEFAULT, "details": "",
                                     "extractor": self.EXTRACTOR})
 
                 if "ocr" in insight_obj:  # loop over ocr
                     for local_obj in insight_obj['ocr']:
                         if "text" in local_obj and "instances" in local_obj and len(local_obj["text"]) > 0:  # validate object
-                            local_box = {'box': {'w': round(local_obj['width'], 4), 'h': round(local_obj['height'], 4),
-                                                'l': round(local_obj['left'], 4), 't': round(local_obj['top'], 4)},
+                            local_box = {'box': {'w': round(local_obj['width'], self.ROUND_DIGITS), 'h': round(local_obj['height'], self.ROUND_DIGITS),
+                                                'l': round(local_obj['left'], self.ROUND_DIGITS), 't': round(local_obj['top'], self.ROUND_DIGITS)},
                                         'transcript': local_obj['text'] }
                             for time_obj in local_obj["instances"]:  # walk through all appearances
                                 time_begin = pt_parse(time_obj['start'])
@@ -268,7 +269,7 @@ class Parser(Flatten):
                                     time_event = time_begin
                                 list_items.append( {"time_begin": time_begin, "source_event": "video", "tag_type": "shot",
                                     "time_end": time_end, "time_event": time_event, "tag": "shot",
-                                    "score": 1.0, "details": json.dumps(details_obj),
+                                    "score": self.SCORE_DEFAULT, "details": json.dumps(details_obj),
                                     "extractor": self.EXTRACTOR})
 
                 if "scenes" in insight_obj:  # loop over scenes
@@ -279,7 +280,7 @@ class Parser(Flatten):
                                 time_end = pt_parse(time_obj['end'])
                                 list_items.append( {"time_begin": time_begin, "source_event": "video", "tag_type": "scene",
                                     "time_end": time_end, "time_event": time_begin, "tag": "scene",
-                                    "score": 1.0, "details": "",
+                                    "score": self.SCORE_DEFAULT, "details": "",
                                     "extractor": self.EXTRACTOR})
 
         if len(list_items) > 0:   # return the whole thing as dataframe

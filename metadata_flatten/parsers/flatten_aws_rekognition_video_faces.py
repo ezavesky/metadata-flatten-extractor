@@ -66,13 +66,13 @@ class Parser(Flatten):
                 if "Face" in face_obj:  # validate object
                     local_obj = face_obj["Face"]
                     time_frame = float(face_obj["Timestamp"])/1000
-                    score_frame = round(float(local_obj["Confidence"])/100, 4)
+                    score_frame = round(float(local_obj["Confidence"])/100, self.ROUND_DIGITS)
                     if "BoundingBox" in local_obj:
                         details_obj = {}
-                        details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], 4), 
-                            'h': round(local_obj['BoundingBox']['Height'], 4),
-                            'l': round(local_obj['BoundingBox']['Left'], 4), 
-                            't': round(local_obj['BoundingBox']['Top'], 4) }
+                        details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], self.ROUND_DIGITS), 
+                            'h': round(local_obj['BoundingBox']['Height'], self.ROUND_DIGITS),
+                            'l': round(local_obj['BoundingBox']['Left'], self.ROUND_DIGITS), 
+                            't': round(local_obj['BoundingBox']['Top'], self.ROUND_DIGITS) }
                         list_items.append({"time_begin": time_frame, "source_event": "face", 
                             "time_end": time_frame, "time_event": time_frame, "tag_type": "face",
                             "tag": "Face", "score": score_frame, "details": json.dumps(details_obj),
@@ -90,7 +90,7 @@ class Parser(Flatten):
                         if f in face_feats:   
                             details_obj = {}
                             if "Value" in local_obj[f]:
-                                score_feat = round(float(local_obj[f]["Confidence"])/100, 4)
+                                score_feat = round(float(local_obj[f]["Confidence"])/100, self.ROUND_DIGITS)
                                 if face_feats[f] is not None:   # normal valued item, use here
                                     if local_obj[f]["Value"] == False:   # get the right name for a negative value
                                         f = face_feats[f]
@@ -98,7 +98,7 @@ class Parser(Flatten):
                                     f = local_obj[f]["Value"]
                         elif f == "AgeRange":   # special condition for age
                             details_obj[f] = local_obj[f]
-                            score_feat = 1.0
+                            score_feat = self.SCORE_DEFAULT
                             f = "Age"
                         if score_feat is not None:
                             list_items.append({"time_begin": time_frame, "source_event": "face", 
@@ -110,7 +110,7 @@ class Parser(Flatten):
                     if "Emotions" in local_obj and local_obj["Emotions"]:
                         for emo_obj in local_obj["Emotions"]:
                             # if score_emo > 0.05   # consider a threshold?
-                            score_emo = round(float(emo_obj["Confidence"])/100, 4)
+                            score_emo = round(float(emo_obj["Confidence"])/100, self.ROUND_DIGITS)
                             list_items.append({"time_begin": time_frame, "source_event": "face", 
                                 "time_end": time_frame, "time_event": time_frame, "tag_type": "emotion",
                                 "tag": emo_obj["Type"].capitalize(), "score": score_emo, 

@@ -25,6 +25,7 @@ from pandas import DataFrame
 
 from metadata_flatten.parsers import Flatten
 
+
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
@@ -78,7 +79,7 @@ class Parser(Flatten):
                     num_words = len(re.split(r"\s+", str_trans))
                     list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "transcript",
                         "time_end": time_end, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
-                        "score": 1.0, "details": json.dumps({"words": num_words, "transcript": str_trans}),
+                        "score": self.SCORE_DEFAULT, "details": json.dumps({"words": num_words, "transcript": str_trans}),
                         "extractor": self.EXTRACTOR})
 
         # add speakers as identity?
@@ -90,7 +91,7 @@ class Parser(Flatten):
                 # TODO: should we use recognition probability in this interval instead of just 1.0?
                 list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "identity",
                     "time_end": time_end, "time_event": time_begin, "tag": f"speaker_{speaker_label}",
-                    "score": 1.0, "details": "",
+                    "score": self.SCORE_DEFAULT, "details": "",
                     "extractor": self.EXTRACTOR})
 
         if len(list_items) > 0:

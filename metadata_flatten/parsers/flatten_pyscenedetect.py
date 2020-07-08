@@ -27,7 +27,6 @@ from pytimeparse import parse as pt_parse
 
 from metadata_flatten.parsers import Flatten
 
-ROUND_DIGITS = 5
 
 class Parser(Flatten):
     def __init__(self, path_content):
@@ -73,13 +72,13 @@ class Parser(Flatten):
         # Frame Number,Timecode,content_val,delta_hue,delta_lum,delta_sat
         # 1,00:00:00.033,0.0,0.0,0.0,0.0
 
-        base_obj = {"source_event": "video", "tag_type": "shot", "extractor": self.EXTRACTOR, "score": 1.0}
+        base_obj = {"source_event": "video", "tag_type": "shot", "extractor": self.EXTRACTOR, "score": self.SCORE_DEFAULT}
 
         list_items = []
         for row_idx, row_data in df_scenes.iterrows():
-            item_new = {"time_begin": round(row_data["Start Time (seconds)"], ROUND_DIGITS),
-                        "time_end": round(row_data["End Time (seconds)"], ROUND_DIGITS),
-                        "time_event": round(row_data["Start Time (seconds)"], ROUND_DIGITS), "details": ""}
+            item_new = {"time_begin": round(row_data["Start Time (seconds)"], self.ROUND_DIGITS),
+                        "time_end": round(row_data["End Time (seconds)"], self.ROUND_DIGITS),
+                        "time_event": round(row_data["Start Time (seconds)"], self.ROUND_DIGITS), "details": ""}
             item_new.update(base_obj)
 
             # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.agg.html
@@ -90,7 +89,7 @@ class Parser(Flatten):
             df_frame_agg.index = flat_index
 
             # include features from frames, perhaps as an average, min, and max?
-            item_new["details"] = json.dumps(df_frame_agg.round(ROUND_DIGITS).to_dict())
+            item_new["details"] = json.dumps(df_frame_agg.round(self.ROUND_DIGITS).to_dict())
             list_items.append(item_new)
 
         if len(list_items) > 0:   # return the whole thing as dataframe

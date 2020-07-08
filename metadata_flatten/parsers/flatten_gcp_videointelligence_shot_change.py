@@ -28,6 +28,7 @@ from metadata_flatten.parsers import Flatten
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
+        self.SCORE_DEFAULT= 0.75
 
     @staticmethod
     def known_types():
@@ -64,7 +65,7 @@ class Parser(Flatten):
                     list_items.append( {"time_begin": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
                         "time_end": float(re_time_clean.sub('', shot_item["endTimeOffset"])), 
                         "time_event": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
-                        "source_event": "video", "tag": "shot", "score": 1.0, "details": "", "tag_type": "shot",
+                        "source_event": "video", "tag": "shot", "score": self.SCORE_DEFAULT, "details": "", "tag_type": "shot",
                         "extractor": "gcp_videointelligence_shot_change"})
                 return DataFrame(list_items)
 
