@@ -76,10 +76,10 @@ class Parser(Flatten):
                                 if "normalizedBoundingBox" in timestamped_item and \
                                         'left' in timestamped_item['normalizedBoundingBox'] and \
                                         'top' in timestamped_item['normalizedBoundingBox']:   # pull box for one item
-                                    local_box = {'w': round(timestamped_item['normalizedBoundingBox']['right'], 4), 
-                                        'h': round(timestamped_item['normalizedBoundingBox']['bottom'], 4),
-                                        'l': round(timestamped_item['normalizedBoundingBox']['left'], 4), 
-                                        't': round(timestamped_item['normalizedBoundingBox']['top'], 4) }
+                                    local_box = {'w': round(timestamped_item['normalizedBoundingBox']['right'], self.ROUND_DIGITS), 
+                                        'h': round(timestamped_item['normalizedBoundingBox']['bottom'], self.ROUND_DIGITS),
+                                        'l': round(timestamped_item['normalizedBoundingBox']['left'], self.ROUND_DIGITS), 
+                                        't': round(timestamped_item['normalizedBoundingBox']['top'], self.ROUND_DIGITS) }
                                     local_box['w'] -= local_box['l']
                                     local_box['h'] -= local_box['t']
                                     details_obj['box'].append(local_box)
@@ -88,7 +88,7 @@ class Parser(Flatten):
                                     "time_end": float(re_time_clean.sub('', track_item["segment"]["endTimeOffset"])), 
                                     "time_event": float(re_time_clean.sub('', timestamped_item["timeOffset"])), 
                                     "source_event": "video", "tag": logo_item["entity"]["description"], "tag_type": "brand",
-                                    "score": round(track_item["confidence"], 4), "details": json.dumps(details_obj), 
+                                    "score": round(track_item["confidence"], self.ROUND_DIGITS), "details": json.dumps(details_obj), 
                                     "extractor": "gcp_videointelligence_logo_recognition"})
                 return DataFrame(list_items)
 

@@ -30,6 +30,7 @@ class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
         self.EXTRACTOR = "dsai_metadata"
+        self.SCORE_DEFAULT_FIXED = 0.75
 
     @staticmethod
     def known_types():
@@ -80,7 +81,7 @@ class Parser(Flatten):
                         detail_obj['caption']["time_end"] = float(local_obj['ccduration'])/1000 + detail_obj['caption']["time_begin"]
                     list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": "transcript",
                         "time_end": time_begin + time_duration, "time_event": time_begin, "tag": Flatten.TAG_TRANSCRIPT,
-                        "score": 1.0, "details": json.dumps(detail_obj), "extractor": self.EXTRACTOR})
+                        "score": self.SCORE_DEFAULT_FIXED, "details": json.dumps(detail_obj), "extractor": self.EXTRACTOR})
 
                     # process other named entities that indicted this sentence
                     sent_id = int(local_obj["number"])
@@ -88,7 +89,7 @@ class Parser(Flatten):
                         for insight_obj in key_sentence[sent_id]:
                             list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": insight_obj['tag_type'],
                                 "time_end": time_begin + time_duration, "time_event": time_begin, "tag": insight_obj['tag'],
-                                "score": 1.0, "details": json.dumps(insight_obj['details']), "extractor": self.EXTRACTOR})
+                                "score": self.SCORE_DEFAULT, "details": json.dumps(insight_obj['details']), "extractor": self.EXTRACTOR})
 
                     # now process quickly for keywords
                     lower_scan = local_obj["text"].lower()
@@ -96,7 +97,7 @@ class Parser(Flatten):
                         if insight_obj['tag'].lower() in lower_scan:   # just check for presence
                             list_items.append( {"time_begin": time_begin, "source_event": "speech", "tag_type": insight_obj['tag_type'],
                                 "time_end": time_begin + time_duration, "time_event": time_begin, "tag": insight_obj['tag'],
-                                "score": 1.0, "details": "", "extractor": self.EXTRACTOR})
+                                "score": self.SCORE_DEFAULT, "details": "", "extractor": self.EXTRACTOR})
 
         if "silence" in dict_data:  # loop over audio
             for local_obj in dict_data['silence']:
@@ -105,7 +106,7 @@ class Parser(Flatten):
                     time_duration = float(local_obj['duration'])/1000
                     list_items.append({"time_begin": time_begin, "source_event": "audio", "tag_type": "tag",
                         "time_end": time_begin + time_duration, "time_event": time_begin, "tag": "silence",
-                        "score": 1.0, "details": "", "extractor": self.EXTRACTOR})
+                        "score": self.SCORE_DEFAULT_FIXED, "details": "", "extractor": self.EXTRACTOR})
 
         if "audio" in dict_data:  # loop over audio concepts
             if 'regions' in dict_data['audio']:
@@ -116,7 +117,7 @@ class Parser(Flatten):
                         for score_obj in local_obj['concepts']:
                             list_items.append({"time_begin": time_begin, "source_event": "audio", "tag_type": "tag",
                                 "time_end": time_begin + time_duration, "time_event": time_begin, "tag": score_obj['name'],
-                                "score": round(float(score_obj['score']), 4), "details": "", "extractor": self.EXTRACTOR})
+                                "score": round(float(score_obj['score']), self.ROUND_DIGITS), "details": "", "extractor": self.EXTRACTOR})
 
         if "commercial" in dict_data:  # loop over scenes
             for local_obj in dict_data['commercial']:
@@ -125,7 +126,7 @@ class Parser(Flatten):
                     time_duration = float(local_obj['duration'])/1000
                     list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "scene",
                         "time_end": time_begin + time_duration, "time_event": time_begin, "tag": "commercial",
-                        "score": 1.0, "details": "", "extractor": self.EXTRACTOR})
+                        "score": self.SCORE_DEFAULT, "details": "", "extractor": self.EXTRACTOR})
 
         for local_type in ['tms', 'iab']:  # loop over TMS and IAB concepts
             if local_type in dict_data and 'regions' in dict_data[local_type]:
@@ -136,7 +137,7 @@ class Parser(Flatten):
                         for score_obj in local_obj['concepts']:
                             list_items.append({"time_begin": time_begin, "source_event": "video", "tag_type": "topic",
                                 "time_end": time_begin + time_duration, "time_event": time_begin, "tag": score_obj['name'],
-                                "score": round(float(score_obj['score']), 4), "details": "", "extractor": self.EXTRACTOR})
+                                "score": round(float(score_obj['score']), self.ROUND_DIGITS), "details": "", "extractor": self.EXTRACTOR})
 
 
         if "mmimg" in dict_data:  # overall validation
@@ -146,7 +147,7 @@ class Parser(Flatten):
                 img_timing = {}
                 
                 img_id_last = -1
-                kfcluster_max = 1.0   # this is given in raw distance, so we're going to min/max normalize
+                kfcluster_max = self.SCORE_DEFAULT   # this is given in raw distance, so we're going to min/max normalize
                 for local_obj in dict_data['mmimg']['images']:  # loop over images for timing construction
                     time_begin = float(local_obj['start'])/1000
                     img_id = int(local_obj['id'])
@@ -167,17 +168,17 @@ class Parser(Flatten):
                     # first, publish the shot for this image
                     list_items.append( {"time_begin": img_timing[img_id]['time_begin'], "source_event": "video", "tag_type": "shot",
                         "time_end": img_timing[img_id]['time_end'], "time_event": img_timing[img_id]['time_begin'], "tag": "shot",
-                        "score": 1.0, "details": json.dumps(details_obj),
+                        "score": self.SCORE_DEFAULT_FIXED, "details": json.dumps(details_obj),
                         "extractor": self.EXTRACTOR})
                     
                     if "face" in local_obj:  # process faces
                         for insight_obj in local_obj['face']:
                             details_obj = {}
                             if 'x' in insight_obj and 'w' in insight_obj:
-                                details_obj['box'] = {'w': round(float(insight_obj['w']) / img_width, 4), 
-                                    'h': round(float(insight_obj['h']) / img_width, 4),
-                                    'l': round(float(insight_obj['x']) / img_height, 4), 
-                                    't': round(float(insight_obj['y']) / img_height, 4) }
+                                details_obj['box'] = {'w': round(float(insight_obj['w']) / img_width, self.ROUND_DIGITS), 
+                                    'h': round(float(insight_obj['h']) / img_width, self.ROUND_DIGITS),
+                                    'l': round(float(insight_obj['x']) / img_height, self.ROUND_DIGITS), 
+                                    't': round(float(insight_obj['y']) / img_height, self.ROUND_DIGITS) }
                             if 'rec' in insight_obj:   # specific identity
                                 list_items.append( {"time_begin": img_timing[img_id]['time_begin'], "source_event": "face", "tag_type": "identity",
                                     "time_end": img_timing[img_id]['time_end'], "time_event": img_timing[img_id]['time_begin'], 
@@ -189,7 +190,7 @@ class Parser(Flatten):
                                 list_items.append( {"time_begin": img_timing[img_id]['time_begin'], "source_event": "face", "tag_type": "identity",
                                     "time_end": img_timing[img_id]['time_end'], "time_event": img_timing[img_id]['time_begin'], 
                                     "tag": f"face_cluster_{insight_obj['cluster']['id']}",
-                                    "score": min(1.0, float(insight_obj['cluster']['score'])), "details": json.dumps(details_obj),
+                                    "score": min(self.SCORE_DEFAULT_FIXED, float(insight_obj['cluster']['score'])), "details": json.dumps(details_obj),
                                     "extractor": self.EXTRACTOR})
                     
                     object_map = {'logo': 'brand', 'object': 'tag'}
@@ -198,28 +199,28 @@ class Parser(Flatten):
                             for insight_obj in local_obj[local_type]:
                                 details_obj = {}
                                 if 'x' in insight_obj and 'w' in insight_obj:
-                                    details_obj['box'] = {'w': round(float(insight_obj['w']) / img_width, 4), 
-                                        'h': round(float(insight_obj['h']) / img_width, 4),
-                                        'l': round(float(insight_obj['x']) / img_height, 4), 
-                                        't': round(float(insight_obj['y']) / img_height, 4) }
+                                    details_obj['box'] = {'w': round(float(insight_obj['w']) / img_width, self.ROUND_DIGITS), 
+                                        'h': round(float(insight_obj['h']) / img_width, self.ROUND_DIGITS),
+                                        'l': round(float(insight_obj['x']) / img_height, self.ROUND_DIGITS), 
+                                        't': round(float(insight_obj['y']) / img_height, self.ROUND_DIGITS) }
                                 list_items.append( {"time_begin": img_timing[img_id]['time_begin'], "source_event": "image", "tag_type": object_map[local_type],
                                     "time_end": img_timing[img_id]['time_end'], "time_event": img_timing[img_id]['time_begin'], 
                                     "tag": insight_obj['name'].replace("_", " "),
-                                    "score": round(min(1.0, float(insight_obj['score'])), 4), "details": json.dumps(details_obj),
+                                    "score": round(min(self.SCORE_DEFAULT_FIXED, float(insight_obj['score'])), self.ROUND_DIGITS), "details": json.dumps(details_obj),
                                     "extractor": self.EXTRACTOR})
 
                     if 'concept' in local_obj:   # process concepts
                         for insight_obj in local_obj['concept']:
                             list_items.append({"time_begin": img_timing[img_id]['time_begin'], "source_event": "image", "tag_type": "tag",
                                 "time_end": img_timing[img_id]['time_end'], "time_event": img_timing[img_id]['time_begin'], 
-                                "tag": insight_obj['name'], "score": round(float(insight_obj['score']), 4), "details": "", "extractor": self.EXTRACTOR})
+                                "tag": insight_obj['name'], "score": round(float(insight_obj['score']), self.ROUND_DIGITS), "details": "", "extractor": self.EXTRACTOR})
 
                     if 'kfcluster' in local_obj and len(local_obj['kfcluster']):   # process kfcluster (duplicate frames)
                         details_obj = local_obj['kfcluster']
                         # TODO: investigate whether kfcluster score is a distance or a similarity; this code assumes distance!
                         list_items.append({"time_begin": img_timing[img_id]['time_begin'], "source_event": "image", "tag_type": "scene",
                             "time_end": img_timing[img_id]['time_end'], "time_event": img_timing[img_id]['time_begin'], 
-                            "tag": "duplicate", "score": 1 - round(float(local_obj['kfcluster']['score']) / kfcluster_max, 4), 
+                            "tag": "duplicate", "score": 1 - round(float(local_obj['kfcluster']['score']) / kfcluster_max, self.ROUND_DIGITS), 
                             "details": json.dumps(details_obj), "extractor": self.EXTRACTOR})
 
         if "mmpara" in dict_data:  # loop over paragraph segments to make scenes (from speech)
@@ -232,7 +233,7 @@ class Parser(Flatten):
                         details_obj = {'sentences': int(local_obj["sentend"]) - int(local_obj["sentstart"]) + 1}
                     list_items.append({"time_begin": time_begin, "source_event": "speech", "tag_type": "scene",
                         "time_end": time_begin + time_duration, "time_event": time_begin, "tag": "story",
-                        "score": 1.0, "details": json.dumps(details_obj), "extractor": self.EXTRACTOR})
+                        "score": self.SCORE_DEFAULT, "details": json.dumps(details_obj), "extractor": self.EXTRACTOR})
 
 
         # TODO: additional parsing for these data

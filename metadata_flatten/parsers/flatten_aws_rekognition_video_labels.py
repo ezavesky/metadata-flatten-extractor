@@ -74,12 +74,12 @@ class Parser(Flatten):
                         details_obj = {'category': [p["Name"] for p in local_obj["Parents"]]}
                     if "Instances" in local_obj and len(local_obj["Instances"]):
                         for instance_obj in local_obj["Instances"]:  # treat each box independently
-                            details_obj['box'] = {'w': round(instance_obj['BoundingBox']['Width'], 4), 
-                                'h': round(instance_obj['BoundingBox']['Height'], 4),
-                                'l': round(instance_obj['BoundingBox']['Left'], 4), 
-                                't': round(instance_obj['BoundingBox']['Top'], 4) }
+                            details_obj['box'] = {'w': round(instance_obj['BoundingBox']['Width'], self.ROUND_DIGITS), 
+                                'h': round(instance_obj['BoundingBox']['Height'], self.ROUND_DIGITS),
+                                'l': round(instance_obj['BoundingBox']['Left'], self.ROUND_DIGITS), 
+                                't': round(instance_obj['BoundingBox']['Top'], self.ROUND_DIGITS) }
 
-                            score_frame = round(float(instance_obj["Confidence"])/100, 4)
+                            score_frame = round(float(instance_obj["Confidence"])/100, self.ROUND_DIGITS)
                             list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "tag",
                                 "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                                 "score": score_frame, "details": json.dumps(details_obj),

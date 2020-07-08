@@ -59,7 +59,7 @@ class Parser(Flatten):
         for annotation_obj in dict_data["annotationResults"]:  # traverse items
             if "explicitAnnotation" in annotation_obj:  # validate object
                 if "frames" not in annotation_obj["explicitAnnotation"]:  # validate object
-                    self.logger.critical(f"Missing nested 'frames' in shot chunk '{explicit_item}'")
+                    self.logger.critical(f"Missing nested 'frames' in shot chunk '{annotation_obj['explicitAnnotation']}'")
                     return None
                 list_items = []
                 for frame_item in annotation_obj["explicitAnnotation"]["frames"]:

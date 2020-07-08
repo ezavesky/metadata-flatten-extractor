@@ -24,8 +24,6 @@ from pandas import DataFrame
 
 from metadata_flatten.parsers import Flatten
 
-ROUND_DIGITS = 4
-
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
@@ -59,17 +57,17 @@ class Parser(Flatten):
                 #             "boundingBox": { "left": 0.134375, "top": 0.175, "width": 0.3078, "height": 0.80277 } }
                 #     ]  }  ]  },
 
-                time_frame = round(float(local_obj["milliseconds"]) / 1000.0, ROUND_DIGITS)
+                time_frame = round(float(local_obj["milliseconds"]) / 1000.0, self.ROUND_DIGITS)
                 base_obj = { "time_begin": time_frame, "time_event": time_frame, "time_end": time_frame,
                              "tag_type": "tag", "source_event": "image", "extractor": self.EXTRACTOR }
                 for obj_result in local_obj["results"]:   # iterate through result sets
                     if "objects" in obj_result:
                         for instance_obj in obj_result["objects"]:   # iterate through objects
-                            details_obj = { 'box': {'w': round(instance_obj['boundingBox']['width'], ROUND_DIGITS), 
-                                'h': round(instance_obj['boundingBox']['height'], ROUND_DIGITS),
-                                'l': round(instance_obj['boundingBox']['left'], ROUND_DIGITS), 
-                                't': round(instance_obj['boundingBox']['top'], ROUND_DIGITS) } }
-                            score_frame = round(float(instance_obj["confidence"]), 4)
+                            details_obj = { 'box': {'w': round(instance_obj['boundingBox']['width'], self.ROUND_DIGITS), 
+                                'h': round(instance_obj['boundingBox']['height'], self.ROUND_DIGITS),
+                                'l': round(instance_obj['boundingBox']['left'], self.ROUND_DIGITS), 
+                                't': round(instance_obj['boundingBox']['top'], self.ROUND_DIGITS) } }
+                            score_frame = round(float(instance_obj["confidence"]), self.ROUND_DIGITS)
                             obj_insert = { "tag": instance_obj["name"], "score": score_frame, 
                                 "details": json.dumps(details_obj) }
                             obj_insert.update(base_obj)

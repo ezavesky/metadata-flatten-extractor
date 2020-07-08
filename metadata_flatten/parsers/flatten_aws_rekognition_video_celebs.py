@@ -68,13 +68,13 @@ class Parser(Flatten):
                     time_frame = float(celebrity_obj["Timestamp"])/1000
                     details_obj = {}
                     if "BoundingBox" in local_obj:
-                        details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], 4), 
-                            'h': round(local_obj['BoundingBox']['Height'], 4),
-                            'l': round(local_obj['BoundingBox']['Left'], 4), 
-                            't': round(local_obj['BoundingBox']['Top'], 4) }
+                        details_obj['box'] = {'w': round(local_obj['BoundingBox']['Width'], self.ROUND_DIGITS), 
+                            'h': round(local_obj['BoundingBox']['Height'], self.ROUND_DIGITS),
+                            'l': round(local_obj['BoundingBox']['Left'], self.ROUND_DIGITS), 
+                            't': round(local_obj['BoundingBox']['Top'], self.ROUND_DIGITS) }
                     if "Urls" in local_obj and local_obj["Urls"]:
                         details_obj['urls'] = ",".join(local_obj["Urls"])
-                    score_frame = round(float(local_obj["Confidence"])/100, 4)
+                    score_frame = round(float(local_obj["Confidence"])/100, self.ROUND_DIGITS                                                                                  )
 
                     list_items.append({"time_begin": time_frame, "source_event": "face", "tag_type": "identity",
                         "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
