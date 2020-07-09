@@ -101,7 +101,7 @@ class Parser(Flatten):
                                     if speaker_begin is not None:   # close last speaker segment
                                         list_items.append( {"time_begin": speaker_begin, "source_event": "speech", "tag_type": "identity",
                                             "time_end": speaker_end, "time_event": speaker_begin, "tag": f"speaker_{speaker_last}",
-                                            "score": round(speaker_score / speaker_segments, 5), "details": "",
+                                            "score": round(speaker_score / speaker_segments, self.ROUND_DIGITS), "details": "",
                                             "extractor": self.EXTRACTOR})
                                     speaker_last = word_obj["speakerTag"]
                                     speaker_begin = time_begin_clean   # reset timing information
@@ -112,7 +112,7 @@ class Parser(Flatten):
                         if speaker_begin is not None:   # close last speaker segment
                             list_items.append( {"time_begin": speaker_begin, "source_event": "speech", "tag_type": "identity",
                                 "time_end": speaker_end, "time_event": speaker_begin, "tag": f"speaker_{speaker_last}",
-                                "score": round(speaker_score / speaker_segments, 5), "details": "",
+                                "score": round(speaker_score / speaker_segments, self.ROUND_DIGITS), "details": "",
                                 "extractor": self.EXTRACTOR})
 
                         if "transcript" in alt_obj:  # generate top-level transcript item, after going through all words

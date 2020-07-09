@@ -71,13 +71,13 @@ class Parser(Flatten):
                     for local_obj in face_obj["FaceMatches"]:
                         # score is product of 'similarity' and 'confidence'
                         match_obj = local_obj["Face"]
-                        score_frame = round(float(local_obj["Similarity"])/100 * float(match_obj["Confidence"])/100, 4)
+                        score_frame = round(float(local_obj["Similarity"])/100 * float(match_obj["Confidence"])/100, self.ROUND_DIGITS)
                         details_obj = {}
                         if "BoundingBox" in match_obj:
-                            details_obj['box'] = {'w': round(match_obj['BoundingBox']['Width'], 4), 
-                                'h': round(match_obj['BoundingBox']['Height'], 4),
-                                'l': round(match_obj['BoundingBox']['Left'], 4), 
-                                't': round(match_obj['BoundingBox']['Top'], 4) }
+                            details_obj['box'] = {'w': round(match_obj['BoundingBox']['Width'], self.ROUND_DIGITS), 
+                                'h': round(match_obj['BoundingBox']['Height'], self.ROUND_DIGITS),
+                                'l': round(match_obj['BoundingBox']['Left'], self.ROUND_DIGITS),
+                                't': round(match_obj['BoundingBox']['Top'], self.ROUND_DIGITS) }
 
                         # this is a user-specified field, so we have to be creative... (see some examples)
                         #   "faces_Tech_N9Ne_Tech_N9Ne29.jpg",
