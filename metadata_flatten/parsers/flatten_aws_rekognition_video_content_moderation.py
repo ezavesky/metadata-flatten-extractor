@@ -70,7 +70,7 @@ class Parser(Flatten):
                     if "ParentName" in local_obj and len(local_obj["ParentName"]):   # skip over those without parent name
                         time_frame = float(celebrity_obj["Timestamp"])/1000
                         details_obj = {'category': local_obj["ParentName"]}
-                        score_frame = round(float(local_obj["Confidence"])/100, 4)
+                        score_frame = round(float(local_obj["Confidence"])/100, self.ROUND_DIGITS)
                         list_items.append({"time_begin": time_frame, "source_event": "image",  "tag_type": "moderation",
                             "time_end": time_frame, "time_event": time_frame, "tag": local_obj["Name"],
                             "score": score_frame, "details": json.dumps(details_obj),

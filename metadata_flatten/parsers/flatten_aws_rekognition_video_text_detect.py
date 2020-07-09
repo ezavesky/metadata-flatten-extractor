@@ -25,7 +25,6 @@ import re
 
 from metadata_flatten.parsers import Flatten
 
-ROUND_DIGITS = 5
 
 class Parser(Flatten):
     def __init__(self, path_content):
@@ -68,15 +67,15 @@ class Parser(Flatten):
 
             for local_obj in dict_data['TextDetections']:
                 if "Timestamp" in local_obj and "TextDetection" in local_obj:  # validate object
-                    time_begin = round(float(local_obj['Timestamp']) / 1000.0, ROUND_DIGITS)
+                    time_begin = round(float(local_obj['Timestamp']) / 1000.0, self.ROUND_DIGITS)
                     instance_obj = local_obj['TextDetection']
-                    score_detect = round(float(instance_obj["Confidence"]) / 100, ROUND_DIGITS)
+                    score_detect = round(float(instance_obj["Confidence"]) / 100, self.ROUND_DIGITS)
                     details_obj = { }
                     if "Geometry" in instance_obj and instance_obj["Geometry"]["BoundingBox"]:   # make sure geometry is valid
-                        details_obj['box'] = {'w': round(instance_obj["Geometry"]['BoundingBox']['Width'], ROUND_DIGITS), 
-                            'h': round(instance_obj["Geometry"]['BoundingBox']['Height'], ROUND_DIGITS),
-                            'l': round(instance_obj["Geometry"]['BoundingBox']['Left'], ROUND_DIGITS), 
-                            't': round(instance_obj["Geometry"]['BoundingBox']['Top'], ROUND_DIGITS) }
+                        details_obj['box'] = {'w': round(instance_obj["Geometry"]['BoundingBox']['Width'], self.ROUND_DIGITS), 
+                            'h': round(instance_obj["Geometry"]['BoundingBox']['Height'], self.ROUND_DIGITS),
+                            'l': round(instance_obj["Geometry"]['BoundingBox']['Left'], self.ROUND_DIGITS), 
+                            't': round(instance_obj["Geometry"]['BoundingBox']['Top'], self.ROUND_DIGITS) }
                     text_type = instance_obj['Type'].lower()
                     if text_type == "line":   # either line (transcript)
                         details_obj['transcript'] = instance_obj['DetectedText']
