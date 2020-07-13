@@ -1,0 +1,8 @@
+gunicorn
+gevent
+flask
+gensim
+dash
+dash_bootstrap_components
+pandas
+
