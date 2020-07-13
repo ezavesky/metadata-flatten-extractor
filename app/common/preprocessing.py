@@ -172,7 +172,7 @@ def data_parse_callback(path_input, extractor_name, fn_callback=None, verbose=Tr
     return df_output
 
 
-def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None):
+def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None, nlp_model="en_core_web_lg"):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
     list_files, path_new = data_discover_raw(stem_datafile, data_dir)
 
@@ -304,7 +304,7 @@ def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=
                 fn_callback(f"Extracting {len(df_append)} new words for analysis")
             df = df.append(df_append)
 
-    if NLP_TOKENIZE:
+    if NLP_TOKENIZE and len(nlp_model):
         # extract/add NLP tags from transcripts
         if fn_callback is not None:
             fn_callback(f"... detecting NLP-based textual entities....", math.floor(float(task_idx)/task_count*100))
@@ -316,7 +316,7 @@ def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=
         # models - https://spacy.io/models/en 
         # execute -- python -m spacy download en_core_web_sm
         # https://github.com/explosion/spacy-models/releases/download/en_core_web_md-2.2.5/en_core_web_md-2.2.5.tar.gz
-        nlp = spacy.load('en_core_web_sm')
+        nlp = spacy.load(nlp_model)
         list_new = []
         df_sub = df[df["tag_type"]=="transcript"]
         idx_sub = 0

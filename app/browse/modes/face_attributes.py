@@ -35,13 +35,13 @@ LIST_NOFACE_TAGS = ["Face", "Age"]
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink="", mapping_model=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update)
+    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update, nlp_model=mapping_model)
     df_label = data_label_serialize(data_dir)
     # print(tree_query.data.shape)
 

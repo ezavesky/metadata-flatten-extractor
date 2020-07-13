@@ -239,7 +239,7 @@ def data_discover(stem_datafile, data_dir, bundle_files):
     return preprocessing.data_discover_raw(stem_datafile, data_dir, bundle_files)
 
 @st.cache(suppress_st_warning=True)
-def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
+def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False, nlp_model="en_core_web_lg"):
     ux_report = st.empty()
     ux_progress = st.progress(0)
 
@@ -256,7 +256,8 @@ def data_load(stem_datafile, data_dir, allow_cache=True, ignore_update=False):
                 ux_progress.empty()
 
     return preprocessing.data_load_callback(stem_datafile, data_dir, allow_cache=allow_cache,
-                                           ignore_update=ignore_update, fn_callback=_local_update)
+                                           ignore_update=ignore_update, fn_callback=_local_update,
+                                           nlp_model=nlp_model)
 
 
 def download_link(path_temp, name_link=None, df=None, path_src=None):

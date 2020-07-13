@@ -30,7 +30,7 @@ import modes
 from modes.utilities import manifest_parse_cached
 
 
-def main_page(data_dir=None, media_file=None, ignore_update=False, manifest="", symlink=""):
+def main_page(data_dir=None, media_file=None, ignore_update=False, manifest="", symlink="", mapping_model=""):
     """Main page for execution"""
     # read in version information
     version_dict = {}
@@ -61,7 +61,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, manifest="", 
     if media_file is None:
         media_file = path.join(data_dir, "videohd.mp4")
 
-    df_live = func_page(data_dir, media_file, ignore_update, symlink)  # attempt to process
+    df_live = func_page(data_dir, media_file, ignore_update, symlink, mapping_model)  # attempt to process
     num_events = f"{len(df_live)} events" if df_live is not None else "(no events detected)"
     ux_report.markdown(f"""<div style="text-align:left; font-size:small; color:#a1a1a1; width=100%;">
                      <span >{version_dict['__package__']} (v {version_dict['__version__']})</span>
@@ -83,6 +83,7 @@ def main(args=None):
     submain.add_argument('-i', '--ignore_update', dest='ignore_update', default=False, action='store_true', help="Ignore update files and use bundle directly")
     submain.add_argument('-l', '--manifest', dest='manifest', type=str, default='', help='specify a manifest file for multiple asset analysis')
     submain.add_argument('-s', '--symlink', dest='symlink', type=str, default='', help='specify a symlink directory for serving static assets (empty=disabled)')
+    submain.add_argument('-n', '--mapping_model', dest='mapping_model', type=str, default='en_core_web_lg', help='spacy mapping model if NLP models installed - https://spacy.io/models')
 
     if args is None:
         config_defaults = vars(parser.parse_args())
