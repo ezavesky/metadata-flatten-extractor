@@ -34,7 +34,7 @@ NUM_SUMMARY = 10
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink="", mapping_model=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()
@@ -42,7 +42,7 @@ def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
 
     list_files, path_new = data_discover(PATH_BASE_BUNDLE, data_dir, bundle_files=True)
 
-    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update)
+    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update, nlp_model=mapping_model)
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
         return None
