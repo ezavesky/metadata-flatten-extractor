@@ -3,6 +3,7 @@ FROM python:3.7-slim
 ARG user=cae
 ARG uid=2000
 ARG gid=2000
+ARG spacy_model=en_core_web_lg
 
 ENV WORKDIR=/src
 ENV VIDEO=/videos/video.mp4
@@ -13,6 +14,7 @@ ENV SYMLINK=metadata-static
 COPY requirements.txt $WORKDIR/requirements.txt
 COPY app/browse/requirements.txt $WORKDIR/app/browse/requirements.txt
 COPY app/quality/requirements.txt $WORKDIR/app/quality/requirements.txt
+COPY app/lexicon_map/requirements.txt $WORKDIR/app/lexicon_map/requirements.txt
 
 RUN python -V \
     && groupadd -g $gid $user && useradd -m -u $uid -g $gid $user \
@@ -31,11 +33,18 @@ enableCORS = false\n\
 " > /$user/.streamlit/config.toml' \
     # install requirements (base package)
     && pip install --no-cache-dir -r $WORKDIR/requirements.txt \
-    # install app requirements
+    # --- browser app
     && pip install --no-cache-dir -r $WORKDIR/app/browse/requirements.txt \
-    && pip install --no-cache-dir -r $WORKDIR/app/quality/requirements.txt \
-    # install NLP word model for spacy
-    && su $user && python -m spacy download en_core_web_sm \
+    # --- quality app
+    # && pip install --no-cache-dir -r $WORKDIR/app/quality/requirements.txt \
+    # --- lexicon-map app
+    && pip install --no-cache-dir -r $WORKDIR/app/lexicon_map/requirements.txt \
+    # install NLP word model for gensim - https://github.com/RaRe-Technologies/gensim-data (350M, 1G, 1.6G below)
+    # && su -c "python -m gensim.downloader --download glove-wiki-gigaword-300" - cae \
+    # && su -c "python -m gensim.downloader --download word2vec-google-news-300" - cae \
+    # && su -c "python -m gensim.downloader --download fasttext-wiki-news-subwords-300" - cae \
+    # install NLP word model for spacy (used by both browser and lexicon-map)
+    && su $user && python -m spacy download $spacy_model \
     # convert to user permissions
     && chown -R $uid:$gid /$user/.streamlit
 
@@ -52,17 +61,22 @@ RUN python -V \
     && chmod a+wx /tmp/$SYMLINK
 
 # exposing default port for streamlit
-EXPOSE 8501 8601
+EXPOSE 8501 8601 8701
 
 # launch as a specific user
 USER $user
 
 # run apps
 CMD python -V && \
-    echo "cd $WORKDIR/app/quality" > /tmp/run_script.sh  && \
-    echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8601 -t 90  \"server:app(manifest='$MANIFEST', media_file='$VIDEO', data_dir='/results')\" & " >> /tmp/run_script.sh && \
+    # --- quality app
+    # echo "cd $WORKDIR/app/quality" > /tmp/run_script.sh  && \
+    # echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8601 -t 90  \"server:app(manifest='$MANIFEST', media_file='$VIDEO', data_dir='/results')\" & " >> /tmp/run_script.sh && \
+    # --- mapping app
+    echo "cd $WORKDIR/app/lexicon_map" > /tmp/run_script.sh  && \
+    echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8701 -t 90  \"server:app(manifest='$MANIFEST', data_dir='/results', mapping_model='$spacy_model')\" & " >> /tmp/run_script.sh && \
+    # --- browse app
     echo "cd $WORKDIR/app/browse" >>  /tmp/run_script.sh && \
-    echo "nohup streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --data_dir /results --symlink /tmp/$SYMLINK & " >> /tmp/run_script.sh && \
+    echo "nohup streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --mapping_moodel $spacy_model --data_dir /results --symlink /tmp/$SYMLINK & " >> /tmp/run_script.sh && \
     echo "tail -f  $WORKDIR/app/browse/nohup.out $WORKDIR/app/quality/nohup.out " >> /tmp/run_script.sh && \
     chmod +x /tmp/run_script.sh && \
     /tmp/run_script.sh

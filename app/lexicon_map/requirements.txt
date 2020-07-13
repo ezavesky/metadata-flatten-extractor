@@ -5,4 +5,6 @@ gensim
 dash
 dash_bootstrap_components
 pandas
+spacy
+scipy
 
