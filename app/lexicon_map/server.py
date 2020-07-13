@@ -54,8 +54,7 @@ if __name__ == '__main__':
             sys.path.append(_PACKAGE)
 
 
-from index import callback_create, layout_generate, create_dash_app, get_dash_app
-import mapping 
+from index import callback_create, layout_generate, create_dash_app, get_dash_app, models_load
 
 
 ### ------------------------------------------------
@@ -80,8 +79,8 @@ def create_app(argv=sys.argv[1:]):
     parser.add_argument("--verbose", "-v", action="count")
     subparse = parser.add_argument_group('media configuration')
     subparse.add_argument("--data_dir", type=str, default='model', help="specify the source directory for model")
-    subparse.add_argument("-m", "--mapping_model", type=str, default='word2vec-google-news-300', 
-        help="embedding imodel (suggest 'fasttext-wiki-news-subwords-300', 'word2vec-google-news-300', or 'conceptnet-numberbatch-17-06-300')")
+    subparse.add_argument('-n', '--mapping_model', dest='mapping_model', type=str, default='en_core_web_lg', 
+        help='spacy mapping model if NLP models installed - https://spacy.io/models')
 
     run_settings = vars(parser.parse_args(argv))
     logger.info(f"Run Settings: {run_settings}")
@@ -99,6 +98,7 @@ def create_app(argv=sys.argv[1:]):
 
     server = Flask(__name__) # define flask app.server
     app_obj = create_dash_app(__name__, server, run_settings['log_size'])   # NOTE: this updates _app_obj
+    app_obj.models = models_load(run_settings['mapping_model'], run_settings['data_dir'])
 
     app_obj.title = app_title
     app_obj.logger = logger
@@ -106,7 +106,6 @@ def create_app(argv=sys.argv[1:]):
     app_obj.layout = layout_generate
 
     app_obj.config.suppress_callback_exceptions = True
-    app_obj.models = { }
     
     callback_create(app_obj)
 
@@ -129,8 +128,6 @@ def create_app(argv=sys.argv[1:]):
     @app_obj.server.route('/api/map/<domain>/<query>', methods=['GET', 'POST'])
     def map(domain, query):
         return make_response("{}")
-
-
 
     return server
 

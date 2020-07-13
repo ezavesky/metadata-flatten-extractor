@@ -19,9 +19,9 @@
 # ===============LICENSE_END=========================================================
 
 
-from os.path import join as path_join
 from queue import Queue
 import pandas as pd
+from pathlib import Path
 
 import datetime as dt
 import json
@@ -36,6 +36,10 @@ from dash.exceptions import PreventUpdate
 
 import logging
 logger = logging.getLogger()
+
+import mapping_spacy as mapping    # TODO: configure this in another way
+
+MAPPING_PRIMARY = "__primiary"
 
 _app_obj = None   # our one dash app instance
 
@@ -57,31 +61,47 @@ def create_dash_app(name, server, log_size=0):
     return _app_obj
 
 
-def session_load(app, settings):
-    if hasattr(app, 'store') and hasattr(app.store, 'data'):
-        return app.store.data
-    dtn = utils.dt_format()
-    session = {'filters': {}, 'result_offset': 0}
-    session.update(settings)
-    return session
+def models_load(model_name, data_dir=None, models_dict=None):
+    if models_dict is None:
+        models_dict = {}
 
-def generate_mapping(app, query=None, target_dataset=None):
+    path_data = Path(data_dir)
+    for path_vocab in path_data.rglob("*.w2v"):   # scan data dir for secondary vocabularies
+        models_dict[path_vocab.stem] = {"vocab": mapping.vocab_load(path_vocab.resolve()), "idx": len(models_dict)}
+
+    for path_flattened in path_data.rglob("*.csv.gz"):   # scan data dir for secondary vocabularies
+        print(path_flattened.resolve())
+
+
+    # important for this to be at the end of the list
+    if MAPPING_PRIMARY not in models_dict:   # first, load the primary model
+        models_dict[MAPPING_PRIMARY] = {'vocab': mapping.model_load(model_name), 'idx': -1 }
+
+    return models_dict
+
+
+def generate_mapping(app, query=None, target_dataset=None, limit=20):
     list_return = []
-    if query is None:
-        return [ dbc.ListGroupItem([html.Span("(no query entered)")], className="pt-1 pb-1") ]
-    list_return = [
-        dbc.ListGroupItem([html.Span("term1"), html.Span(" (0.30)", className="text-muted small")], className="pt-1 pb-1"),
-        dbc.ListGroupItem([html.Span("term3"), html.Span(" (0.31)", className="text-muted small")], className="pt-1 pb-1"),
-        dbc.ListGroupItem([html.Span("term2"), html.Span(" (0.23)", className="text-muted small")], className="pt-1 pb-1"),
-    ]
-    return list_return
+
+    if query is not None and target_dataset in app.models:
+        return mapping.domain_map(app.models[MAPPING_PRIMARY]['vocab'], query, app.models[target_dataset]['vocab'], k=limit)
+    return [ ]
+
+
+def layout_results(list_search):
+    if list_search:
+        return [
+            dbc.ListGroupItem([html.Span(x['tag']), html.Span(f" ({round(x['score'], 3)})", className="text-muted small")], className="pt-1 pb-1")
+            for x in list_search
+        ]
+    return [ dbc.ListGroupItem([html.Span("(no query entered)")], className="pt-1 pb-1") ]
 
 
 def layout_generate():
-    global _app_obj 
+    app = get_dash_app()
 
     # https://dash.plot.ly/dash-core-components/store
-    _app_obj.store = dcc.Store(id='session', storage_type='memory')   # use store
+    local_store = dcc.Store(id='session', storage_type='memory')   # use store
     
     return html.Div([
         dbc.Navbar([
@@ -89,7 +109,7 @@ def layout_generate():
                 dbc.Button([
                     html.I(className="fas fa-bars", title='Toggle Filters')
                     ], id="button_filters", size="sm", color="primary", className="float-left mt-2 mr-2"),
-                html.H2(_app_obj.title, className="text-left align-text-top"),
+                html.H2(app.title, className="text-left align-text-top"),
             ], width=3),
             dbc.Col([ 
                 dbc.Input(id="search_text", placeholder="(e.g. car truck not motorcycle)", 
@@ -108,7 +128,7 @@ def layout_generate():
             dbc.Collapse([
                 dbc.Row(dbc.Col([
                     html.Span("Mapped Results", className="h4"),
-                    html.Span(" (0)", className="text-light", id="mapped_count"),
+                    html.Span(" (0)", className="text-dark smalls", id="mapped_count"),
                     ])),
                 dbc.Row(dbc.Col([
                     dbc.ListGroup([
@@ -116,11 +136,22 @@ def layout_generate():
                         ], id="mapped_list", className="itemlist border border-1 border-dark", flush=True)
                     ], width=12)),
                 dbc.Row(dbc.Col([
-                    dbc.DropdownMenu([
-                        dbc.DropdownMenuItem("target1", id={'type': 'dataset', 'index': "target1"}),
-                        dbc.DropdownMenuItem("target2", id={'type': 'dataset', 'index': "target2"}),
-                        ], id="mapped_datasets", label="Target Dataset", className=""),
-                    ], width=12), className="mt-2 mb-2"),
+                    dbc.FormGroup([
+                        html.Span("Target Dataset", className="h4"),
+                        dbc.RadioItems(
+                            options=[
+                                {"label": k, "value": k}
+                                for k in app.models if k != MAPPING_PRIMARY 
+                            ],
+                            value=list(app.models.keys())[0], id="mapped_datasets", inline=True),
+                        ])
+                    ], width=12), className="mt-2"),
+                # dbc.Row(dbc.Col([
+                #     dbc.DropdownMenu([
+                #         dbc.DropdownMenuItem(k, id={'type': 'dataset', 'index':k}) 
+                #         for k in app.models if k != MAPPING_PRIMARY                        
+                #         ], id="mapped_datasets", label="Target Dataset", className=""),
+                #     ], width=12), className="mt-2 mb-2"),
                 dbc.Row(dbc.Col("Asset Filter", className="h4", width="auto")),
                 dbc.Row(dbc.Col([
                     dbc.ListGroup([
@@ -135,7 +166,7 @@ def layout_generate():
         ], className="rounded h-100 mt-1"),
         
         # Hidden div inside the app that stores the intermediate value
-        _app_obj.store,   # use store
+        local_store,   # use store
         # dcc.Interval(
         #     id='interval_component',
         #     interval=_app_obj.settings['refresh_interval'], # in milliseconds
@@ -150,10 +181,10 @@ def callback_create(app):
     @app.callback(
         # [Output(name, 'children') for name in result_names] + 
         [Output('mapped_list', 'children'), Output('mapped_count', 'children')],
-        [Input('search_text', 'value'), Input({'type': 'dataset', 'index': ALL}, 'n_clicks')],
+        [Input('search_text', 'value'), Input('mapped_datasets', 'value')],
         [State('session', 'data')]
     )
-    def update_results(search_str, dataset_clicks, session_data):
+    def update_results(search_str, dataset_selected, session_data):
         """update the contents of channel data"""
         ctx = dash.callback_context    # validate specific context (https://dash.plotly.com/advanced-callbacks)
         # if not ctx.triggered :
@@ -168,10 +199,13 @@ def callback_create(app):
             dict_trigger = json.loads(trigger_id)
             module_trigger = dict_trigger["index"]
             module_type = dict_trigger['type']
-        logger.info(f"UPDATE: {trigger_id} [{module_trigger}, {module_type}]")
+        logger.info(f"UPDATE: {trigger_id} [{module_trigger}, {module_type}], query '{search_str}'")
 
-        list_dom = generate_mapping(app, query=None, target_dataset=None)
-        return [list_dom, f" ({len(list_dom)} tags)"]
+        if search_str is not None and len(search_str) < 1:
+            search_str = None
+        list_search = generate_mapping(app, query=search_str, target_dataset=dataset_selected)
+        list_result_item = layout_results(list_search)
+        return [list_result_item, f" ({len(list_result_item)} tag{'s' if len(list_result_item) != 1 else ''})"]
 
     @app.callback(
         Output('core_filter', 'is_open'),
