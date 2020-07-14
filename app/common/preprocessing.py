@@ -172,7 +172,8 @@ def data_parse_callback(path_input, extractor_name, fn_callback=None, verbose=Tr
     return df_output
 
 
-def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None, nlp_model="en_core_web_lg"):
+def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None, 
+                        nlp_model="en_core_web_lg", map_shots=True):
     """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
     list_files, path_new = data_discover_raw(stem_datafile, data_dir)
 
@@ -215,6 +216,7 @@ def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=
         if fn_callback is not None:
             fn_callback(f"Loading file '{f.name}'...", math.floor(float(task_idx)/task_count*100))
         df_new = pd.read_csv(str(f.resolve()))
+        df_new['asset'] = f.stem
         df = df_new if df is None else pd.concat([df, df_new], axis=0, sort=False)
     df["details"].fillna("", inplace=True)
 
@@ -246,29 +248,30 @@ def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=
 
     # TODO: allow multiple shot providers
 
-    # build look-up table for all shots by second
-    shot_timing = range(int(math.ceil(df["time_begin"].max())) * UPSAMPLE_TIME)  # create index
-    # for speed, we generate a mapping that can round the time into a reference...
-    #   [t0, t1, t2, t3, ....] and use that mapping shot id (update 2/16/20 - don't overwrite "duration" field)
-    shot_lookup = None
-    for idx_shots, df_shots in df[df["tag_type"]=="shot"].groupby("extractor"):
-        if shot_lookup is not None:
-            break
-        shot_lookup = []
-        # logger.info(f"Generating shot mapping from type '{df_shots['extractor'][0]}'...")
-        df_shots = df_shots.sort_values("time_begin")
-        idx_shot = 0
-        for row_idx, row_shot in df_shots.iterrows():
-            ref_shot = int(math.floor(row_shot["time_begin"] * UPSAMPLE_TIME))
-            # print("check", ref_shot, idx_shot, row_shot["duration"])
-            while ref_shot >= len(shot_lookup):
-                shot_lookup.append(idx_shot)
-            idx_shot += 1
-    ref_shot = int(math.floor(df["time_begin"].max() * UPSAMPLE_TIME))
-    while ref_shot >= len(shot_lookup):   # extend the mapping array until max time
-        shot_lookup.append(shot_lookup[-1])
+    if map_shots:   # added v1.0.1
+        # build look-up table for all shots by second
+        shot_timing = range(int(math.ceil(df["time_begin"].max())) * UPSAMPLE_TIME)  # create index
+        # for speed, we generate a mapping that can round the time into a reference...
+        #   [t0, t1, t2, t3, ....] and use that mapping shot id (update 2/16/20 - don't overwrite "duration" field)
+        shot_lookup = None
+        for idx_shots, df_shots in df[df["tag_type"]=="shot"].groupby("extractor"):
+            if shot_lookup is not None:
+                break
+            shot_lookup = []
+            # logger.info(f"Generating shot mapping from type '{df_shots['extractor'][0]}'...")
+            df_shots = df_shots.sort_values("time_begin")
+            idx_shot = 0
+            for row_idx, row_shot in df_shots.iterrows():
+                ref_shot = int(math.floor(row_shot["time_begin"] * UPSAMPLE_TIME))
+                # print("check", ref_shot, idx_shot, row_shot["duration"])
+                while ref_shot >= len(shot_lookup):
+                    shot_lookup.append(idx_shot)
+                idx_shot += 1
+        ref_shot = int(math.floor(df["time_begin"].max() * UPSAMPLE_TIME))
+        while ref_shot >= len(shot_lookup):   # extend the mapping array until max time
+            shot_lookup.append(shot_lookup[-1])
 
-    df["shot"] = df["time_begin"].apply(lambda x: shot_lookup[int(math.floor(x * UPSAMPLE_TIME))])     # now map the time offset 
+        df["shot"] = df["time_begin"].apply(lambda x: shot_lookup[int(math.floor(x * UPSAMPLE_TIME))])     # now map the time offset 
 
     # default with tag for keywords
     df.loc[df["tag_type"]=="word", "details"] = df[df["tag_type"]=="word"]
