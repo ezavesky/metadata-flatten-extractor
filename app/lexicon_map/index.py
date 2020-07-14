@@ -42,7 +42,10 @@ logger = logging.getLogger()
 import mapping_spacy as mapping    # TODO: configure this in another way
 from common import preprocessing
 
-MAPPING_PRIMARY = "__primiary"
+MAPPING_PRIMARY = "__primary"
+MAPPING_LEXICON = "lexicon"
+MAX_RESULTS = 20   # max results for the mapping
+MAX_AUTO_ENABLED = 5   # max results that are auto-enabled after mapping
 
 _app_obj = None   # our one dash app instance
 
@@ -63,41 +66,49 @@ def create_dash_app(name, server, log_size=0):
     _app_obj.log = Queue(log_size*2)  # new queue for incoming data
     return _app_obj
 
+### ---------------- data and nlp mpapping ---------------------------------------
 
-def models_load(model_name, data_dir=None, models_dict=None):
+
+def models_load(model_name, data_dir, models_dict=None):
     if models_dict is None:
         models_dict = {}
 
+    # read the individual vocab labels
     path_data = Path(data_dir)
     for path_vocab in path_data.rglob("*.w2v"):   # scan data dir for secondary vocabularies
         models_dict[path_vocab.stem] = {"vocab": mapping.vocab_load(path_vocab.resolve()), "idx": len(models_dict)}
-
-    list_files, path_new = preprocessing.data_discover_raw("lexicon", str(path_data), bundle_files=False)
-    dict_stems = {}
-    for path_test in list_files:  # consolidate inputs by the parent directory
-        str_parent = str(path_test.parent)
-        if str_parent not in dict_stems:
-            dict_stems[str_parent] = []
-        dict_stems[str_parent].append(str(path_test))
-
-
-
-
-    # data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None, 
-    #                         nlp_model="en_core_web_lg", map_shots=True):
-    # def optional_callback(str_new="", progress=0, is_warning=False):   # simple callback from load process
-
-    # data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None, 
-    #                         nlp_model="en_core_web_lg", map_shots=True):
-
     # important for this to be at the end of the list
     if MAPPING_PRIMARY not in models_dict:   # first, load the primary model
         models_dict[MAPPING_PRIMARY] = {'vocab': mapping.model_load(model_name), 'idx': -1 }
-
     return models_dict
 
+def dataset_load(data_dir, df=None):
+    # discover the dataframes for each asset
+    path_data = Path(data_dir)
+    list_files, path_new = preprocessing.data_discover_raw("lexicon", str(data_dir), bundle_files=False)
+    dict_stems = {}
+    for path_test in list_files:  # consolidate inputs by the parent directory
+        str_parent = f"{path_test.parent.name} ({path_test.parent.parent.name})"  # use two parent depths
+        if str_parent not in dict_stems:
+            dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
+                                      'base':path_data.joinpath(path_test.parent.name + ".pkl.gz")}
+        dict_stems[str_parent]['files'].append(path_test)
 
-def generate_mapping(app, query=None, target_dataset=None, limit=20):
+    # load the dataframes for each asset
+    for str_parent in dict_stems:  # consolidate inputs by the parent directory
+        def callback_load(str_new="", progress=0, is_warning=False):
+            logger.info(f"[{str_parent} / {progress}%] {str_new}")
+        df_new = preprocessing.data_load_callback(dict_stems[str_parent]['base'],
+            data_dir=dict_stems[str_parent]['files'], map_shots=False, fn_callback=callback_load)
+        df_new['asset'] = str_parent   # assign asset link back
+        df_new['tag'] = df_new['tag'].str.lower()   # push all tags to lower case
+        df = df_new if df is None else pd.concat([df, df_new])
+        logger.info(f"Loaded assets '{str_parent}' from {str(dict_stems[str_parent]['base'])}... ({len(df_new)} rows)")
+
+    return {'data':df, 'assets':dict_stems}
+
+
+def generate_mapping(app, query=None, target_dataset=None, limit=MAX_RESULTS):
     list_return = []
 
     if query is not None:
@@ -109,25 +120,22 @@ def generate_mapping(app, query=None, target_dataset=None, limit=20):
                                         app.models[MAPPING_PRIMARY]['vocab'].vocab, k=limit)
     return [ ]
 
-
-def layout_results(list_search):
-    if list_search:
-        return [
-            dbc.ListGroupItem([html.Span(x['tag']), html.Span(f" ({round(x['score']*1000)/1000})", className="text-muted small")], className="pt-1 pb-1")
-            for x in list_search
-        ]
-    return [ dbc.ListGroupItem([html.Span("(no query entered)")], className="pt-1 pb-1") ]
-
+### ---------------- layout and UX interactions ---------------------------------------
 
 def layout_generate():
     app = get_dash_app()
 
     # https://dash.plot.ly/dash-core-components/store
-    local_store = dcc.Store(id='session', storage_type='memory')   # use store
+    local_store = dcc.Store(id='session', storage_type='memory', data={})   # use store
 
     list_datasets = [{"label": k, "value": k} for k in app.models if k != MAPPING_PRIMARY]
     if not list_datasets:
         list_datasets = [{"label":"(no datsets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY}]
+
+    list_assets = [{"label":x, "value":x, "sort":str(app.dataset['assets'][x]['parent'])} for x in app.dataset['assets']]
+    if not list_assets:
+        list_assets = [{"label":"(no assets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY, "disabled":True, "sort":'x'}]
+    list_assets.sort(key=lambda x: x['sort'])
 
     return html.Div([
         dbc.Navbar([
@@ -166,7 +174,7 @@ def layout_generate():
                 dbc.Row(dbc.Col([
                     dbc.FormGroup([
                         html.Span("Target Dataset", className="h4"),
-                        dbc.RadioItems(options=list_datasets,value=list_datasets[0]['value'], id="mapped_datasets", inline=True),
+                        dbc.RadioItems(options=list_datasets, value=list_datasets[0]['value'], id="mapped_datasets", inline=True),
                         ])
                     ], width=12), className="mt-2"),
                 # dbc.Row(dbc.Col([
@@ -187,13 +195,12 @@ def layout_generate():
                         marks={0: {"label":"0.0"}, 50: {"label":"0.5"}, 100: {"label":"1.0"} })
                     ], width=12)),
                 dbc.Row(dbc.Col([
-                    html.Span("Asset Filter", className="h4"),
-                    dbc.ListGroup([
-                        dbc.ListGroupItem([html.Span("asset")], className="pt-1 pb-1"),
-                        dbc.ListGroupItem([html.Span("asset1")], className="pt-1 pb-1"),
-                        dbc.ListGroupItem([html.Span("asset2")], className="pt-1 pb-1"),
-                        dbc.ListGroupItem([html.Span("asset3")], className="pt-1 pb-1"),
-                        ], id="asset_list", className="itemlist")
+                    html.Div([
+                        html.Span("Asset Filter", className="h4"),
+                        html.Span(f" ({len(list_assets)})", className="text-dark smalls"),
+                    ]),
+                    dbc.Checklist(id="asset_list", className="itemlist border border-1 border-dark pl-1 pr-1",
+                        options=list_assets, value=[x['value'] for x in list_assets]),
                     ], width=12)),
                 ], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded p-2 mr-1 ml-1 border-dark"),
             dbc.Col([
@@ -203,7 +210,13 @@ def layout_generate():
                     dcc.Interval(id="callback_interval", n_intervals=0, interval=1000, disabled=True),
                     ]), id="callback_progress", style={"display":"none"}),
                 dbc.Row(dbc.Col([
+                    html.Div("", className="text-right text-muted small w-100", id="search_update")
+                    ])),
+                dbc.Row(dbc.Col([
                     html.Div("ITEM", id="primary_item")
+                    ])),
+                dbc.Row(dbc.Col([
+                    dcc.Graph(id="tag_histogram"),
                     ])),
                 ], id="core_tabs", className="border border-1 dark rounded mr-1 ml-1 p-1 border-dark")
         ], className="rounded h-100 mt-1"),
@@ -218,13 +231,21 @@ def layout_generate():
         # html.Div(id='intermediate_value', style={'display': 'none'})   # use hidden div for data
     ], id="mainContainer", className="container-fluid h-100")
 
+def num_simplify(num_raw):
+    unit = ['', 'K', 'M', 'B']
+    idx_unit = 0
+    while num_raw > 1000:
+        num_raw = round(num_raw/1000, 1)
+        idx_unit += 1
+    return f"{num_raw}{unit[idx_unit]}"
+
+
 def callback_create(app):
-    result_names = [f"result_{idx}" for idx in range(app.settings['result_count'])]
+    re_space = re.compile(r"\s+$")
 
     @app.callback(
-        # [Output(name, 'children') for name in result_names] + 
         [Output('mapped_tags', 'options'), Output('mapped_tags', 'value'), Output('mapped_count', 'children'), 
-         Output('filter_types', 'options'), Output('filter_types', 'value')],
+         Output('filter_types', 'options'), Output('filter_types', 'value'), Output('session', 'data')],
         [Input('search_text', 'n_submit'), Input('mapped_datasets', 'value')],
         [State('search_text', 'value'), State('session', 'data')]
     )
@@ -243,52 +264,71 @@ def callback_create(app):
             dict_trigger = json.loads(trigger_id)
             module_trigger = dict_trigger["index"]
             module_type = dict_trigger['type']
-        logger.info(f"UPDATE: {trigger_id} [{module_trigger}, {module_type}], query '{search_str}'")
+        df = app.dataset['data']
+        logger.info(f"UPDATE: {trigger_id} [{module_trigger}, {module_type}], query '{search_str}', df ({df is None})")
 
         # prep output of which tags and their weights
-        list_search = []
+        session_data['mapped'] = []
         if search_str is not None and len(search_str) > 0:
-            list_search = generate_mapping(app, query=search_str, target_dataset=dataset_selected)
+            session_data['mapped'] = generate_mapping(app, query=search_str, target_dataset=dataset_selected)
 
-        # generate our mapped tag results
-        # list_items = layout_results(list_search)
+        # prep new filter in session data
+
         list_tags = [{"label":"(no mapped tags available)", "value":"none", "disabled":True}]
         tags_enabled = []
-        if list_search:
-            list_tags = [{"label": f"{x['tag']} ({round(x['score']*1000)/1000})", "value":x["tag"]}
-                for x in list_search]
-            tags_enabled = [x['value'] for x in list_tags[:5]]  # TODO: persist which tags are enabled if found?
-
-        # prep output for selected tag types
         list_types = [{"label":"(no mapped tags available)", "value":"none", "disabled":True}]
         types_enabled = []
-        if list_search:
+
+        # prep output for selected tag types
+        if len(session_data['mapped']) > 0 and df is not None:
+            # list_types = [{"label":"(no mapped tags available)", "value":"none", "disabled":True}]
+            # types_enabled = []
+            list_tags = []
+            # tags_enabled = [x['tag'] for x in session_data['mapped']]  # TODO: persist which tags are enabled if found?
+            for x in session_data['mapped']:
+                num_tag = len(df[df["tag"] == x['tag']])
+                list_tags.append({"value":x['tag'],
+                    "label": f"{x['tag']} ({round(x['score']*1000)/1000}, {num_simplify(num_tag)} events)"})
+                tags_enabled.append(x['tag'])
+            df_filter = df["tag"].isin(tags_enabled)  # start the filter with all results
+            tags_enabled = tags_enabled[:MAX_AUTO_ENABLED]  # limit to top N
+
+            # detect the numbers of different tags
             list_types = []
-            for x in ["face", "tag", "identity", "brand"]:
-                rand_count = np.random.randint(1, 3000)
-                list_types.append({"label": f"{x} ({rand_count})", "value":x, 'count':rand_count})
+            for idx_group, df_group in df.groupby(["tag_type"]):   # run to get clusters and unique tag types
+                list_types.append({"label": f"{idx_group} ({num_simplify(len(df_group))})", "value":idx_group, 'count':len(df_group)})
             list_types.sort(reverse=True, key=lambda x: x['count'])
             types_enabled = [x['value'] for x in list_types]
         
         # return it all
         return [list_tags, tags_enabled,
-                f" ({len(list_search)} tag{'s' if len(list_search) != 1 else ''})",
-                list_types, types_enabled]
+                f" ({len(session_data['mapped'])} tag{'s' if len(session_data['mapped']) != 1 else ''})",
+                list_types, types_enabled, session_data]
+
 
     @app.callback(
-        [Output('primary_item', 'children')],
-        [Input('mapped_tags', 'value'), Input('filter_types', 'value'), Input('filter_scores', 'value')],
+        [Output('primary_item', 'children'), Output('search_update', 'children')],
+        [Input('mapped_tags', 'value'), Input('filter_types', 'value'), 
+         Input('filter_scores', 'value'), Input('asset_list', 'value')],       
         [State('session', 'data')]
     )
-    def redraw_main(tag_active, type_active, score_active, session_data):
+    def redraw_main(tag_active, type_active, score_active, asset_active, session_data):
+        df = app.dataset['data']
+        num_raw = len(df)
+        if df is not None:
+            df_filter = df["tag"].isin(tag_active)   # filter out by tag names
+            df_filter &= df["tag_type"].isin(type_active)   # filter out by tag type
+            df_filter &= df["asset"].isin(asset_active)   # filter out by asset name
+            df_filter &= df["score"] > score_active[0]/100  # filter out by score
+            df_filter &= df["score"] <= score_active[1]/100   
+
+            df = df[df_filter]   # finalize filter
+
         return [
             html.Div([
-                html.Div(f"Something new --- {np.random.randint(0, 1000)}"),
-                html.Div([html.Span("Tags: "), html.Span(json.dumps(tag_active))]),
-                html.Div([html.Span("Types: "), html.Span(json.dumps(type_active))]),
-                html.Div([html.Span("Scores: "), html.Span(json.dumps(score_active))]),
-                html.Div([html.Span("Session: "), html.Span(json.dumps(session_data))]),
-            ])    
+
+            ]),
+            f"{len(df)} of {num_raw} events, updated {dt.datetime.now().strftime(format='%H:%M:%S %Z')}"
         ]
 
     @app.callback(
@@ -299,7 +339,6 @@ def callback_create(app):
     def trigger_submit(num_clicks, hidden_state):
         return [num_clicks is None or not hidden_state]
 
-    re_space = re.compile(r"\s+$")
     @app.callback(
         [Output('search_text', 'n_submit')],
         [Input('search_text', 'value')],
@@ -330,8 +369,77 @@ def callback_create(app):
                 f"{round(dict_progress['value']*100)}%", dict_progress['message'], False]
 
 
-
     # _GENERAL_MODEL: mapping.model_load(run_settings['mapping_model'])}
     # _GENERAL_MODEL = "_general"
+
+
+    ### ------------------- plotting capabilities ----------------------------
+
+    # Update Histogram Figure based on Month, Day and Times Chosen
+    @app.callback(
+        [Output("tag_histogram", "figure")],
+        [Input('mapped_tags', 'value')],
+        [State('session', 'data')]
+    )
+    def update_histogram(tags_picked, session_data):
+        # keep sorted order score
+        # display frequency of hits?
+        # [xVal, yVal, colorVal] = get_selection(monthPicked, dayPicked, selection)
+
+        # layout = go.Layout(
+        #     bargap=0.01,
+        #     bargroupgap=0,
+        #     barmode="group",
+        #     margin=go.layout.Margin(l=10, r=0, t=0, b=50),
+        #     showlegend=False,
+        #     # plot_bgcolor="#323130",
+        #     # paper_bgcolor="#323130",
+        #     dragmode="select",
+        #     # font=dict(color="white"),
+        #     xaxis=dict(
+        #         range=[0, MAX_RESULTS],
+        #         showgrid=False,
+        #         nticks=MAX_RESULTS+1,
+        #         fixedrange=True,
+        #         # ticksuffix=":00",
+        #     ),
+        #     yaxis=dict(
+        #         range=[0, max(yVal) + max(yVal) / 4],
+        #         showticklabels=False,
+        #         showgrid=False,
+        #         fixedrange=True,
+        #         rangemode="nonnegative",
+        #         zeroline=False,
+        #     ),
+        #     annotations=[
+        #         dict(
+        #             x=xi,
+        #             y=yi,
+        #             text=str(yi),
+        #             xanchor="center",
+        #             yanchor="bottom",
+        #             showarrow=False,
+        #             font=dict(color="white"),
+        #         )
+        #         for xi, yi in zip(xVal, yVal)
+        #     ],
+        # )
+
+        # return go.Figure(
+        #     data=[
+        #         go.Bar(x=xVal, y=yVal, marker=dict(color=colorVal), hoverinfo="x"),
+        #         go.Scatter(
+        #             opacity=0,
+        #             x=xVal,
+        #             y=yVal / 2,
+        #             hoverinfo="none",
+        #             mode="markers",
+        #             marker=dict(color="rgb(66, 134, 244, 0)", symbol="square", size=40),
+        #             visible=True,
+        #         ),
+        #     ],
+        #     layout=layout,
+        # )
+        return [[]]
 
 

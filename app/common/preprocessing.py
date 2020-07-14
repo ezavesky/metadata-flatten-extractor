@@ -181,7 +181,6 @@ def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=
     path_backup = None
     if type(data_dir) != list:   # added 1.0.1, provide file input directly
         list_files, path_new = data_discover_raw(stem_datafile, data_dir)
-
         for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
             path_backup = filepath
             break
@@ -393,7 +392,7 @@ def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=
     # extract faces (emotion)
 
     if fn_callback is not None:
-        fn_callback(f"... loaded {len(df)} rows across {len(list_files)} files...")
+        fn_callback(f"... loaded {len(df)} rows across {len(list_files)} files...; saving to '{str(path_new)}'")
         fn_callback("", 0)
 
     # save new data file before returning
