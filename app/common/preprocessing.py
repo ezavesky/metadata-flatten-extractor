@@ -174,13 +174,20 @@ def data_parse_callback(path_input, extractor_name, fn_callback=None, verbose=Tr
 
 def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None, 
                         nlp_model="en_core_web_lg", map_shots=True):
-    """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time."""
-    list_files, path_new = data_discover_raw(stem_datafile, data_dir)
+    """Because of repetitive loads in streamlit, a method to read/save cache data according to modify time.
+            def optional_callback(str_new="", progress=0, is_warning=False):   # simple callback from load process
 
+    """
     path_backup = None
-    for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
-        path_backup = filepath
-        break
+    if type(data_dir) != list:   # added 1.0.1, provide file input directly
+        list_files, path_new = data_discover_raw(stem_datafile, data_dir)
+
+        for filepath in Path(data_dir).glob(f'{stem_datafile}.*.pkl.gz'):
+            path_backup = filepath
+            break
+    else:
+        list_files = data_dir
+        path_new = stem_datafile
 
     if not list_files and path_backup is None:
         str_fail = f"Sorry, no flattened or cached files found, check '{data_dir}'..."
