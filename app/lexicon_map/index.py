@@ -21,6 +21,7 @@
 
 from queue import Queue
 import pandas as pd
+import numpy as np
 from pathlib import Path
 import re
 
@@ -39,6 +40,7 @@ import logging
 logger = logging.getLogger()
 
 import mapping_spacy as mapping    # TODO: configure this in another way
+from common import preprocessing
 
 MAPPING_PRIMARY = "__primiary"
 
@@ -70,9 +72,23 @@ def models_load(model_name, data_dir=None, models_dict=None):
     for path_vocab in path_data.rglob("*.w2v"):   # scan data dir for secondary vocabularies
         models_dict[path_vocab.stem] = {"vocab": mapping.vocab_load(path_vocab.resolve()), "idx": len(models_dict)}
 
-    # for path_flattened in path_data.rglob("*.csv.gz"):   # scan data dir for secondary vocabularies
-    #     print(path_flattened.resolve())
+    list_files, path_new = preprocessing.data_discover_raw("lexicon", str(path_data), bundle_files=False)
+    dict_stems = {}
+    for path_test in list_files:  # consolidate inputs by the parent directory
+        str_parent = str(path_test.parent)
+        if str_parent not in dict_stems:
+            dict_stems[str_parent] = []
+        dict_stems[str_parent].append(str(path_test))
 
+
+
+
+    # data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None, 
+    #                         nlp_model="en_core_web_lg", map_shots=True):
+    # def optional_callback(str_new="", progress=0, is_warning=False):   # simple callback from load process
+
+    # data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=False, fn_callback=None, 
+    #                         nlp_model="en_core_web_lg", map_shots=True):
 
     # important for this to be at the end of the list
     if MAPPING_PRIMARY not in models_dict:   # first, load the primary model
@@ -137,13 +153,15 @@ def layout_generate():
         dbc.Row([
             dbc.Collapse([
                 dbc.Row(dbc.Col([
-                    html.Span("Mapped Results", className="h4"),
-                    html.Span(" (0)", className="text-dark smalls", id="mapped_count"),
-                    ])),
-                dbc.Row(dbc.Col([
-                    dbc.ListGroup([
-                        dbc.ListGroupItem("...", className="pt-1 pb-1"),
-                        ], id="mapped_list", className="itemlist border border-1 border-dark", flush=True)
+                    html.Div([
+                        html.Span("Mapped Results", className="h4"),
+                        html.Span(" (0)", className="text-dark smalls", id="mapped_count"),
+                    ]),
+                    dbc.Checklist(options=[], id="mapped_tags", className="itemlist border border-1 border-dark pl-1 pr-1", inline=False),
+
+                    # dbc.ListGroup([
+                    #     dbc.ListGroupItem("...", className="pt-1 pb-1"),
+                    #     ], id="mapped_tags", className="itemlist border border-1 border-dark", flush=True)
                     ], width=12)),
                 dbc.Row(dbc.Col([
                     dbc.FormGroup([
@@ -157,8 +175,19 @@ def layout_generate():
                 #         for k in app.models if k != MAPPING_PRIMARY                        
                 #         ], id="mapped_datasets", label="Target Dataset", className=""),
                 #     ], width=12), className="mt-2 mb-2"),
-                dbc.Row(dbc.Col("Asset Filter", className="h4", width="auto")),
                 dbc.Row(dbc.Col([
+                    dbc.FormGroup([
+                        html.Span("Tag Type", className="h4"),
+                        dbc.Checklist(options=[], id="filter_types", inline=True),
+                        ])
+                    ], width=12)),
+                dbc.Row(dbc.Col([
+                    html.Div("Score Limiter", className="h4"),
+                    dcc.RangeSlider(min=0, step=5, max=100, value=[50,100], id="filter_scores",
+                        marks={0: {"label":"0.0"}, 50: {"label":"0.5"}, 100: {"label":"1.0"} })
+                    ], width=12)),
+                dbc.Row(dbc.Col([
+                    html.Span("Asset Filter", className="h4"),
                     dbc.ListGroup([
                         dbc.ListGroupItem([html.Span("asset")], className="pt-1 pb-1"),
                         dbc.ListGroupItem([html.Span("asset1")], className="pt-1 pb-1"),
@@ -167,7 +196,16 @@ def layout_generate():
                         ], id="asset_list", className="itemlist")
                     ], width=12)),
                 ], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded p-2 mr-1 ml-1 border-dark"),
-            dbc.Col([], id="core_tabs", className="border border-1 dark rounded mr-1 ml-1 p-1 border-dark")
+            dbc.Col([
+                dbc.Row(dbc.Col([
+                    html.Div("(progress message", id="callback_progress_note", className="text-center h5"),
+                    dbc.Progress(value=0, id="callback_progress_animated", style={"height": "2em"}, striped=True, animated=True),
+                    dcc.Interval(id="callback_interval", n_intervals=0, interval=1000, disabled=True),
+                    ]), id="callback_progress", style={"display":"none"}),
+                dbc.Row(dbc.Col([
+                    html.Div("ITEM", id="primary_item")
+                    ])),
+                ], id="core_tabs", className="border border-1 dark rounded mr-1 ml-1 p-1 border-dark")
         ], className="rounded h-100 mt-1"),
         
         # Hidden div inside the app that stores the intermediate value
@@ -185,7 +223,8 @@ def callback_create(app):
 
     @app.callback(
         # [Output(name, 'children') for name in result_names] + 
-        [Output('mapped_list', 'children'), Output('mapped_count', 'children')],
+        [Output('mapped_tags', 'options'), Output('mapped_tags', 'value'), Output('mapped_count', 'children'), 
+         Output('filter_types', 'options'), Output('filter_types', 'value')],
         [Input('search_text', 'n_submit'), Input('mapped_datasets', 'value')],
         [State('search_text', 'value'), State('session', 'data')]
     )
@@ -206,12 +245,51 @@ def callback_create(app):
             module_type = dict_trigger['type']
         logger.info(f"UPDATE: {trigger_id} [{module_trigger}, {module_type}], query '{search_str}'")
 
-        if search_str is not None and len(search_str) < 1:
-            search_str = None
-        list_search = generate_mapping(app, query=search_str, target_dataset=dataset_selected)
-        list_result_item = layout_results(list_search)
-        return [list_result_item, f" ({len(list_result_item)} tag{'s' if len(list_result_item) != 1 else ''})"]
+        # prep output of which tags and their weights
+        list_search = []
+        if search_str is not None and len(search_str) > 0:
+            list_search = generate_mapping(app, query=search_str, target_dataset=dataset_selected)
 
+        # generate our mapped tag results
+        # list_items = layout_results(list_search)
+        list_tags = [{"label":"(no mapped tags available)", "value":"none", "disabled":True}]
+        tags_enabled = []
+        if list_search:
+            list_tags = [{"label": f"{x['tag']} ({round(x['score']*1000)/1000})", "value":x["tag"]}
+                for x in list_search]
+            tags_enabled = [x['value'] for x in list_tags[:5]]  # TODO: persist which tags are enabled if found?
+
+        # prep output for selected tag types
+        list_types = [{"label":"(no mapped tags available)", "value":"none", "disabled":True}]
+        types_enabled = []
+        if list_search:
+            list_types = []
+            for x in ["face", "tag", "identity", "brand"]:
+                rand_count = np.random.randint(1, 3000)
+                list_types.append({"label": f"{x} ({rand_count})", "value":x, 'count':rand_count})
+            list_types.sort(reverse=True, key=lambda x: x['count'])
+            types_enabled = [x['value'] for x in list_types]
+        
+        # return it all
+        return [list_tags, tags_enabled,
+                f" ({len(list_search)} tag{'s' if len(list_search) != 1 else ''})",
+                list_types, types_enabled]
+
+    @app.callback(
+        [Output('primary_item', 'children')],
+        [Input('mapped_tags', 'value'), Input('filter_types', 'value'), Input('filter_scores', 'value')],
+        [State('session', 'data')]
+    )
+    def redraw_main(tag_active, type_active, score_active, session_data):
+        return [
+            html.Div([
+                html.Div(f"Something new --- {np.random.randint(0, 1000)}"),
+                html.Div([html.Span("Tags: "), html.Span(json.dumps(tag_active))]),
+                html.Div([html.Span("Types: "), html.Span(json.dumps(type_active))]),
+                html.Div([html.Span("Scores: "), html.Span(json.dumps(score_active))]),
+                html.Div([html.Span("Session: "), html.Span(json.dumps(session_data))]),
+            ])    
+        ]
 
     @app.callback(
         [Output('core_filter', 'is_open')],
@@ -228,9 +306,29 @@ def callback_create(app):
         [State('search_text', 'n_submit')]
     )
     def submit_search(search_text, n_submit):
-        if search_text is None or re_space.search(search_text) is None:
+        if search_text is None or (re_space.search(search_text) is None and len(search_text) > 0):
             raise dash.exceptions.PreventUpdate
         return [1 if n_submit is None else n_submit + 1]
+
+    @app.callback(
+        [Output('callback_progress', 'style'), Output('callback_progress_animated', 'value'), 
+         Output('callback_progress_animated', 'children'), Output('callback_progress_note', 'children'),
+         Output('callback_interval', 'disabled')],
+        [Input('callback_interval', 'n_intervals')],
+        [State('callback_progress_note', 'children'), State('session', 'data')]
+    )
+    def update_progress(n_intervals, value_last, session_data):
+        ctx = dash.callback_context    # validate specific context (https://dash.plotly.com/advanced-callbacks)
+        if not ctx.triggered or 'callback' not in session_data:
+            raise dash.exceptions.PreventUpdate
+        dict_progress = session_data['callback']
+        if value_last == dict_progress['message']:
+            raise dash.exceptions.PreventUpdate
+        if dict_progress['value'] >= 1:
+            return [{"display":"none"}, 0, "(done)", "(task complete)", False]
+        return [{"display":"block"}, round(dict_progress['value']*100), 
+                f"{round(dict_progress['value']*100)}%", dict_progress['message'], False]
+
 
 
     # _GENERAL_MODEL: mapping.model_load(run_settings['mapping_model'])}
