@@ -68,21 +68,28 @@ def domain_map(nlp, qry_tag, target_domain, k=20, threshold=0.0):
     """domain map/query given a tag and a model..."""
     # query with a tag, preprocessing and find top ranked iab tags.
     #    e.g. domain_map('armchair', contentai_aws)
-    print(f"QUERY: [{qry_tag}]")
+    # print(f"QUERY: [{qry_tag}]")
     
     # qry_tag = qry_tag.strip().lower().replace('(','').replace(')','').replace('\"','').replace('\'s','').replace('-','').replace('/',' ').strip().replace(' ','_')
 
     results = []
     count = 0
     qry_tag = qry_tag.lower()
+
     query_vect = tag2vect(nlp, qry_tag, target_domain)
-    for w in target_domain.strings:   # just search our new domain for similarity
-        score_new = 1 - spatial.distance.cosine(query_vect, target_domain.get_vector(w))
-        if score_new >= threshold: 
-            results.append({'tag':w, 'score':score_new})
-    results.sort(reverse=True, key=lambda x: x['score'])
-    if len(results) > k:
-        results = results[:k]
+    query_vect = np.array([query_vect])
+    # print("TAG", query_vect)
+    keys, rows, score = target_domain.vectors.most_similar(query_vect, batch_size=2048, n=k*5)
+   
+    dict_seen = {}
+    for idx in range(len(keys[0])):   # just search our new domain for similarity
+        score_new = score[0][idx]
+        text_new = target_domain[keys[0][idx]].text.lower()
+        if score_new >= threshold and text_new not in dict_seen: 
+            dict_seen[text_new] = True
+            results.append({'tag':text_new, 'score':score_new})
+            if len(results) >= k:
+                return results
     return results
 
 

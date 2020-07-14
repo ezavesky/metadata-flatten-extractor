@@ -7,6 +7,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.0
 ---
 
+1.0.1
+~~~~~
+
+- add ability to parse input CSVs but not segment into shot
+- move to a single NLP library (spacy) for applications, using large model (with vectors)
+
 1.0.0
 ~~~~~
 - add new `dash/plotly <https://dash.plotly.com/>`__ driven quality check application

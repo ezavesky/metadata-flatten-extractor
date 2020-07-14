@@ -22,6 +22,7 @@
 from queue import Queue
 import pandas as pd
 from pathlib import Path
+import re
 
 import datetime as dt
 import json
@@ -69,8 +70,8 @@ def models_load(model_name, data_dir=None, models_dict=None):
     for path_vocab in path_data.rglob("*.w2v"):   # scan data dir for secondary vocabularies
         models_dict[path_vocab.stem] = {"vocab": mapping.vocab_load(path_vocab.resolve()), "idx": len(models_dict)}
 
-    for path_flattened in path_data.rglob("*.csv.gz"):   # scan data dir for secondary vocabularies
-        print(path_flattened.resolve())
+    # for path_flattened in path_data.rglob("*.csv.gz"):   # scan data dir for secondary vocabularies
+    #     print(path_flattened.resolve())
 
 
     # important for this to be at the end of the list
@@ -83,15 +84,20 @@ def models_load(model_name, data_dir=None, models_dict=None):
 def generate_mapping(app, query=None, target_dataset=None, limit=20):
     list_return = []
 
-    if query is not None and target_dataset in app.models:
-        return mapping.domain_map(app.models[MAPPING_PRIMARY]['vocab'], query, app.models[target_dataset]['vocab'], k=limit)
+    if query is not None:
+        if target_dataset in app.models:
+            return mapping.domain_map(app.models[MAPPING_PRIMARY]['vocab'], query, 
+                                        app.models[target_dataset]['vocab'], k=limit)
+        else:
+            return mapping.domain_map(app.models[MAPPING_PRIMARY]['vocab'], query, 
+                                        app.models[MAPPING_PRIMARY]['vocab'].vocab, k=limit)
     return [ ]
 
 
 def layout_results(list_search):
     if list_search:
         return [
-            dbc.ListGroupItem([html.Span(x['tag']), html.Span(f" ({round(x['score'], 3)})", className="text-muted small")], className="pt-1 pb-1")
+            dbc.ListGroupItem([html.Span(x['tag']), html.Span(f" ({round(x['score']*1000)/1000})", className="text-muted small")], className="pt-1 pb-1")
             for x in list_search
         ]
     return [ dbc.ListGroupItem([html.Span("(no query entered)")], className="pt-1 pb-1") ]
@@ -102,7 +108,11 @@ def layout_generate():
 
     # https://dash.plot.ly/dash-core-components/store
     local_store = dcc.Store(id='session', storage_type='memory')   # use store
-    
+
+    list_datasets = [{"label": k, "value": k} for k in app.models if k != MAPPING_PRIMARY]
+    if not list_datasets:
+        list_datasets = [{"label":"(no datsets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY}]
+
     return html.Div([
         dbc.Navbar([
             dbc.Col([ 
@@ -112,7 +122,7 @@ def layout_generate():
                 html.H2(app.title, className="text-left align-text-top"),
             ], width=3),
             dbc.Col([ 
-                dbc.Input(id="search_text", placeholder="(e.g. car truck not motorcycle)", 
+                dbc.Input(id="search_text", placeholder="(e.g. car truck not motorcycle, return to evaluate)", 
                     style={'width': '100%'}, debounce=False, bs_size="lg", className="rounded align-middle")
             ], width=7, md=7, sm=6, className=' '),
             # dbc.Col([ 
@@ -138,12 +148,7 @@ def layout_generate():
                 dbc.Row(dbc.Col([
                     dbc.FormGroup([
                         html.Span("Target Dataset", className="h4"),
-                        dbc.RadioItems(
-                            options=[
-                                {"label": k, "value": k}
-                                for k in app.models if k != MAPPING_PRIMARY 
-                            ],
-                            value=list(app.models.keys())[0], id="mapped_datasets", inline=True),
+                        dbc.RadioItems(options=list_datasets,value=list_datasets[0]['value'], id="mapped_datasets", inline=True),
                         ])
                     ], width=12), className="mt-2"),
                 # dbc.Row(dbc.Col([
@@ -181,10 +186,10 @@ def callback_create(app):
     @app.callback(
         # [Output(name, 'children') for name in result_names] + 
         [Output('mapped_list', 'children'), Output('mapped_count', 'children')],
-        [Input('search_text', 'value'), Input('mapped_datasets', 'value')],
-        [State('session', 'data')]
+        [Input('search_text', 'n_submit'), Input('mapped_datasets', 'value')],
+        [State('search_text', 'value'), State('session', 'data')]
     )
-    def update_results(search_str, dataset_selected, session_data):
+    def update_results(search_submit, dataset_selected, search_str, session_data):
         """update the contents of channel data"""
         ctx = dash.callback_context    # validate specific context (https://dash.plotly.com/advanced-callbacks)
         # if not ctx.triggered :
@@ -207,13 +212,25 @@ def callback_create(app):
         list_result_item = layout_results(list_search)
         return [list_result_item, f" ({len(list_result_item)} tag{'s' if len(list_result_item) != 1 else ''})"]
 
+
     @app.callback(
-        Output('core_filter', 'is_open'),
+        [Output('core_filter', 'is_open')],
         [Input('button_filters', 'n_clicks')],
         [State('core_filter', 'is_open')]
     )
-    def toggle_filters(num_clicks, hidden_state):
-        return num_clicks is None or not hidden_state
+    def trigger_submit(num_clicks, hidden_state):
+        return [num_clicks is None or not hidden_state]
+
+    re_space = re.compile(r"\s+$")
+    @app.callback(
+        [Output('search_text', 'n_submit')],
+        [Input('search_text', 'value')],
+        [State('search_text', 'n_submit')]
+    )
+    def submit_search(search_text, n_submit):
+        if search_text is None or re_space.search(search_text) is None:
+            raise dash.exceptions.PreventUpdate
+        return [1 if n_submit is None else n_submit + 1]
 
 
     # _GENERAL_MODEL: mapping.model_load(run_settings['mapping_model'])}
