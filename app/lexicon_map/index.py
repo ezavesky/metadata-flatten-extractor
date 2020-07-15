@@ -37,6 +37,7 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL
 import plotly.graph_objects as go
 from dash.exceptions import PreventUpdate
+from dash_table.Format import Format
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -155,7 +156,7 @@ def layout_generate():
             ], width=3),
             dbc.Col([ 
                 dbc.Input(id="search_text", placeholder="(e.g. car truck not motorcycle, return to evaluate)", 
-                    style={'width': '100%'}, debounce=False, bs_size="lg", className="rounded align-middle")
+                    style={'width': '100%'}, debounce=False, bs_size="lg", persistence=True, className="rounded align-middle")
             ], width=7, md=7, sm=6, className=' '),
             # dbc.Col([ 
             #     # icon gallery - https://fontawesome.com/icons?d=gallery
@@ -178,7 +179,7 @@ def layout_generate():
                 dbc.Row(dbc.Col([
                     dbc.FormGroup([
                         html.Span("Target Dataset", className="h4"),
-                        dbc.RadioItems(options=list_datasets, value=list_datasets[0]['value'], id="mapped_datasets", inline=True),
+                        dbc.RadioItems(options=list_datasets, value=list_datasets[0]['value'], persistence=True, id="mapped_datasets", inline=True),
                         ])
                     ], width=12), className="mt-2"),
                 dbc.Row(dbc.Col([
@@ -189,7 +190,7 @@ def layout_generate():
                     ], width=12)),
                 dbc.Row(dbc.Col([
                     html.Div("Score Limiter", className="h4"),
-                    dcc.RangeSlider(min=0, step=5, max=100, value=[50,100], id="filter_scores",
+                    dcc.RangeSlider(min=0, step=5, max=100, value=[50,100], persistence=True, id="filter_scores",
                         marks={0: {"label":"0.0"}, 50: {"label":"0.5"}, 100: {"label":"1.0"} })
                     ], width=12)),
                 dbc.Row(dbc.Col([
@@ -217,7 +218,9 @@ def layout_generate():
                         ])),
                     dbc.Row([
                         dbc.Col([
-                            html.Div("Asset Inventory Estimates", className="h4")]),
+                            html.Div("Asset Inventory Estimates", className="h4 mb-0"),
+                            html.Div("(click an interval for tabular event view)", className="small text-muted"),
+                            ]),
                         dbc.Col([
                             html.Div([
                                 dbc.Label("Estimator"),
@@ -227,7 +230,7 @@ def layout_generate():
                                         {"label": "max", "value": "max"},
                                         {"label": "count", "value": "count"},
                                         ],
-                                    value="mean", id="inventory_estimator", inline=True),
+                                    value="mean", id="inventory_estimator", persistence=True, inline=True),
                                 ])
                             ], className="col-3 border border-dark rounded pb-0 border-1 small"),
                         ], className="w-100"),
@@ -236,7 +239,7 @@ def layout_generate():
                         ])),
                     dbc.Row(dbc.Col([
                         html.Div("", id="primary_item")
-                        ]), className="w-100"),
+                        ]), className="w-100 m-1"),
                     ], id="core_results", style={"display":"none"}),
                 html.Div([                    
                     html.Div("Sorry, no terms mapped yet, try typing above.")
@@ -410,11 +413,15 @@ def callback_create(app):
         time_offset = preprocessing.timedelta_val(clickData['x'])
         df_filter &= df["time_begin"] > (time_offset - dt.timedelta(seconds=HEATMAP_INTERVAL_SECONDS))
         df_filter &= df["time_begin"] <= (time_offset + dt.timedelta(seconds=HEATMAP_INTERVAL_SECONDS))
-        df_filtered = df[df_filter]
+        df_filtered = df[df_filter].copy()
+        df_filtered['offset'] = df_filtered['time_begin'].apply(lambda x: preprocessing.timedelta_str(x))
+        df_filtered['score'] = df_filtered['score'].apply(lambda x: round(x*1000)/1000)
+        df_filtered['duration'] = df_filtered['duration'].apply(lambda x: round(x*1000)/1000)
  
+        valid_columns = ['offset', 'duration', 'tag', 'score', 'tag_type', 'source_event', 'extractor']
         dom_table = dash_table.DataTable(
             data=df_filtered.to_dict('records'), sort_action='native',
-            columns=[{'id': c, 'name': c} for c in df_filtered.columns],
+            columns=[{'id': c, 'name': c} for c in valid_columns],
             page_size=ALTAIR_DEFAULT_HEIGHT,  # we have less data in this example, so setting to 20
             style_table={'height': '300px', 'overflowY': 'auto'}
         )
