@@ -30,6 +30,7 @@ import datetime as dt
 import json
 
 import dash
+import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -211,16 +212,31 @@ def layout_generate():
                         html.Div("", className="text-right text-muted small w-100", id="search_update")
                         ])),
                     dbc.Row(dbc.Col([
-                        html.Div("", id="primary_item")
-                        ])),
-                    dbc.Row(dbc.Col([
                         html.Div("Overall Event Histogram", className="h4"),
                         dcc.Graph(id="graph_histogram"),
                         ])),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div("Asset Inventory Estimates", className="h4")]),
+                        dbc.Col([
+                            html.Div([
+                                dbc.Label("Estimator"),
+                                dbc.RadioItems(
+                                    options=[
+                                        {"label": "mean", "value": "mean"},
+                                        {"label": "max", "value": "max"},
+                                        {"label": "count", "value": "count"},
+                                        ],
+                                    value="mean", id="inventory_estimator", inline=True),
+                                ])
+                            ], className="col-3 border border-dark rounded pb-0 border-1 small"),
+                        ], className="w-100"),
                     dbc.Row(dbc.Col([
-                        html.Div("Asset Inventory Estimates", className="h4"),
                         dcc.Graph(id="graph_inventory"),
                         ])),
+                    dbc.Row(dbc.Col([
+                        html.Div("", id="primary_item")
+                        ]), className="w-100"),
                     ], id="core_results", style={"display":"none"}),
                 html.Div([                    
                     html.Div("Sorry, no terms mapped yet, try typing above.")
@@ -314,14 +330,15 @@ def callback_create(app):
 
 
     @app.callback(
-        [Output('primary_item', 'children'), Output('search_update', 'children'),
+        [Output('search_update', 'children'),
          Output("graph_histogram", "figure"), Output('graph_inventory', 'figure'),
          Output('core_results', 'style'), Output('core_empty', 'style')],
         [Input('mapped_tags', 'value'), Input('filter_types', 'value'), 
-         Input('filter_scores', 'value'), Input('asset_list', 'value')],       
+         Input('filter_scores', 'value'), Input('asset_list', 'value'),
+         Input('inventory_estimator', 'value')],       
         [State('session', 'data')]
     )
-    def redraw_main(tag_active, type_active, score_active, asset_active, session_data):
+    def redraw_main(tag_active, type_active, score_active, asset_active, estimator_active, session_data):
         df = app.dataset['data']
         num_raw = len(df)
         if df is not None:
@@ -333,12 +350,9 @@ def callback_create(app):
             df = df[df_filter]   # finalize filter
 
         return [
-            html.Div([
-
-            ]),
             f"{len(df)} of {num_raw} events, updated {dt.datetime.now().strftime(format='%H:%M:%S %Z')}",
             make_distribution_graph(df),   # draw primary distribution graph
-            make_asset_graph(df),   # draw asset heatmap graph
+            make_asset_graph(df, estimator_active),   # draw asset heatmap graph
             {"display":"block" if len(df) else "none"}, {"display":"none" if len(df) else "block"}
         ]
 
@@ -378,6 +392,34 @@ def callback_create(app):
             return [{"display":"none"}, 0, "(done)", "(task complete)", False]
         return [{"display":"block"}, round(dict_progress['value']*100), 
                 f"{round(dict_progress['value']*100)}%", dict_progress['message'], False]
+
+
+    @app.callback(
+        [Output('primary_item', 'children')],
+        [Input('graph_inventory', 'clickData')])
+    def display_click_data(clickData):
+        ctx = dash.callback_context    # validate specific context (https://dash.plotly.com/advanced-callbacks)
+        if not ctx.triggered:
+            raise dash.exceptions.PreventUpdate
+
+        # { "points": [ { "curveNumber": 0, "x": "00:10:00", "y": "old_stan_in_the_mountain.mp4 (hiveai)", "z": 0.609 } ] }
+        df = app.dataset['data']
+        clickData = clickData["points"][0]
+        
+        df_filter = df["asset"] == clickData['y']
+        time_offset = preprocessing.timedelta_val(clickData['x'])
+        df_filter &= df["time_begin"] > (time_offset - dt.timedelta(seconds=HEATMAP_INTERVAL_SECONDS))
+        df_filter &= df["time_begin"] <= (time_offset + dt.timedelta(seconds=HEATMAP_INTERVAL_SECONDS))
+        df_filtered = df[df_filter]
+ 
+        dom_table = dash_table.DataTable(
+            data=df_filtered.to_dict('records'), sort_action='native',
+            columns=[{'id': c, 'name': c} for c in df_filtered.columns],
+            page_size=ALTAIR_DEFAULT_HEIGHT,  # we have less data in this example, so setting to 20
+            style_table={'height': '300px', 'overflowY': 'auto'}
+        )
+        return [dom_table]
+
 
 
     # _GENERAL_MODEL: mapping.model_load(run_settings['mapping_model'])}
@@ -436,7 +478,7 @@ def callback_create(app):
         fig.update_layout(xaxis_showgrid=True, height=max(ALTAIR_DEFAULT_HEIGHT, ALTAIR_DEFAULT_HEIGHT/16*len(list_asset)), 
             margin=go.layout.Margin(l=30, r=30, t=20, b=50), #xaxis={"range":[0,1], "constrain":"domain"},  # meanwhile compresses the xaxis by decreasing its "domain"
             )
-        fig.update_xaxes(title_text="event time seconds (HH:MM:SS)", tickangle=45)
+        fig.update_xaxes(title_text="event time seconds (HH:MM:SS)", autorange=True, tickangle=45)
         fig.update_yaxes(title_text="asset name", tickmode='linear')
         return fig
 
