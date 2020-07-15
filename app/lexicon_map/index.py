@@ -50,6 +50,7 @@ MAPPING_PRIMARY = "__primary"
 MAPPING_LEXICON = "lexicon"
 MAX_RESULTS = 20   # max results for the mapping
 MAX_AUTO_ENABLED = 5   # max results that are auto-enabled after mapping
+HEATMAP_INTERVAL_SECONDS = 60
 
 ALTAIR_DEFAULT_HEIGHT = 320   # height of charts
 
@@ -216,6 +217,10 @@ def layout_generate():
                         html.Div("Overall Event Histogram", className="h4"),
                         dcc.Graph(id="graph_histogram"),
                         ])),
+                    dbc.Row(dbc.Col([
+                        html.Div("Asset Inventory Estimates", className="h4"),
+                        dcc.Graph(id="graph_inventory"),
+                        ])),
                     ], id="core_results", style={"display":"none"}),
                 html.Div([                    
                     html.Div("Sorry, no terms mapped yet, try typing above.")
@@ -310,7 +315,8 @@ def callback_create(app):
 
     @app.callback(
         [Output('primary_item', 'children'), Output('search_update', 'children'),
-         Output("graph_histogram", "figure"), Output('core_results', 'style'), Output('core_empty', 'style')],
+         Output("graph_histogram", "figure"), Output('graph_inventory', 'figure'),
+         Output('core_results', 'style'), Output('core_empty', 'style')],
         [Input('mapped_tags', 'value'), Input('filter_types', 'value'), 
          Input('filter_scores', 'value'), Input('asset_list', 'value')],       
         [State('session', 'data')]
@@ -332,6 +338,7 @@ def callback_create(app):
             ]),
             f"{len(df)} of {num_raw} events, updated {dt.datetime.now().strftime(format='%H:%M:%S %Z')}",
             make_distribution_graph(df),   # draw primary distribution graph
+            make_asset_graph(df),   # draw asset heatmap graph
             {"display":"block" if len(df) else "none"}, {"display":"none" if len(df) else "block"}
         ]
 
@@ -381,11 +388,7 @@ def callback_create(app):
 
 
     def make_distribution_graph(df_live):
-        # Demographic explore patterns clustering results
-
         # bucket into score range, then show frequency count
-
-        # print(df_live.head(5))
         df_filter = df_live.copy(True)
         df_filter["score"] = df_filter["score"].apply(lambda x: math.floor(x * 100)/100)
         df_filter_tag = preprocessing.aggregate_tags(df_filter, None, "tag")
@@ -403,7 +406,37 @@ def callback_create(app):
             margin=go.layout.Margin(l=30, r=30, t=0, b=50), xaxis={"range":[0,1], "constrain":"domain"},  # meanwhile compresses the xaxis by decreasing its "domain"
             legend=dict(orientation="h", yanchor="top", y=0.97, xanchor="left", x=0.01)
             )
-        fig.update_xaxes(dtick=0.05, title_text="Event Score")
-        fig.update_yaxes(nticks=20, title_text="Event Count (log)")
+        fig.update_xaxes(dtick=0.05, autorange=True, title_text="event score")
+        fig.update_yaxes(nticks=20, title_text="event count (log)")
+        return fig
+
+
+    def make_asset_graph(df_live, target_col='mean'):
+        # asset histogram for average/max score by time; mean/max/min/count
+        df_filter = df_live.copy(True)
+        if len(df_filter) < 1:
+            return go.Figure()
+
+        df_filter.sort_values("asset", inplace=True)
+        df_filter["interval"] = df_filter["time_begin"].apply(lambda x: int(math.floor(x.total_seconds() / HEATMAP_INTERVAL_SECONDS)))
+        list_asset = []
+        list_result = []
+        df_filter = preprocessing.aggregate_tags(df_filter, None, ["asset", "interval"])
+        list_interval = list(range(0, (df_filter["interval"].max()+1) * HEATMAP_INTERVAL_SECONDS, HEATMAP_INTERVAL_SECONDS))  # in seconds
+        list_interval = [preprocessing.timedelta_str(dt.timedelta(seconds=x)) for x in list_interval]   # in string
+        for idx_asset, df_asset in df_filter.groupby(["asset"]):  # TODO: optimize this loop!
+            list_asset.append(idx_asset)
+            list_local = [0] * len(list_interval)
+            for row in df_asset.itertuples():
+                list_local[getattr(row, "interval")] = getattr(row, target_col)
+            list_result.append(list_local)
+        nd_result = np.asarray(list_result)
+
+        fig = go.Figure(data=go.Heatmap(z=nd_result, x=list_interval, y=list_asset, colorscale='Jet'))
+        fig.update_layout(xaxis_showgrid=True, height=max(ALTAIR_DEFAULT_HEIGHT, ALTAIR_DEFAULT_HEIGHT/16*len(list_asset)), 
+            margin=go.layout.Margin(l=30, r=30, t=20, b=50), #xaxis={"range":[0,1], "constrain":"domain"},  # meanwhile compresses the xaxis by decreasing its "domain"
+            )
+        fig.update_xaxes(title_text="event time seconds (HH:MM:SS)", tickangle=45)
+        fig.update_yaxes(title_text="asset name", tickmode='linear')
         return fig
 
