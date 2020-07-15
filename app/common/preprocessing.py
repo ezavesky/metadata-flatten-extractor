@@ -28,6 +28,7 @@ import glob
 import math
 import json
 from time import sleep
+import datetime as dt
 
 from sklearn.neighbors import BallTree
 
@@ -87,6 +88,11 @@ def timedelta_str(timedelta, format="%H:%M:%S"):
     """Create timedelta string with datetime formatting"""
     dt_print = pd.Timestamp("2020-01-01T00:00:00", tz="UTC") + timedelta
     return dt_print.strftime(format)
+
+
+def timedelta_val(timestr, format="%H:%M:%S"):
+    """Create timedelta from datetime formatting"""
+    return dt.datetime.strptime(timestr, format) - dt.datetime.strptime("00", "%S")
 
 
 def data_query(tree_query, tree_shots, shot_input, num_neighbors=5, exclude_input_shots=True):
@@ -372,11 +378,8 @@ def data_load_callback(stem_datafile, data_dir, allow_cache=True, ignore_update=
         fn_callback(f"... normalizing time signatures...", math.floor(float(task_idx)/task_count*100))
     task_idx += 1
     for tf in ["time_event", "time_begin", "time_end"]:  # convert to pandas time (for easier sampling)
-        if False:
-            df[tf] = df[tf].apply(lambda x: pd.Timestamp('2010-01-01T00') + pd.Timedelta(x, 'seconds'))
-        else:
-            df[tf] = pd.to_timedelta(df[tf], unit='s')
-            df[tf].fillna(pd.Timedelta(seconds=0), inplace=True)
+        df[tf] = pd.to_timedelta(df[tf], unit='s')
+        df[tf].fillna(pd.Timedelta(seconds=0), inplace=True)
 
     if fn_callback is not None:
         fn_callback(f"... pruning duplicates from {len(df)} events...", math.floor(float(task_idx)/task_count*100))
