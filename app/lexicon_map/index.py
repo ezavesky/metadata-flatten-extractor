@@ -24,6 +24,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import re
+import math
 
 import datetime as dt
 import json
@@ -36,6 +37,9 @@ from dash.dependencies import Input, Output, State, ALL
 import plotly.graph_objects as go
 from dash.exceptions import PreventUpdate
 
+import plotly.graph_objects as go
+import plotly.express as px
+
 import logging
 logger = logging.getLogger()
 
@@ -46,6 +50,8 @@ MAPPING_PRIMARY = "__primary"
 MAPPING_LEXICON = "lexicon"
 MAX_RESULTS = 20   # max results for the mapping
 MAX_AUTO_ENABLED = 5   # max results that are auto-enabled after mapping
+
+ALTAIR_DEFAULT_HEIGHT = 320   # height of charts
 
 _app_obj = None   # our one dash app instance
 
@@ -102,7 +108,7 @@ def dataset_load(data_dir, df=None):
             data_dir=dict_stems[str_parent]['files'], map_shots=False, fn_callback=callback_load)
         df_new['asset'] = str_parent   # assign asset link back
         df_new['tag'] = df_new['tag'].str.lower()   # push all tags to lower case
-        df = df_new if df is None else pd.concat([df, df_new])
+        df = df_new if df is None else pd.concat([df, df_new], ignore_index=True)
         logger.info(f"Loaded assets '{str_parent}' from {str(dict_stems[str_parent]['base'])}... ({len(df_new)} rows)")
 
     return {'data':df, 'assets':dict_stems}
@@ -166,10 +172,6 @@ def layout_generate():
                         html.Span(" (0)", className="text-dark smalls", id="mapped_count"),
                     ]),
                     dbc.Checklist(options=[], id="mapped_tags", className="itemlist border border-1 border-dark pl-1 pr-1", inline=False),
-
-                    # dbc.ListGroup([
-                    #     dbc.ListGroupItem("...", className="pt-1 pb-1"),
-                    #     ], id="mapped_tags", className="itemlist border border-1 border-dark", flush=True)
                     ], width=12)),
                 dbc.Row(dbc.Col([
                     dbc.FormGroup([
@@ -177,12 +179,6 @@ def layout_generate():
                         dbc.RadioItems(options=list_datasets, value=list_datasets[0]['value'], id="mapped_datasets", inline=True),
                         ])
                     ], width=12), className="mt-2"),
-                # dbc.Row(dbc.Col([
-                #     dbc.DropdownMenu([
-                #         dbc.DropdownMenuItem(k, id={'type': 'dataset', 'index':k}) 
-                #         for k in app.models if k != MAPPING_PRIMARY                        
-                #         ], id="mapped_datasets", label="Target Dataset", className=""),
-                #     ], width=12), className="mt-2 mb-2"),
                 dbc.Row(dbc.Col([
                     dbc.FormGroup([
                         html.Span("Tag Type", className="h4"),
@@ -204,20 +200,26 @@ def layout_generate():
                     ], width=12)),
                 ], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded p-2 mr-1 ml-1 border-dark"),
             dbc.Col([
-                dbc.Row(dbc.Col([
-                    html.Div("(progress message", id="callback_progress_note", className="text-center h5"),
-                    dbc.Progress(value=0, id="callback_progress_animated", style={"height": "2em"}, striped=True, animated=True),
-                    dcc.Interval(id="callback_interval", n_intervals=0, interval=1000, disabled=True),
-                    ]), id="callback_progress", style={"display":"none"}),
-                dbc.Row(dbc.Col([
-                    html.Div("", className="text-right text-muted small w-100", id="search_update")
-                    ])),
-                dbc.Row(dbc.Col([
-                    html.Div("ITEM", id="primary_item")
-                    ])),
-                dbc.Row(dbc.Col([
-                    dcc.Graph(id="tag_histogram"),
-                    ])),
+                html.Div([                    
+                    dbc.Row(dbc.Col([
+                        html.Div("(progress message", id="callback_progress_note", className="text-center h5"),
+                        dbc.Progress(value=0, id="callback_progress_animated", style={"height": "2em"}, striped=True, animated=True),
+                        dcc.Interval(id="callback_interval", n_intervals=0, interval=1000, disabled=True),
+                        ]), id="callback_progress", style={"display":"none"}),
+                    dbc.Row(dbc.Col([
+                        html.Div("", className="text-right text-muted small w-100", id="search_update")
+                        ])),
+                    dbc.Row(dbc.Col([
+                        html.Div("", id="primary_item")
+                        ])),
+                    dbc.Row(dbc.Col([
+                        html.Div("Overall Event Histogram", className="h4"),
+                        dcc.Graph(id="graph_histogram"),
+                        ])),
+                    ], id="core_results", style={"display":"none"}),
+                html.Div([                    
+                    html.Div("Sorry, no terms mapped yet, try typing above.")
+                    ], id="core_empty", className="h2", style={"display":"none"}),
                 ], id="core_tabs", className="border border-1 dark rounded mr-1 ml-1 p-1 border-dark")
         ], className="rounded h-100 mt-1"),
         
@@ -307,7 +309,8 @@ def callback_create(app):
 
 
     @app.callback(
-        [Output('primary_item', 'children'), Output('search_update', 'children')],
+        [Output('primary_item', 'children'), Output('search_update', 'children'),
+         Output("graph_histogram", "figure"), Output('core_results', 'style'), Output('core_empty', 'style')],
         [Input('mapped_tags', 'value'), Input('filter_types', 'value'), 
          Input('filter_scores', 'value'), Input('asset_list', 'value')],       
         [State('session', 'data')]
@@ -321,14 +324,15 @@ def callback_create(app):
             df_filter &= df["asset"].isin(asset_active)   # filter out by asset name
             df_filter &= df["score"] > score_active[0]/100  # filter out by score
             df_filter &= df["score"] <= score_active[1]/100   
-
             df = df[df_filter]   # finalize filter
 
         return [
             html.Div([
 
             ]),
-            f"{len(df)} of {num_raw} events, updated {dt.datetime.now().strftime(format='%H:%M:%S %Z')}"
+            f"{len(df)} of {num_raw} events, updated {dt.datetime.now().strftime(format='%H:%M:%S %Z')}",
+            make_distribution_graph(df),   # draw primary distribution graph
+            {"display":"block" if len(df) else "none"}, {"display":"none" if len(df) else "block"}
         ]
 
     @app.callback(
@@ -375,71 +379,31 @@ def callback_create(app):
 
     ### ------------------- plotting capabilities ----------------------------
 
-    # Update Histogram Figure based on Month, Day and Times Chosen
-    @app.callback(
-        [Output("tag_histogram", "figure")],
-        [Input('mapped_tags', 'value')],
-        [State('session', 'data')]
-    )
-    def update_histogram(tags_picked, session_data):
-        # keep sorted order score
-        # display frequency of hits?
-        # [xVal, yVal, colorVal] = get_selection(monthPicked, dayPicked, selection)
 
-        # layout = go.Layout(
-        #     bargap=0.01,
-        #     bargroupgap=0,
-        #     barmode="group",
-        #     margin=go.layout.Margin(l=10, r=0, t=0, b=50),
-        #     showlegend=False,
-        #     # plot_bgcolor="#323130",
-        #     # paper_bgcolor="#323130",
-        #     dragmode="select",
-        #     # font=dict(color="white"),
-        #     xaxis=dict(
-        #         range=[0, MAX_RESULTS],
-        #         showgrid=False,
-        #         nticks=MAX_RESULTS+1,
-        #         fixedrange=True,
-        #         # ticksuffix=":00",
-        #     ),
-        #     yaxis=dict(
-        #         range=[0, max(yVal) + max(yVal) / 4],
-        #         showticklabels=False,
-        #         showgrid=False,
-        #         fixedrange=True,
-        #         rangemode="nonnegative",
-        #         zeroline=False,
-        #     ),
-        #     annotations=[
-        #         dict(
-        #             x=xi,
-        #             y=yi,
-        #             text=str(yi),
-        #             xanchor="center",
-        #             yanchor="bottom",
-        #             showarrow=False,
-        #             font=dict(color="white"),
-        #         )
-        #         for xi, yi in zip(xVal, yVal)
-        #     ],
-        # )
+    def make_distribution_graph(df_live):
+        # Demographic explore patterns clustering results
 
-        # return go.Figure(
-        #     data=[
-        #         go.Bar(x=xVal, y=yVal, marker=dict(color=colorVal), hoverinfo="x"),
-        #         go.Scatter(
-        #             opacity=0,
-        #             x=xVal,
-        #             y=yVal / 2,
-        #             hoverinfo="none",
-        #             mode="markers",
-        #             marker=dict(color="rgb(66, 134, 244, 0)", symbol="square", size=40),
-        #             visible=True,
-        #         ),
-        #     ],
-        #     layout=layout,
-        # )
-        return [[]]
+        # bucket into score range, then show frequency count
 
+        # print(df_live.head(5))
+        df_filter = df_live.copy(True)
+        df_filter["score"] = df_filter["score"].apply(lambda x: math.floor(x * 100)/100)
+        df_filter_tag = preprocessing.aggregate_tags(df_filter, None, "tag")
+        df_filter = preprocessing.aggregate_tags(df_filter, None, ["tag","score"])
+        if len(df_filter_tag) > MAX_AUTO_ENABLED:   # use the TAG base aggregation first
+            score_cut = df_filter_tag.iloc[MAX_AUTO_ENABLED]["count"]
+            tag_cut = df_filter_tag[df_filter_tag["count"] < score_cut]["tag"].unique()
+            df_filter.loc[df_filter["tag"].isin(tag_cut), "tag"] = "(other)"
+
+        fig = go.Figure(data=[
+            go.Bar(name=idx_group, x=df_group['score'], y=df_group['count'])
+            for idx_group, df_group in df_filter.groupby(["tag"])
+            ])
+        fig.update_layout(barmode='stack', yaxis_type="log", xaxis_showgrid=True, height=ALTAIR_DEFAULT_HEIGHT, 
+            margin=go.layout.Margin(l=30, r=30, t=0, b=50), xaxis={"range":[0,1], "constrain":"domain"},  # meanwhile compresses the xaxis by decreasing its "domain"
+            legend=dict(orientation="h", yanchor="top", y=0.97, xanchor="left", x=0.01)
+            )
+        fig.update_xaxes(dtick=0.05, title_text="Event Score")
+        fig.update_yaxes(nticks=20, title_text="Event Count (log)")
+        return fig
 

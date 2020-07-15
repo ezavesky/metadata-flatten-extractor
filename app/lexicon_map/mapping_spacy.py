@@ -102,6 +102,8 @@ def model_load(model_name="en_core_web_lg"):
     # can also use this method...
     # python -m spacy download en_core_web_lg
     nlp = spacy.load(model_name) 
+
+    # consider more advanced transformers to learn classifiers? - https://explosion.ai/blog/spacy-transformers
        
     logger.info(f'Found {len(nlp.vocab.strings)} word vectors of nlp with dim {nlp.vocab.vectors_length}')
     return nlp
