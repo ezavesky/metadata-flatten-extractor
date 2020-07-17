@@ -100,6 +100,8 @@ def dataset_map(models_dict, model_name, data_dir, df, exclude_type=[], include_
         return True
 
     # pull out list of assets
+    if df is None or len(df) < 1:
+        return False
     if len(exclude_type) > 0:
         df = df[~df["tag_type"].isin(exclude_type)]
     if len(include_extractor) > 0:
@@ -125,7 +127,7 @@ def dataset_load(data_dir, df=None):
         if str_parent not in dict_stems:
             dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
                                       'base':path_data.joinpath(path_test.parent.name + ".pkl.gz"),
-                                      'abs':str(path_test)}
+                                      'abs':str(path_test).lower()}
         dict_stems[str_parent]['files'].append(path_test)
     sorted_stems = [dict_stems[x]['abs'] for x in dict_stems]
     sorted_stems.sort()
@@ -211,25 +213,27 @@ def layout_generate():
                         dbc.RadioItems(options=list_datasets, value=list_datasets[0]['value'], persistence=True, id="mapped_datasets", inline=True),
                         ])
                     ], width=12), className="mt-2"),
-                dbc.Row(dbc.Col([
-                    dbc.FormGroup([
-                        html.Span("Tag Type", className="h4"),
-                        dbc.Checklist(options=[], id="exclude_types", inline=True, persistence=True),
-                        ])
-                    ], width=12)),
-                dbc.Row(dbc.Col([
-                    html.Div("Score Limiter", className="h4"),
-                    dcc.RangeSlider(min=0, step=5, max=100, value=[50,100], persistence=True, id="filter_scores",
-                        marks={0: {"label":"0.0"}, 50: {"label":"0.5"}, 100: {"label":"1.0"} })
-                    ], width=12)),
-                dbc.Row(dbc.Col([
-                    html.Div([
-                        html.Span("Asset Filter", className="h4"),
-                        html.Span(f" ({len(list_assets)})", className="text-dark smalls"),
-                    ]),
-                    dbc.Checklist(id="asset_list", className="itemlist border border-1 border-dark pl-1 pr-1",
-                        options=list_assets, value=[x['value'] for x in list_assets], persistence=True),
-                    ], width=12)),
+                html.Div([
+                    dbc.Row(dbc.Col([
+                        dbc.FormGroup([
+                            html.Span("Tag Type", className="h4"),
+                            dbc.Checklist(options=[], id="exclude_types", inline=True, persistence=True),
+                            ])
+                        ], width=12)),
+                    dbc.Row(dbc.Col([
+                        html.Div("Score Limiter", className="h4"),
+                        dcc.RangeSlider(min=0, step=5, max=100, value=[50,100], persistence=True, id="filter_scores",
+                            marks={0: {"label":"0.0"}, 50: {"label":"0.5"}, 100: {"label":"1.0"} })
+                        ], width=12)),
+                    dbc.Row(dbc.Col([
+                        html.Div([
+                            html.Span("Asset Filter", className="h4"),
+                            html.Span(f" ({len(list_assets)})", className="text-dark smalls"),
+                        ]),
+                        dbc.Checklist(id="asset_list", className="itemlist border border-1 border-dark pl-1 pr-1",
+                            options=list_assets, value=[x['value'] for x in list_assets], persistence=True),
+                        ], width=12)),
+                    ], id="filter_asset_block", style={'display':'none'})
                 ], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded p-2 mr-1 ml-1 border-dark"),
             dbc.Col([
                 html.Div([                    
@@ -328,27 +332,25 @@ def callback_create(app):
             session_data['mapped'] = generate_mapping(app, query=search_str, target_dataset=dataset_selected)
 
         # prep new filter in session data
-
         list_tags = [{"label":"(no mapped tags available)", "value":"none", "disabled":True}]
         tags_enabled = []
         list_types = [{"label":"(no mapped tags available)", "value":"none", "disabled":True}]
         types_enabled = []
 
         # prep output for selected tag types
-        if len(session_data['mapped']) > 0 and df is not None:
+        if len(session_data['mapped']) > 0:
             # list_types = [{"label":"(no mapped tags available)", "value":"none", "disabled":True}]
             # types_enabled = []
             list_tags = []
             # tags_enabled = [x['tag'] for x in session_data['mapped']]  # TODO: persist which tags are enabled if found?
             for x in session_data['mapped']:
-                num_tag = len(df[df["tag"] == x['tag']])
+                num_tag = "" if df is None else f", {len(df[df['tag'] == x['tag']])} events"
                 list_tags.append({"value":x['tag'],
-                    "label": f"{x['tag']} ({round(x['score']*1000)/1000}, {num_simplify(num_tag)} events)"})
+                    "label": f"{x['tag']} (match: {round(x['score']*1000)/1000}{num_tag})"})
                 tags_enabled.append(x['tag'])
-            df_filter = df["tag"].isin(tags_enabled)  # start the filter with all results
             tags_enabled = tags_enabled[:MAX_AUTO_ENABLED]  # limit to top N
 
-            # detect the numbers of different tags
+        if df is not None:  # detect the numbers of types in dataset
             list_types = []
             for idx_group, df_group in df.groupby(["tag_type"]):   # run to get clusters and unique tag types
                 list_types.append({"label": f"{idx_group} ({num_simplify(len(df_group))})", "value":idx_group, 'count':len(df_group)})
@@ -364,7 +366,7 @@ def callback_create(app):
     @app.callback(
         [Output('search_update', 'children'),
          Output("graph_histogram", "figure"), Output('graph_inventory', 'figure'),
-         Output('core_results', 'style'), Output('core_empty', 'style')],
+         Output('core_results', 'style'), Output('core_empty', 'style'), Output('filter_asset_block', 'style')],
         [Input('mapped_tags', 'value'), Input('exclude_types', 'value'), 
          Input('filter_scores', 'value'), Input('asset_list', 'value'),
          Input('inventory_estimator', 'value')],       
@@ -372,20 +374,24 @@ def callback_create(app):
     )
     def redraw_main(tag_active, type_active, score_active, asset_active, estimator_active, session_data):
         df = app.dataset['data']
-        num_raw = len(df)
+        num_raw = 0
+        num_filtered = 0
         if df is not None:
+            num_raw = len(df)
             df_filter = df["tag"].isin(tag_active)   # filter out by tag names
             df_filter &= df["tag_type"].isin(type_active)   # filter out by tag type
             df_filter &= df["asset"].isin(asset_active)   # filter out by asset name
             df_filter &= df["score"] > score_active[0]/100  # filter out by score
             df_filter &= df["score"] <= score_active[1]/100   
             df = df[df_filter]   # finalize filter
+            num_filtered = len(df)
 
         return [
-            f"{len(df)} of {num_raw} events, updated {dt.datetime.now().strftime(format='%H:%M:%S %Z')}",
+            f"{num_filtered} of {num_raw} events, updated {dt.datetime.now().strftime(format='%H:%M:%S %Z')}",
             make_distribution_graph(df),   # draw primary distribution graph
             make_asset_graph(df, estimator_active),   # draw asset heatmap graph
-            {"display":"block" if len(df) else "none"}, {"display":"none" if len(df) else "block"}
+            {"display":"block" if num_filtered else "none"}, {"display":"none" if num_filtered else "block"},
+            {"display":"block" if num_raw else "none"},
         ]
 
     @app.callback(
@@ -478,6 +484,8 @@ def callback_create(app):
 
     def make_distribution_graph(df_live):
         # bucket into score range, then show frequency count
+        if df_live is None or len(df_live) < 1:
+            return go.Figure()
         df_filter = df_live.copy(True)
         df_filter["score"] = df_filter["score"].apply(lambda x: math.floor(x * 100)/100)
         df_filter_tag = preprocessing.aggregate_tags(df_filter, None, "tag")
@@ -502,9 +510,9 @@ def callback_create(app):
 
     def make_asset_graph(df_live, target_col='mean'):
         # asset histogram for average/max score by time; mean/max/min/count
-        df_filter = df_live.copy(True)
-        if len(df_filter) < 1:
+        if df_live is None or len(df_live) < 1:
             return go.Figure()
+        df_filter = df_live.copy(True)
 
         df_filter["interval"] = df_filter["time_begin"].apply(lambda x: int(math.floor(x.total_seconds() / HEATMAP_INTERVAL_SECONDS)))
         list_asset = []
