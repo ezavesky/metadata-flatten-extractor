@@ -40,11 +40,11 @@ enableCORS = false\n\
     # --- lexicon-map app
     && pip install --no-cache-dir -r $WORKDIR/app/lexicon_map/requirements.txt \
     # install NLP word model for gensim - https://github.com/RaRe-Technologies/gensim-data (350M, 1G, 1.6G below)
-    # && su -c "python -m gensim.downloader --download glove-wiki-gigaword-300" - cae \
-    # && su -c "python -m gensim.downloader --download word2vec-google-news-300" - cae \
-    # && su -c "python -m gensim.downloader --download fasttext-wiki-news-subwords-300" - cae \
+    # && su -c "python -m gensim.downloader --download glove-wiki-gigaword-300" - $user \
+    # && su -c "python -m gensim.downloader --download word2vec-google-news-300" - $user \
+    # && su -c "python -m gensim.downloader --download fasttext-wiki-news-subwords-300" - $user \
     # install NLP word model for spacy (used by both browser and lexicon-map)
-    && su -c "python -m spacy download $spacy_model" - cae \
+    && su -c "python -m spacy download $spacy_model" - $user \
     # convert to user permissions
     && chown -R $uid:$gid /$user/.streamlit
 
