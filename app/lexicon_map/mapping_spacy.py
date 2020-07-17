@@ -39,15 +39,18 @@ from scipy import spatial
 def list2vect(nlp, list_tags, output_file):
     """Given a specific model, map the file set (single line of text) into an output embedding space"""
     vocab = Vocab()
+    idx = 0
     for tag_raw in list_tags:   # for each tag input
         tag_raw = tag_raw.lower()
-        vocab.set_vector(tag_raw, tag2vect(nlp, tag_raw, vocab))
         tag_id = nlp.vocab.strings[tag_raw]
         if tag_id not in nlp.vocab:   # search existing one
             tag_doc = nlp(tag_raw)
             vocab.set_vector(tag_raw, tag_doc.vector)
         else:
             vocab.set_vector(tag_raw, nlp.vocab[tag_id].vector)
+        idx += 1
+        if (idx % 5000) == 0:
+            logger.info(f"list2vec: [{idx}/{len(list_tags)} processing complete")
 
     # write a w2v file
     path_target = Path(output_file).resolve()
@@ -132,7 +135,7 @@ def quick_parse(args=[], config={}):
         help="specify the source directory for ingested domains")
     subparse.add_argument("-m", "--mapping_model", type=str, default='en_core_web_lg', 
         help="embedding imodel (suggest 'en_core_web_lg', 'en_vectors_web_lg')")
-    subparse.add_argument("-n", "--model_name", type=str, default='', 
+    subparse.add_argument("-n", "--model_name", type=str, default='default', 
         help="name to save the embedding model; if not provdided will be from hashed target file paths")
     subparse.add_argument("-t", "--target_domain", nargs='+', default='', required=True, 
         help="target domain file, add multiple input domain files")

@@ -75,7 +75,7 @@ def create_dash_app(name, server, log_size=0):
     _app_obj.log = Queue(log_size*2)  # new queue for incoming data
     return _app_obj
 
-### ---------------- data and nlp mpapping ---------------------------------------
+### ---------------- data and nlp mapping ---------------------------------------
 
 
 def models_load(model_name, data_dir, models_dict=None):
@@ -90,6 +90,30 @@ def models_load(model_name, data_dir, models_dict=None):
     if MAPPING_PRIMARY not in models_dict:   # first, load the primary model
         models_dict[MAPPING_PRIMARY] = {'vocab': mapping.model_load(model_name), 'idx': -1 }
     return models_dict
+
+
+def dataset_map(models_dict, model_name, data_dir, df, exclude_type=[], include_extractor=[]):
+    # read the individual vocab labels, validate that the model is there
+    if MAPPING_PRIMARY not in models_dict:
+        return False
+    if model_name in models_dict:
+        return True
+
+    # pull out list of assets
+    if len(exclude_type) > 0:
+        df = df[~df["tag_type"].isin(exclude_type)]
+    if len(include_extractor) > 0:
+        df = df[df["extractor"].isin(include_extractor)]
+
+    # map into subvec
+    path_vocab = Path(data_dir).joinpath(model_name + ".w2v")
+    logger.info(f"Mapping assets from '{model_name}' from {len(df)} tags into model {str(path_vocab)}.")
+    sub2vec = mapping.list2vect(models_dict[MAPPING_PRIMARY]['vocab'], list(df["tag"].astype(str)), str(path_vocab.resolve())) 
+
+    # update model in local dict
+    models_dict[path_vocab.stem] = {"vocab": sub2vec, "idx": len(models_dict)}
+    return True
+
 
 def dataset_load(data_dir, df=None):
     # discover the dataframes for each asset
@@ -185,7 +209,7 @@ def layout_generate():
                 dbc.Row(dbc.Col([
                     dbc.FormGroup([
                         html.Span("Tag Type", className="h4"),
-                        dbc.Checklist(options=[], id="filter_types", inline=True),
+                        dbc.Checklist(options=[], id="exclude_types", inline=True),
                         ])
                     ], width=12)),
                 dbc.Row(dbc.Col([
@@ -271,7 +295,7 @@ def callback_create(app):
 
     @app.callback(
         [Output('mapped_tags', 'options'), Output('mapped_tags', 'value'), Output('mapped_count', 'children'), 
-         Output('filter_types', 'options'), Output('filter_types', 'value'), Output('session', 'data')],
+         Output('exclude_types', 'options'), Output('exclude_types', 'value'), Output('session', 'data')],
         [Input('search_text', 'n_submit'), Input('mapped_datasets', 'value')],
         [State('search_text', 'value'), State('session', 'data')]
     )
@@ -336,7 +360,7 @@ def callback_create(app):
         [Output('search_update', 'children'),
          Output("graph_histogram", "figure"), Output('graph_inventory', 'figure'),
          Output('core_results', 'style'), Output('core_empty', 'style')],
-        [Input('mapped_tags', 'value'), Input('filter_types', 'value'), 
+        [Input('mapped_tags', 'value'), Input('exclude_types', 'value'), 
          Input('filter_scores', 'value'), Input('asset_list', 'value'),
          Input('inventory_estimator', 'value')],       
         [State('session', 'data')]
@@ -419,13 +443,24 @@ def callback_create(app):
         df_filtered['duration'] = df_filtered['duration'].apply(lambda x: round(x*1000)/1000)
  
         valid_columns = ['offset', 'duration', 'tag', 'score', 'tag_type', 'source_event', 'extractor']
-        dom_table = dash_table.DataTable(
-            data=df_filtered.to_dict('records'), sort_action='native',
-            columns=[{'id': c, 'name': c} for c in valid_columns],
-            page_size=ALTAIR_DEFAULT_HEIGHT,  # we have less data in this example, so setting to 20
-            style_table={'height': '300px', 'overflowY': 'auto'}
-        )
-        return [dom_table]
+        time_begin = df_filtered['offset'].min()
+        time_end = df_filtered['offset'].max()
+
+        return [[
+            html.Div([
+                html.Div("Event Exploration", className="h4 mb-0"),
+                html.Div(f"(events: {time_begin} - {time_end}, asset: {clickData['y']})", className="small text-muted mb-1")
+                ]),
+            html.Div([
+                dash_table.DataTable(
+                    data=df_filtered.to_dict('records'), sort_action='native', 
+                    columns=[{'id': c, 'name': c} for c in valid_columns],
+                    page_size=ALTAIR_DEFAULT_HEIGHT,  # we have less data in this example, so setting to 20
+                    style_table={'height': '25em', 'overflowY': 'auto'},
+                    style_cell={ 'whiteSpace': 'normal', 'height': 'auto'},
+                    ),
+            ], className="m-1 ")
+        ]]
 
 
 

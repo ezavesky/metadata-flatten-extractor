@@ -54,7 +54,7 @@ if __name__ == '__main__':
             sys.path.append(_PACKAGE)
 
 
-from index import callback_create, layout_generate, create_dash_app, get_dash_app, models_load, dataset_load
+from index import callback_create, layout_generate, create_dash_app, get_dash_app, models_load, dataset_load, dataset_map
 
 
 ### ------------------------------------------------
@@ -77,8 +77,9 @@ def create_app(argv=sys.argv[1:]):
     parser.add_argument("-l", "--log_size", type=int, default=200, help="Max log length for on-screen display")
     parser.add_argument("-r", "--refresh_interval", type=int, default=2000, help="Refresh interval for log (in millis)")
     parser.add_argument("--verbose", "-v", action="count")
-    subparse = parser.add_argument_group('media configuration')
+    subparse = parser.add_argument_group('model configuration')
     subparse.add_argument("--data_dir", type=str, default='model', help="specify the source directory for model")
+    subparse.add_argument("--model_target", type=str, default='', help="name of the target model to validate/generate")
     subparse.add_argument('-n', '--mapping_model', dest='mapping_model', type=str, default='en_core_web_lg', 
         help='spacy mapping model if NLP models installed - https://spacy.io/models')
 
@@ -100,6 +101,10 @@ def create_app(argv=sys.argv[1:]):
     app_obj = create_dash_app(__name__, server, run_settings['log_size'])   # NOTE: this updates _app_obj
     app_obj.models = models_load(run_settings['mapping_model'], run_settings['data_dir'])
     app_obj.dataset = dataset_load(run_settings['data_dir'])
+
+    if len(run_settings['model_target']) > 0:
+        dataset_map(app_obj.models, run_settings['model_target'], 
+            run_settings['data_dir'], app_obj.dataset['data']) #, exclude_type=[], include_extractor=[])
 
     app_obj.title = app_title
     app_obj.logger = logger
