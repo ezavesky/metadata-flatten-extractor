@@ -124,8 +124,11 @@ def dataset_load(data_dir, df=None):
         str_parent = f"{path_test.parent.name} ({path_test.parent.parent.name})"  # use two parent depths
         if str_parent not in dict_stems:
             dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
-                                      'base':path_data.joinpath(path_test.parent.name + ".pkl.gz")}
+                                      'base':path_data.joinpath(path_test.parent.name + ".pkl.gz"),
+                                      'abs':str(path_test)}
         dict_stems[str_parent]['files'].append(path_test)
+    sorted_stems = [dict_stems[x]['abs'] for x in dict_stems]
+    sorted_stems.sort()
 
     # load the dataframes for each asset
     for str_parent in dict_stems:  # consolidate inputs by the parent directory
@@ -135,6 +138,8 @@ def dataset_load(data_dir, df=None):
             data_dir=dict_stems[str_parent]['files'], map_shots=False, fn_callback=callback_load)
         df_new['asset'] = str_parent   # assign asset link back
         df_new['tag'] = df_new['tag'].str.lower()   # push all tags to lower case
+        df_new['path'] = str_parent   # assign asset link back
+        df_new['asset_idx'] = sorted_stems.index(dict_stems[str_parent]['abs'])   # assign asset link back
         df = df_new if df is None else pd.concat([df, df_new], ignore_index=True)
         logger.info(f"Loaded assets '{str_parent}' from {str(dict_stems[str_parent]['base'])}... ({len(df_new)} rows)")
 
@@ -263,7 +268,7 @@ def layout_generate():
                         ])),
                     dbc.Row(dbc.Col([
                         html.Div("", id="primary_item")
-                        ]), className="w-100 m-1"),
+                        ]), className="w-100"),
                     ], id="core_results", style={"display":"none"}),
                 html.Div([                    
                     html.Div("Sorry, no terms mapped yet, try typing above.")
@@ -449,14 +454,14 @@ def callback_create(app):
         return [[
             html.Div([
                 html.Div("Event Exploration", className="h4 mb-0"),
-                html.Div(f"(events: {time_begin} - {time_end}, asset: {clickData['y']})", className="small text-muted mb-1")
+                html.Div(f"(event time extents: {time_begin} - {time_end}, asset: {clickData['y']})", className="small text-muted mb-1")
                 ]),
             html.Div([
                 dash_table.DataTable(
                     data=df_filtered.to_dict('records'), sort_action='native', 
                     columns=[{'id': c, 'name': c} for c in valid_columns],
                     page_size=ALTAIR_DEFAULT_HEIGHT,  # we have less data in this example, so setting to 20
-                    style_table={'height': '25em', 'overflowY': 'auto'},
+                    style_table={'height': '25em', 'overflowY': 'auto', 'padding-right':'1em', 'padding-left':'1em'},
                     style_cell={ 'whiteSpace': 'normal', 'height': 'auto'},
                     ),
             ], className="m-1 ")
@@ -501,22 +506,23 @@ def callback_create(app):
         if len(df_filter) < 1:
             return go.Figure()
 
-        df_filter.sort_values("asset", inplace=True)
         df_filter["interval"] = df_filter["time_begin"].apply(lambda x: int(math.floor(x.total_seconds() / HEATMAP_INTERVAL_SECONDS)))
         list_asset = []
-        list_result = []
-        df_filter = preprocessing.aggregate_tags(df_filter, None, ["asset", "interval"])
+        df_filter = preprocessing.aggregate_tags(df_filter, None, ["asset", "asset_idx", "interval"])
         list_interval = list(range(0, (df_filter["interval"].max()+1) * HEATMAP_INTERVAL_SECONDS, HEATMAP_INTERVAL_SECONDS))  # in seconds
         list_interval = [preprocessing.timedelta_str(dt.timedelta(seconds=x)) for x in list_interval]   # in string
         for idx_asset, df_asset in df_filter.groupby(["asset"]):  # TODO: optimize this loop!
-            list_asset.append(idx_asset)
             list_local = [0] * len(list_interval)
             for row in df_asset.itertuples():
                 list_local[getattr(row, "interval")] = getattr(row, target_col)
-            list_result.append(list_local)
-        nd_result = np.asarray(list_result)
+            list_asset.append({'data':list_local, 'name':idx_asset, "idx":df_asset["asset_idx"].iloc[0]})
+        list_asset.sort(reverse=True, key=lambda x: x['idx'])
 
-        fig = go.Figure(data=go.Heatmap(z=nd_result, x=list_interval, y=list_asset, colorscale='Jet'))
+        fig = go.Figure(data=go.Heatmap(
+            z=np.asarray([x['data'] for x in list_asset]), 
+            x=list_interval, colorscale='Jet',  
+            y=[x['name'] for x in list_asset]
+            ))
         fig.update_layout(xaxis_showgrid=True, height=max(ALTAIR_DEFAULT_HEIGHT, ALTAIR_DEFAULT_HEIGHT/16*len(list_asset)), 
             margin=go.layout.Margin(l=30, r=30, t=20, b=50), #xaxis={"range":[0,1], "constrain":"domain"},  # meanwhile compresses the xaxis by decreasing its "domain"
             )
