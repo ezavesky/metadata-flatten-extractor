@@ -107,6 +107,7 @@ def create_app(argv=sys.argv[1:]):
             run_settings['data_dir'], app_obj.dataset['data']) #, exclude_type=[], include_extractor=[])
 
     app_obj.title = app_title
+    app_obj.version = version_data
     app_obj.logger = logger
     app_obj.settings = run_settings
     app_obj.layout = layout_generate
