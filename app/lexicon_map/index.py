@@ -242,9 +242,11 @@ def layout_generate():
                         dbc.Progress(value=0, id="callback_progress_animated", style={"height": "2em"}, striped=True, animated=True),
                         dcc.Interval(id="callback_interval", n_intervals=0, interval=1000, disabled=True),
                         ]), id="callback_progress", style={"display":"none"}),
-                    dbc.Row(dbc.Col([
-                        html.Div("", className="text-right text-muted small w-100", id="search_update")
-                        ])),
+                    dbc.Row([
+                        dbc.Col("", className="text-left", id="search_update"),
+                        dbc.Col(f"({app.version['__project__']} v{app.version['__version__']}, {app.version['__copyright__']})", 
+                                    className="text-right col-8")
+                        ], className="text-muted small "),
                     dbc.Row(dbc.Col([
                         html.Div("Overall Event Histogram", className="h4"),
                         dcc.Graph(id="graph_histogram"),
