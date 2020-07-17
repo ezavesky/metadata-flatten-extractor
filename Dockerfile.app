@@ -73,7 +73,7 @@ CMD python -V && \
     # echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8601 -t 90  \"server:app(manifest='$MANIFEST', media_file='$VIDEO', data_dir='/results')\" & " >> /tmp/run_script.sh && \
     # --- mapping app
     echo "cd $WORKDIR/app/lexicon_map" > /tmp/run_script.sh  && \
-    echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8701 -t 90  \"server:app(data_dir='/results', mapping_model='$spacy_model')\" & " >> /tmp/run_script.sh && \
+    echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8701 -t 90  \"server:app(data_dir='/results', mapping_model='$spacy_model', model_target='default')\" & " >> /tmp/run_script.sh && \
     # --- browse app
     echo "cd $WORKDIR/app/browse" >>  /tmp/run_script.sh && \
     echo "nohup streamlit run --server.enableCORS false timed.py -- --manifest $MANIFEST --media_file $VIDEO --mapping_moodel $spacy_model --data_dir /results --symlink /tmp/$SYMLINK & " >> /tmp/run_script.sh && \
