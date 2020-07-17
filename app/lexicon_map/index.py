@@ -214,7 +214,7 @@ def layout_generate():
                 dbc.Row(dbc.Col([
                     dbc.FormGroup([
                         html.Span("Tag Type", className="h4"),
-                        dbc.Checklist(options=[], id="exclude_types", inline=True),
+                        dbc.Checklist(options=[], id="exclude_types", inline=True, persistence=True),
                         ])
                     ], width=12)),
                 dbc.Row(dbc.Col([
@@ -228,7 +228,7 @@ def layout_generate():
                         html.Span(f" ({len(list_assets)})", className="text-dark smalls"),
                     ]),
                     dbc.Checklist(id="asset_list", className="itemlist border border-1 border-dark pl-1 pr-1",
-                        options=list_assets, value=[x['value'] for x in list_assets]),
+                        options=list_assets, value=[x['value'] for x in list_assets], persistence=True),
                     ], width=12)),
                 ], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded p-2 mr-1 ml-1 border-dark"),
             dbc.Col([
