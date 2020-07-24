@@ -54,7 +54,7 @@ if __name__ == '__main__':
             sys.path.append(_PACKAGE)
 
 
-from index import callback_create, layout_generate, create_dash_app, get_dash_app, models_load, dataset_load, dataset_map
+from index import callback_create, layout_generate, create_dash_app, get_dash_app, models_load, dataset_map
 
 
 ### ------------------------------------------------
@@ -72,9 +72,8 @@ def create_app(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(
         description=app_title
     )
-    parser.add_argument("-p", "--port", type=int, default=8080, help="Port for HTTP server (default: 8080)")
+    parser.add_argument("-p", "--port", type=int, default=8701, help="Port for HTTP server (default: 8080)")
     parser.add_argument("-z", "--result_count", type=int, default=30, help="Max results per page")
-    parser.add_argument("-l", "--log_size", type=int, default=200, help="Max log length for on-screen display")
     parser.add_argument("-r", "--refresh_interval", type=int, default=2000, help="Refresh interval for log (in millis)")
     parser.add_argument("--verbose", "-v", action="count")
     subparse = parser.add_argument_group('model configuration')
@@ -98,13 +97,7 @@ def create_app(argv=sys.argv[1:]):
         logging.basicConfig(level=logging.INFO)
 
     server = Flask(__name__) # define flask app.server
-    app_obj = create_dash_app(__name__, server, run_settings['log_size'])   # NOTE: this updates _app_obj
-    app_obj.models = models_load(run_settings['mapping_model'], run_settings['data_dir'])
-    app_obj.dataset = dataset_load(run_settings['data_dir'])
-
-    if len(run_settings['model_target']) > 0:
-        dataset_map(app_obj.models, run_settings['model_target'], 
-            run_settings['data_dir'], app_obj.dataset['data']) #, exclude_type=[], include_extractor=[])
+    app_obj = create_dash_app(__name__, server, run_settings)   # NOTE: this updates _app_obj
 
     app_obj.title = app_title
     app_obj.version = version_data

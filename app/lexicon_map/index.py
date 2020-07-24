@@ -20,6 +20,8 @@
 
 
 from queue import Queue
+import atexit
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -46,7 +48,7 @@ import logging
 logger = logging.getLogger()
 
 import mapping_spacy as mapping    # TODO: configure this in another way
-from common import preprocessing
+from common import preprocessing, queueproc
 
 MAPPING_PRIMARY = "__primary"
 MAPPING_LEXICON = "lexicon"
@@ -65,14 +67,73 @@ def get_dash_app():
     return _app_obj
 
 
-def create_dash_app(name, server, log_size=0):
+def create_dash_app(name, server, run_settings):
     """Create dash app..."""
     global _app_obj
     _app_obj = dash.Dash(name, 
         meta_tags=[{"name": "viewport", "content": "width=device-width"}], server=server,
         external_stylesheets=[dbc.themes.BOOTSTRAP]
     )
-    _app_obj.log = Queue(log_size*2)  # new queue for incoming data
+
+    # init app objects
+    _app_obj.models = models_load(run_settings['mapping_model'], run_settings['data_dir'])
+    _app_obj.dataset = dataset_load(None)
+
+    class DatasetOp(queueproc.BaseProcess):
+        def do_discover(self, data_dir):
+            # discover the dataframes for each asset
+            path_data = Path(data_dir)
+            list_files, path_new = preprocessing.data_discover_raw("lexicon", str(data_dir), bundle_files=False)
+            dict_stems = {}
+            for path_test in list_files:  # consolidate inputs by the parent directory
+                str_parent = f"{path_test.parent.name} ({path_test.parent.parent.name})"  # use two parent depths
+                if str_parent not in dict_stems:
+                    dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
+                                            'base':path_data.joinpath(path_test.parent.name + ".pkl.gz"),
+                                            'abs':str(path_test).lower()}
+                dict_stems[str_parent]['files'].append(path_test)
+            # sorted_stems = [dict_stems[x]['abs'] for x in dict_stems]
+            # sorted_stems.sort()
+            self.send('load', dict_stems)
+            return None
+
+        def do_load(self, dict_stems):
+            # load the dataframes for each asset
+            def callback(str_log):
+                self.cascade("progress", str_log)
+            result = dataset_load(data_dir, fn_callback=callback)
+            return result
+
+        def do_mapping(self, target, models, data_dir, df):
+            if len(target) > 0:
+                dataset_map(models, target,  data_dir, df) #, exclude_type=[], include_extractor=[])
+                self.cascade("progress", f"Mapped data from {target}...")
+            self.cascade("progress", f"Skipping data map from {target}...")
+
+
+    class DatasetProgress(queueproc.BaseProcess):
+        def do_progress(self, status_msg):
+            # do some other fancy update?
+            return status_msg
+
+        def do_load(self, dict_update):
+            _app_obj.dataset = dict_update
+            if dict_update['df'] is not None:
+                process1 = _app_obj.processing['scheduler']
+                self.cascade("progress", f"Scheduling mapping to target {target}...")
+                process1.send('mapping', run_settings['model_target'], _app_obj.models, 
+                    run_settings['data_dir'], _app_obj.dataset['data']) #, exclude_type=[], include_extractor=[])
+
+            return len(dict_update['df']) if dict_update['df'] is not None else 0
+
+        def do_mapping(self, df):
+            return status_msg
+
+    process2 = DatasetProgress()
+    process1 = DatasetOp(recv=process2)
+    process1.start()
+    _app_obj.processing = {'scheduler':process1, 'progress':process2}
+
     return _app_obj
 
 ### ---------------- data and nlp mapping ---------------------------------------
@@ -117,25 +178,17 @@ def dataset_map(models_dict, model_name, data_dir, df, exclude_type=[], include_
     return True
 
 
-def dataset_load(data_dir, df=None):
-    # discover the dataframes for each asset
-    path_data = Path(data_dir)
-    list_files, path_new = preprocessing.data_discover_raw("lexicon", str(data_dir), bundle_files=False)
-    dict_stems = {}
-    for path_test in list_files:  # consolidate inputs by the parent directory
-        str_parent = f"{path_test.parent.name} ({path_test.parent.parent.name})"  # use two parent depths
-        if str_parent not in dict_stems:
-            dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
-                                      'base':path_data.joinpath(path_test.parent.name + ".pkl.gz"),
-                                      'abs':str(path_test).lower()}
-        dict_stems[str_parent]['files'].append(path_test)
-    sorted_stems = [dict_stems[x]['abs'] for x in dict_stems]
-    sorted_stems.sort()
+def dataset_load(data_dir, df=None, fn_callback=None):
+    def callback_echo(str_new):
+        print(str_new)
+    if fn_callback is None:
+        fn_callback = callback_echo
+    if data_dir is None:
+        return {'data':None, 'assets':[]}
 
-    # load the dataframes for each asset
     for str_parent in dict_stems:  # consolidate inputs by the parent directory
         def callback_load(str_new="", progress=0, is_warning=False):
-            logger.info(f"[{str_parent} / {progress}%] {str_new}")
+            str_log = f"[{str_parent} / {progress}%] {str_new}"
         df_new = preprocessing.data_load_callback(dict_stems[str_parent]['base'],
             data_dir=dict_stems[str_parent]['files'], map_shots=False, fn_callback=callback_load)
         df_new['asset'] = str_parent   # assign asset link back
@@ -143,8 +196,8 @@ def dataset_load(data_dir, df=None):
         df_new['path'] = str_parent   # assign asset link back
         df_new['asset_idx'] = sorted_stems.index(dict_stems[str_parent]['abs'])   # assign asset link back
         df = df_new if df is None else pd.concat([df, df_new], ignore_index=True)
-        logger.info(f"Loaded assets '{str_parent}' from {str(dict_stems[str_parent]['base'])}... ({len(df_new)} rows)")
-
+        str_log = f"Loaded assets '{str_parent}' from {str(dict_stems[str_parent]['base'])}... ({len(df_new)} rows)"
+        self.cascade("progress", str_log)
     return {'data':df, 'assets':dict_stems}
 
 
@@ -159,6 +212,8 @@ def generate_mapping(app, query=None, target_dataset=None, limit=MAX_RESULTS):
             return mapping.domain_map(app.models[MAPPING_PRIMARY]['vocab'], query, 
                                         app.models[MAPPING_PRIMARY]['vocab'].vocab, k=limit)
     return [ ]
+
+
 
 ### ---------------- layout and UX interactions ---------------------------------------
 
