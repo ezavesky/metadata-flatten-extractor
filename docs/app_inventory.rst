@@ -40,11 +40,9 @@ The application can be configured with these options.
 
     optional arguments:
     -h, --help            show this help message and exit
-    -p PORT, --port PORT  Port for HTTP server (default: 8080)
+    -p PORT, --port PORT  Port for HTTP server (default: 8701)
     -z RESULT_COUNT, --result_count RESULT_COUNT
                             Max results per page
-    -l LOG_SIZE, --log_size LOG_SIZE
-                            Max log length for on-screen display
     -r REFRESH_INTERVAL, --refresh_interval REFRESH_INTERVAL
                             Refresh interval for log (in millis)
     --verbose, -v
