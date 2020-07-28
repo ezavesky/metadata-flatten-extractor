@@ -22,11 +22,12 @@
 from pathlib import Path
 import io
 
-# from threading import Thread as Proc
-from multiprocessing import Process as Proc
+from threading import Thread as Proc
+# from multiprocessing import Process as Proc
 import multiprocessing as mp
 from queue import Empty
 import collections
+import atexit
 
 Msg = collections.namedtuple('Msg', ['event', 'args'])
 
@@ -52,6 +53,7 @@ class BaseProcess(Proc):
             raise NotImplementedError("Process has no handler for [%s]" % event)
         ret_val = handler(*args)
         self.cascade(event, ret_val)
+        return ret_val
 
     def cascade(self, event, ret_val):
         if ret_val is not None and self.recv is not None:
@@ -77,6 +79,12 @@ class BaseProcess(Proc):
     def run(self):
         while self.is_alive() and not self.term.is_set():
             self.run_local(wait_queue=True)
+
+    def start(self):
+        atexit.register(self.stop)
+        super().start()
+
+
 
 ### --- testing process --- 
 

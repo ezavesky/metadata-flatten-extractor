@@ -80,59 +80,53 @@ def create_dash_app(name, server, run_settings):
     _app_obj.dataset = dataset_load(None)
 
     class DatasetOp(queueproc.BaseProcess):
+        def callback(self, str_log):
+            self.cascade("progress", str_log)
+
         def do_discover(self, data_dir):
             # discover the dataframes for each asset
-            path_data = Path(data_dir)
-            list_files, path_new = preprocessing.data_discover_raw("lexicon", str(data_dir), bundle_files=False)
-            dict_stems = {}
-            for path_test in list_files:  # consolidate inputs by the parent directory
-                str_parent = f"{path_test.parent.name} ({path_test.parent.parent.name})"  # use two parent depths
-                if str_parent not in dict_stems:
-                    dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
-                                            'base':path_data.joinpath(path_test.parent.name + ".pkl.gz"),
-                                            'abs':str(path_test).lower()}
-                dict_stems[str_parent]['files'].append(path_test)
-            # sorted_stems = [dict_stems[x]['abs'] for x in dict_stems]
-            # sorted_stems.sort()
+            dict_stems = dataset_discover(data_dir)
             self.send('load', dict_stems)
             return None
 
         def do_load(self, dict_stems):
             # load the dataframes for each asset
-            def callback(str_log):
-                self.cascade("progress", str_log)
-            result = dataset_load(data_dir, fn_callback=callback)
+            result = dataset_load(dict_stems, fn_callback=self.callback)
             return result
 
-        def do_mapping(self, target, models, data_dir, df):
+        def do_map(self, target, models, data_dir, df):
             if len(target) > 0:
-                dataset_map(models, target,  data_dir, df) #, exclude_type=[], include_extractor=[])
+                dataset_map(models, target,  data_dir, df, fn_callback=self.callback) #, exclude_type=[], include_extractor=[])
                 self.cascade("progress", f"Mapped data from {target}...")
+                return target
             self.cascade("progress", f"Skipping data map from {target}...")
 
 
     class DatasetProgress(queueproc.BaseProcess):
         def do_progress(self, status_msg):
             # do some other fancy update?
+            # print("PROGRESS", status_msg)
             return status_msg
 
         def do_load(self, dict_update):
             _app_obj.dataset = dict_update
-            if dict_update['df'] is not None:
+            if dict_update['data'] is not None:
                 process1 = _app_obj.processing['scheduler']
-                self.cascade("progress", f"Scheduling mapping to target {target}...")
-                process1.send('mapping', run_settings['model_target'], _app_obj.models, 
+                self.cascade("progress", f"Scheduling mapping to target {run_settings['model_target']}...")
+                process1.send('map', run_settings['model_target'], _app_obj.models, 
                     run_settings['data_dir'], _app_obj.dataset['data']) #, exclude_type=[], include_extractor=[])
+            return len(dict_update['data']) if dict_update['data'] is not None else 0
 
-            return len(dict_update['df']) if dict_update['df'] is not None else 0
-
-        def do_mapping(self, df):
+        def do_map(self, status_msg):
             return status_msg
 
     process2 = DatasetProgress()
     process1 = DatasetOp(recv=process2)
     process1.start()
     _app_obj.processing = {'scheduler':process1, 'progress':process2}
+
+    # start the first process, data discovery!
+    process1.send('discover', run_settings['data_dir'])
 
     return _app_obj
 
@@ -153,12 +147,16 @@ def models_load(model_name, data_dir, models_dict=None):
     return models_dict
 
 
-def dataset_map(models_dict, model_name, data_dir, df, exclude_type=[], include_extractor=[]):
+def dataset_map(models_dict, model_name, data_dir, df, exclude_type=[], include_extractor=[], fn_callback=None):
     # read the individual vocab labels, validate that the model is there
     if MAPPING_PRIMARY not in models_dict:
         return False
     if model_name in models_dict:
         return True
+    def callback_echo(str_new):
+        print(str_new)
+    if fn_callback is None:
+        fn_callback = callback_echo
 
     # pull out list of assets
     if df is None or len(df) < 1:
@@ -171,24 +169,43 @@ def dataset_map(models_dict, model_name, data_dir, df, exclude_type=[], include_
     # map into subvec
     path_vocab = Path(data_dir).joinpath(model_name + ".w2v")
     logger.info(f"Mapping assets from '{model_name}' from {len(df)} tags into model {str(path_vocab)}.")
-    sub2vec = mapping.list2vect(models_dict[MAPPING_PRIMARY]['vocab'], list(df["tag"].astype(str)), str(path_vocab.resolve())) 
+    sub2vec = mapping.list2vect(models_dict[MAPPING_PRIMARY]['vocab'], list(df["tag"].astype(str)), 
+                                str(path_vocab.resolve()), fn_callback=fn_callback) 
 
     # update model in local dict
     models_dict[path_vocab.stem] = {"vocab": sub2vec, "idx": len(models_dict)}
     return True
 
 
-def dataset_load(data_dir, df=None, fn_callback=None):
+def dataset_discover(data_dir):
+    path_data = Path(data_dir)
+    list_files, path_new = preprocessing.data_discover_raw("lexicon", str(data_dir), bundle_files=False)
+    dict_stems = {}
+    for path_test in list_files:  # consolidate inputs by the parent directory
+        str_parent = f"{path_test.parent.name} ({path_test.parent.parent.name})"  # use two parent depths
+        if str_parent not in dict_stems:
+            dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
+                                    'base':path_data.joinpath(path_test.parent.name + ".pkl.gz"),
+                                    'abs':str(path_test).lower()}
+        dict_stems[str_parent]['files'].append(path_test)
+    return dict_stems
+
+
+def dataset_load(dict_stems, df=None, fn_callback=None):
     def callback_echo(str_new):
         print(str_new)
     if fn_callback is None:
         fn_callback = callback_echo
-    if data_dir is None:
+    if dict_stems is None:
         return {'data':None, 'assets':[]}
+    
+    sorted_stems = [dict_stems[x]['abs'] for x in dict_stems]
+    sorted_stems.sort()
 
     for str_parent in dict_stems:  # consolidate inputs by the parent directory
         def callback_load(str_new="", progress=0, is_warning=False):
             str_log = f"[{str_parent} / {progress}%] {str_new}"
+            fn_callback(str_log)
         df_new = preprocessing.data_load_callback(dict_stems[str_parent]['base'],
             data_dir=dict_stems[str_parent]['files'], map_shots=False, fn_callback=callback_load)
         df_new['asset'] = str_parent   # assign asset link back
@@ -197,7 +214,7 @@ def dataset_load(data_dir, df=None, fn_callback=None):
         df_new['asset_idx'] = sorted_stems.index(dict_stems[str_parent]['abs'])   # assign asset link back
         df = df_new if df is None else pd.concat([df, df_new], ignore_index=True)
         str_log = f"Loaded assets '{str_parent}' from {str(dict_stems[str_parent]['base'])}... ({len(df_new)} rows)"
-        self.cascade("progress", str_log)
+        fn_callback(str_log)
     return {'data':df, 'assets':dict_stems}
 
 
@@ -217,28 +234,37 @@ def generate_mapping(app, query=None, target_dataset=None, limit=MAX_RESULTS):
 
 ### ---------------- layout and UX interactions ---------------------------------------
 
+def targets_refresh(app):
+    list_datasets = [{"label": k, "value": k} for k in app.models if k != MAPPING_PRIMARY]
+    if not list_datasets:
+        list_datasets = [{"label":"(no datsets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY}]
+    return list_datasets
+
+
+def assets_refresh(app):
+    list_assets = [{"label":x, "value":x, "sort":str(app.dataset['assets'][x]['parent'])} for x in app.dataset['assets']]
+    if not list_assets:
+        list_assets = [{"label":"(no assets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY, "disabled":True, "sort":'x'}]
+    list_assets.sort(key=lambda x: x['sort'])
+    return list_assets
+
+
 def layout_generate():
     app = get_dash_app()
 
     # https://dash.plot.ly/dash-core-components/store
     local_store = dcc.Store(id='session', storage_type='memory', data={})   # use store
 
-    list_datasets = [{"label": k, "value": k} for k in app.models if k != MAPPING_PRIMARY]
-    if not list_datasets:
-        list_datasets = [{"label":"(no datsets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY}]
-
-    list_assets = [{"label":x, "value":x, "sort":str(app.dataset['assets'][x]['parent'])} for x in app.dataset['assets']]
-    if not list_assets:
-        list_assets = [{"label":"(no assets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY, "disabled":True, "sort":'x'}]
-    list_assets.sort(key=lambda x: x['sort'])
+    list_datasets = targets_refresh(app)
+    list_assets = assets_refresh(app)
 
     return html.Div([
         dbc.Navbar([
             dbc.Col([ 
                 dbc.Button([
-                    html.I(className="fas fa-bars", title='Toggle Filters')
-                    ], id="button_filters", size="sm", color="primary", className="float-left mt-2 mr-2"),
-                html.H2(app.title, className="text-left align-text-top"),
+                    html.Span(className="fas fa-bars", title='Toggle Filters')
+                    ], id="button_filters", size="sm", color="primary", className="mt-2 mr-2"),
+                html.H2(app.title, className="text-left d-inline align-text-top"),
             ], width=3),
             dbc.Col([ 
                 dbc.Input(id="search_text", placeholder="(e.g. car truck not motorcycle, return to evaluate)", 
@@ -283,7 +309,7 @@ def layout_generate():
                     dbc.Row(dbc.Col([
                         html.Div([
                             html.Span("Asset Filter", className="h4"),
-                            html.Span(f" ({len(list_assets)})", className="text-dark smalls"),
+                            html.Span([html.Span(f" ("), html.Span("?", id="asset_list_count"), html.Span(")")], className="text-dark smalls"),
                         ]),
                         dbc.Checklist(id="asset_list", className="itemlist border border-1 border-dark pl-1 pr-1",
                             options=list_assets, value=[x['value'] for x in list_assets], persistence=True),
@@ -291,12 +317,7 @@ def layout_generate():
                     ], id="filter_asset_block", style={'display':'none'})
                 ], id="core_filter", className="col-md-3 col-sm-12 border border-1 dark rounded p-2 mr-1 ml-1 border-dark"),
             dbc.Col([
-                html.Div([                    
-                    dbc.Row(dbc.Col([
-                        html.Div("(progress message", id="callback_progress_note", className="text-center h5"),
-                        dbc.Progress(value=0, id="callback_progress_animated", style={"height": "2em"}, striped=True, animated=True),
-                        dcc.Interval(id="callback_interval", n_intervals=0, interval=1000, disabled=True),
-                        ]), id="callback_progress", style={"display":"none"}),
+                html.Div([
                     dbc.Row([
                         dbc.Col("", className="text-left", id="search_update"),
                         dbc.Col(f"({app.version['__project__']} v{app.version['__version__']}, {app.version['__copyright__']})", 
@@ -334,7 +355,16 @@ def layout_generate():
                 html.Div([                    
                     html.Div("Sorry, no terms mapped yet, try typing above.")
                     ], id="core_empty", className="h2", style={"display":"none"}),
-                ], id="core_tabs", className="border border-1 dark rounded mr-1 ml-1 p-1 border-dark")
+                dbc.Row(dbc.Col([
+                    html.Div("", id="callback_progress_note", className="text-center "),
+                    dbc.Progress(value=0, id="callback_progress_animated", style={"height": "4em", 'display':'none'}, 
+                                striped=True, animated=True),
+                    html.Div("(concurrent processing is active in background)", className="text-center text-light small border-top bg-secondary border-dark"),
+                    dcc.Interval(id="callback_interval", n_intervals=0, interval=2000, disabled=False),
+                    html.Div("0", id="callback_count_last", style={"display":"none"}),
+                    ], className="p-0 pt-2"), className="bg-warning border border-1 border-dark m-0 mx-auto", id="callback_progress"), 
+                    # style={"display":"none"}),
+                ], id="core_tabs", className="border border-1 rounded mr-1 ml-1 p-1 border-dark")
         ], className="rounded h-100 mt-1"),
         
         # Hidden div inside the app that stores the intermediate value
@@ -472,21 +502,58 @@ def callback_create(app):
     @app.callback(
         [Output('callback_progress', 'style'), Output('callback_progress_animated', 'value'), 
          Output('callback_progress_animated', 'children'), Output('callback_progress_note', 'children'),
-         Output('callback_interval', 'disabled')],
+         Output('mapped_datasets', 'options'), 
+         Output('asset_list', 'value'), Output('asset_list', 'options'), Output('asset_list_count', 'children'),
+         Output('callback_interval', 'disabled'), Output('callback_count_last', 'children')],
         [Input('callback_interval', 'n_intervals')],
-        [State('callback_progress_note', 'children'), State('session', 'data')]
+        [State('session', 'data'), State('callback_count_last', 'children')]
     )
-    def update_progress(n_intervals, value_last, session_data):
+    def update_progress(n_intervals, session_data, n_interval_last):
         ctx = dash.callback_context    # validate specific context (https://dash.plotly.com/advanced-callbacks)
-        if not ctx.triggered or 'callback' not in session_data:
+        if not ctx.triggered :
             raise dash.exceptions.PreventUpdate
-        dict_progress = session_data['callback']
-        if value_last == dict_progress['message']:
-            raise dash.exceptions.PreventUpdate
-        if dict_progress['value'] >= 1:
-            return [{"display":"none"}, 0, "(done)", "(task complete)", False]
-        return [{"display":"block"}, round(dict_progress['value']*100), 
-                f"{round(dict_progress['value']*100)}%", dict_progress['message'], False]
+        # print(n_intervals, app.processing)
+
+        msg_parts = []
+        list_datasets = dash.no_update
+        list_assets = dash.no_update
+        list_assets_sel = dash.no_update
+        list_assets_count = dash.no_update
+        interval_disabled = False
+        while True:
+            msg = app.processing['progress'].run_local()
+            if msg is None:
+                break
+            if msg.event == "progress":
+                msg_parts.append(msg.args)
+            elif msg.event == "load":
+                msg_parts.append(f"Loaded a new model with {msg.args} elements...")
+                list_assets = assets_refresh(app)
+                list_assets_count = len(list_assets)
+                list_assets_sel = list_asset[0]['value']
+            elif msg.event == "map":
+                msg_parts.append(f"Mapping complete {msg.args} elements...")
+                list_datasets = targets_refresh(app)
+            else:
+                print("WEIRD NON_PROGRESS", msg)
+        if msg_parts:
+            n_interval_last = n_intervals
+        else:
+            n_interval_last = json.loads(n_interval_last)
+            # if n_intervals - n_interval_last > 5:
+            #     interval_disabled = True
+
+        print("PARTS", msg_parts, n_intervals, n_interval_last )
+        dict_progress = {"value":0.5, "message":[html.Div(x, className="small") for x in msg_parts]}
+
+        # if value_last == dict_progress['message']:
+        #     raise dash.exceptions.PreventUpdate
+        # if dict_progress['value'] >= 1:
+        #     return [{"display":"none"}, 0, "(done)", "(task complete)", False]
+        return [{"display":"none" if interval_disabled else "block"}, round(dict_progress['value']*100), 
+                f"{round(dict_progress['value']*100)}%", dict_progress['message'],  
+                list_datasets, list_assets, list_assets_sel, list_assets_count, 
+                interval_disabled, json.dumps(n_interval_last)]
 
 
     @app.callback(
