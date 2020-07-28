@@ -35,7 +35,7 @@ from sys import stdout as STDOUT
 
 import pandas as pd
 
-from metadata_flatten import contentai
+import contentaiextractor as contentai
 
 class Flatten():
     # https://cloud.google.com/video-intelligence/docs/reference/reast/Shared.Types/Likelihood
@@ -105,15 +105,22 @@ class Flatten():
         result_data = {} if is_json else ""
         if not force_retrieve:  # safe way to request without 404/500 error
             if len(self.extractor_keys) < 1 or self.extractor != extractor_name:  
-                self.extractor_keys = []
                 self.extractor_name = extractor_name
-                dict_raw = self.get_extractor_keys(extractor_name)
-                # except urllib.error.HTTPError as e:
-                if dict_raw is not None and 'keys' in dict_raw:
-                    self.extractor_keys = dict_raw['keys']
+                try:
+                    self.extractor_keys = self.get_extractor_keys(extractor_name)
                     self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
+                except Exception as e:
+                    self.extractor_keys = []
+                    self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name}; error {e}")
         if path in self.extractor_keys:   # have the keys, check for presence
-            result_data = contentai.get_extractor_results(extractor_name, path, is_json=is_json)   # checked or brute force request
+            try:
+                if is_json:
+                    _local_data = contentai.get_json(extractor_name, path)
+                else:
+                    _local_data = contentai.get(extractor_name, path)
+                result_data = _local_data
+            except Exception as e:
+                self.logger.warning(f"Failed to get key data '{path}' for extractor '{extractor_name}'")
 
         if not result_data:  # do we need to load it locally?
             for dir_search in self.recursive_search(self.path_content, extractor_name):
@@ -130,7 +137,7 @@ class Flatten():
 
 
     def get_extractor_keys(self, extractor_name):
-        return contentai.get_extractor_result_keys(extractor_name)
+        return contentai.keys(extractor_name)
 
     def recursive_search(self, path_root, extractor_name):
         """Attempt to find a specific extractor directory under the desired path"""
