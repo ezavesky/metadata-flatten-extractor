@@ -36,7 +36,7 @@ from spacy.vocab import Vocab
 from spacy.tokenizer import Tokenizer
 from scipy import spatial
 
-def list2vect(nlp, list_tags, output_file):
+def list2vect(nlp, list_tags, output_file, fn_callback=None):
     """Given a specific model, map the file set (single line of text) into an output embedding space"""
     vocab = Vocab()
     idx = 0
@@ -50,7 +50,10 @@ def list2vect(nlp, list_tags, output_file):
             vocab.set_vector(tag_raw, nlp.vocab[tag_id].vector)
         idx += 1
         if (idx % 5000) == 0:
-            logger.info(f"list2vec: [{idx}/{len(list_tags)} processing complete")
+            str_log = f"list2vec: [{idx}/{len(list_tags)}] processing complete"
+            logger.info(str_log)
+            if fn_callback is not None:
+                fn_callback(str_log)
 
     # write a w2v file
     path_target = Path(output_file).resolve()
