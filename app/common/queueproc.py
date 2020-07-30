@@ -36,34 +36,39 @@ class BaseProcess(Proc):
     """
     def __init__(self, *args, recv=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.queue = mp.Queue()
-        self.term = mp.Event()
-        self.recv = recv
+        self._queue = mp.Queue()
+        self._term = mp.Event()
+        self._busy = mp.Event()
+        self._recv = recv
+        self._busy.clear()
 
     def send(self, event, *args):
         """Puts the event and args as a `Msg` on the queue
         """
         msg = Msg(event, args)
-        self.queue.put(msg)
+        self._queue.put(msg)
 
     def dispatch(self, msg):
         event, args = msg
+        self._busy.set()
         handler = getattr(self, "do_%s" % event, None)
         if not handler:
+            self._busy.clear()
             raise NotImplementedError("Process has no handler for [%s]" % event)
         ret_val = handler(*args)
         self.cascade(event, ret_val)
+        self._busy.clear()
         return ret_val
 
     def cascade(self, event, ret_val):
-        if ret_val is not None and self.recv is not None:
-            self.recv.send(event, ret_val)
+        if ret_val is not None and self._recv is not None:
+            self._recv.send(event, ret_val)
 
     def run_local(self, wait_queue=False):
         result = None
         msg = None
         try:
-            msg = self.queue.get(timeout=5 if wait_queue else 0.5)
+            msg = self._queue.get(timeout=5 if wait_queue else 0.5)
             result = self.dispatch(msg)
         except mp.TimeoutError as e:
             pass
@@ -74,16 +79,18 @@ class BaseProcess(Proc):
         return Msg(msg.event, result)
     
     def stop(self):
-        self.term.set()
+        self._term.set()
 
     def run(self):
-        while self.is_alive() and not self.term.is_set():
+        while self.is_alive() and not self._term.is_set():
             self.run_local(wait_queue=True)
 
     def start(self):
         atexit.register(self.stop)
         super().start()
 
+    def busy(self):
+        return not self._queue.empty() or self._busy.is_set()
 
 
 ### --- testing process --- 
