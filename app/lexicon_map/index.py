@@ -544,7 +544,7 @@ def callback_create(app):
                 print("WEIRD NON_PROGRESS", msg)
         if app.processing['scheduler'].busy() or msg_parts:
             n_interval_last = n_intervals
-        elif app.dataset is not None and app.models is not None:
+        elif app.dataset is not None and app.models is not None and len(app.dataset['data']):
             print("LOADING COMPLETE, DATASET AND MDOEL DETECTED")
             interval_disabled = True
         else:
