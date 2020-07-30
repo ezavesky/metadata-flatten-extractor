@@ -92,6 +92,10 @@ def create_dash_app(name, server, run_settings):
         def do_load(self, dict_stems):
             # load the dataframes for each asset
             result = dataset_load(dict_stems, fn_callback=self.callback)
+            if result['data'] is not None:
+                self.cascade("progress", f"Scheduling mapping to target {run_settings['model_target']}...")
+                self.send('map', run_settings['model_target'], _app_obj.models, 
+                    run_settings['data_dir'], result['data']) #, exclude_type=[], include_extractor=[])
             return result
 
         def do_map(self, target, models, data_dir, df):
@@ -110,11 +114,6 @@ def create_dash_app(name, server, run_settings):
 
         def do_load(self, dict_update):
             _app_obj.dataset = dict_update
-            if dict_update['data'] is not None:
-                process1 = _app_obj.processing['scheduler']
-                self.cascade("progress", f"Scheduling mapping to target {run_settings['model_target']}...")
-                process1.send('map', run_settings['model_target'], _app_obj.models, 
-                    run_settings['data_dir'], _app_obj.dataset['data']) #, exclude_type=[], include_extractor=[])
             return len(dict_update['data']) if dict_update['data'] is not None else 0
 
         def do_map(self, status_msg):
@@ -545,11 +544,14 @@ def callback_create(app):
                 print("WEIRD NON_PROGRESS", msg)
         if app.processing['scheduler'].busy() or msg_parts:
             n_interval_last = n_intervals
+        elif app.dataset is not None and app.models is not None:
+            print("LOADING COMPLETE, DATASET AND MDOEL DETECTED")
+            interval_disabled = True
         else:
             n_interval_last = json.loads(n_interval_last)
             if n_intervals - n_interval_last > 10:   # kinda arbitrary, but limit for spinner load
                 interval_disabled = True
-
+    
         dict_progress = {"value":0.5, "message":dash.no_update }
         if msg_parts:
             print("LOADING UPDATE", msg_parts, n_intervals, n_interval_last, app.processing['scheduler'].busy())
