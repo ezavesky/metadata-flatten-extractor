@@ -359,10 +359,15 @@ def layout_generate():
                     html.Div("", id="callback_progress_note", className="text-center "),
                     dbc.Progress(value=0, id="callback_progress_animated", style={"height": "4em", 'display':'none'}, 
                                 striped=True, animated=True),
-                    html.Div("(concurrent processing is active in background)", className="text-center text-light small border-top bg-secondary border-dark"),
+                    html.Div([
+                        dbc.Button([
+                            dbc.Spinner(size="sm"), 
+                            " Concurrent processing is active in background..."
+                            ], color="primary", disabled=True, className="text-center m-2 text-light"),
+                        ], className="d-flex justify-content-center"),
                     dcc.Interval(id="callback_interval", n_intervals=0, interval=2000, disabled=False),
                     html.Div("0", id="callback_count_last", style={"display":"none"}),
-                    ], className="p-0 pt-2"), className="bg-warning border border-1 border-dark m-0 mx-auto", id="callback_progress"), 
+                    ], className="p-0 pt-2"), className="bg-light rounded border border-1 border-dark m-0 mx-auto", id="callback_progress"), 
                     # style={"display":"none"}),
                 ], id="core_tabs", className="border border-1 rounded mr-1 ml-1 p-1 border-dark")
         ], className="rounded h-100 mt-1"),
@@ -376,6 +381,7 @@ def layout_generate():
         # ),
         # html.Div(id='intermediate_value', style={'display': 'none'})   # use hidden div for data
     ], id="mainContainer", className="container-fluid h-100")
+
 
 def num_simplify(num_raw):
     unit = ['', 'K', 'M', 'B']
@@ -392,10 +398,10 @@ def callback_create(app):
     @app.callback(
         [Output('mapped_tags', 'options'), Output('mapped_tags', 'value'), Output('mapped_count', 'children'), 
          Output('exclude_types', 'options'), Output('exclude_types', 'value'), Output('session', 'data')],
-        [Input('search_text', 'n_submit'), Input('mapped_datasets', 'value')],
+        [Input('search_text', 'n_submit'), Input('mapped_datasets', 'value'), Input('callback_interval', 'disabled')],
         [State('search_text', 'value'), State('session', 'data')]
     )
-    def update_results(search_submit, dataset_selected, search_str, session_data):
+    def update_results(search_submit, dataset_selected, loading_complete, search_str, session_data):
         """update the contents of channel data"""
         ctx = dash.callback_context    # validate specific context (https://dash.plotly.com/advanced-callbacks)
         # if not ctx.triggered :
@@ -403,6 +409,9 @@ def callback_create(app):
         trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
         # elif trigger_id == "core_interval" and session_user is not None:   # interval should never be the trigger if already have user data
         #     raise dash.exceptions.PreventUpdate
+        if not loading_complete:
+            logger.info("UPDATE delayed while loading...")
+            raise dash.exceptions.PreventUpdate
 
         module_trigger = None
         module_type = None
@@ -463,7 +472,7 @@ def callback_create(app):
         df = app.dataset['data']
         num_raw = 0
         num_filtered = 0
-        if df is not None:
+        if df is not None and tag_active is not None:
             num_raw = len(df)
             df_filter = df["tag"].isin(tag_active)   # filter out by tag names
             df_filter &= df["tag_type"].isin(type_active)   # filter out by tag type
@@ -502,8 +511,7 @@ def callback_create(app):
     @app.callback(
         [Output('callback_progress', 'style'), Output('callback_progress_animated', 'value'), 
          Output('callback_progress_animated', 'children'), Output('callback_progress_note', 'children'),
-         Output('mapped_datasets', 'options'), 
-         Output('asset_list', 'value'), Output('asset_list', 'options'), Output('asset_list_count', 'children'),
+         Output('mapped_datasets', 'value'), Output('mapped_datasets', 'options'), 
          Output('callback_interval', 'disabled'), Output('callback_count_last', 'children')],
         [Input('callback_interval', 'n_intervals')],
         [State('session', 'data'), State('callback_count_last', 'children')]
@@ -516,6 +524,7 @@ def callback_create(app):
 
         msg_parts = []
         list_datasets = dash.no_update
+        list_datasets_sel = dash.no_update
         list_assets = dash.no_update
         list_assets_sel = dash.no_update
         list_assets_count = dash.no_update
@@ -528,23 +537,23 @@ def callback_create(app):
                 msg_parts.append(msg.args)
             elif msg.event == "load":
                 msg_parts.append(f"Loaded a new model with {msg.args} elements...")
-                list_assets = assets_refresh(app)
-                list_assets_count = len(list_assets)
-                list_assets_sel = list_asset[0]['value']
             elif msg.event == "map":
                 msg_parts.append(f"Mapping complete {msg.args} elements...")
                 list_datasets = targets_refresh(app)
+                list_datasets_sel = list_datasets[0]['value']
             else:
                 print("WEIRD NON_PROGRESS", msg)
-        if msg_parts:
+        if app.processing['scheduler'].busy() or msg_parts:
             n_interval_last = n_intervals
         else:
             n_interval_last = json.loads(n_interval_last)
-            # if n_intervals - n_interval_last > 5:
-            #     interval_disabled = True
+            if n_intervals - n_interval_last > 10:   # kinda arbitrary, but limit for spinner load
+                interval_disabled = True
 
-        print("PARTS", msg_parts, n_intervals, n_interval_last )
-        dict_progress = {"value":0.5, "message":[html.Div(x, className="small") for x in msg_parts]}
+        dict_progress = {"value":0.5, "message":dash.no_update }
+        if msg_parts:
+            print("LOADING UPDATE", msg_parts, n_intervals, n_interval_last, app.processing['scheduler'].busy())
+            dict_progress['message'] = [html.Div(x, className="small") for x in msg_parts]
 
         # if value_last == dict_progress['message']:
         #     raise dash.exceptions.PreventUpdate
@@ -552,9 +561,22 @@ def callback_create(app):
         #     return [{"display":"none"}, 0, "(done)", "(task complete)", False]
         return [{"display":"none" if interval_disabled else "block"}, round(dict_progress['value']*100), 
                 f"{round(dict_progress['value']*100)}%", dict_progress['message'],  
-                list_datasets, list_assets, list_assets_sel, list_assets_count, 
+                list_datasets_sel, list_datasets, 
                 interval_disabled, json.dumps(n_interval_last)]
 
+    @app.callback(
+        [Output('asset_list', 'value'), Output('asset_list', 'options'), Output('asset_list_count', 'children')],
+        [Input('mapped_datasets', 'value')])
+    def update_assets(mapped_dataset):
+        print("WAITING FOR ASSET LIST", mapped_dataset)
+        if mapped_dataset is None:
+            raise dash.exceptions.PreventUpdate
+        # print(n_intervals, app.processing)
+        # NOTE: it's weird, but this special callback is required on complete because of a UX update race condition
+        list_assets = assets_refresh(app)
+        list_assets_count = len(list_assets)
+        list_assets_sel = [x['value'] for x in list_assets]
+        return [list_assets_sel, list_assets, list_assets_count]
 
     @app.callback(
         [Output('primary_item', 'children')],
