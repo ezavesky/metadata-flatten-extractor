@@ -52,6 +52,7 @@ from common import preprocessing, queueproc
 
 MAPPING_PRIMARY = "__primary"
 MAPPING_LEXICON = "lexicon"
+BACKEND_INTERVAL_WARN = 10   # how many spins until warning message?
 MAX_RESULTS = 20   # max results for the mapping
 MAX_AUTO_ENABLED = 5   # max results that are auto-enabled after mapping
 HEATMAP_INTERVAL_SECONDS = 60
@@ -96,6 +97,8 @@ def create_dash_app(name, server, run_settings):
                 self.cascade("progress", f"Scheduling mapping to target {run_settings['model_target']}...")
                 self.send('map', run_settings['model_target'], _app_obj.models, 
                     run_settings['data_dir'], result['data']) #, exclude_type=[], include_extractor=[])
+            else:
+                self.cascade("progress", f"No targets found, entering map-only mode...")
             return result
 
         def do_map(self, target, models, data_dir, df):
@@ -221,7 +224,7 @@ def generate_mapping(app, query=None, target_dataset=None, limit=MAX_RESULTS):
     list_return = []
 
     if query is not None:
-        if target_dataset in app.models:
+        if target_dataset in app.models and valid_mapping(target_dataset):
             return mapping.domain_map(app.models[MAPPING_PRIMARY]['vocab'], query, 
                                         app.models[target_dataset]['vocab'], k=limit)
         else:
@@ -233,17 +236,21 @@ def generate_mapping(app, query=None, target_dataset=None, limit=MAX_RESULTS):
 
 ### ---------------- layout and UX interactions ---------------------------------------
 
+def valid_mapping(asset_label):
+    return asset_label != MAPPING_PRIMARY
+
+
 def targets_refresh(app):
-    list_datasets = [{"label": k, "value": k} for k in app.models if k != MAPPING_PRIMARY]
+    list_datasets = [{"label": k, "value": k} for k in app.models if valid_mapping(k)]
     if not list_datasets:
-        list_datasets = [{"label":"(no datsets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY}]
+        list_datasets = [{"label":"(no datsets found)", "value":MAPPING_PRIMARY}]
     return list_datasets
 
 
 def assets_refresh(app):
     list_assets = [{"label":x, "value":x, "sort":str(app.dataset['assets'][x]['parent'])} for x in app.dataset['assets']]
     if not list_assets:
-        list_assets = [{"label":"(no assets found)", "value":MAPPING_PRIMARY+MAPPING_PRIMARY, "disabled":True, "sort":'x'}]
+        list_assets = [{"label":"(no assets found)", "value":MAPPING_PRIMARY, "disabled":True, "sort":'x'}]
     list_assets.sort(key=lambda x: x['sort'])
     return list_assets
 
@@ -256,6 +263,7 @@ def layout_generate():
 
     list_datasets = targets_refresh(app)
     list_assets = assets_refresh(app)
+    num_assets = len([x for x in list_assets if valid_mapping(x['value'])])
 
     return html.Div([
         dbc.Navbar([
@@ -308,7 +316,7 @@ def layout_generate():
                     dbc.Row(dbc.Col([
                         html.Div([
                             html.Span("Asset Filter", className="h4"),
-                            html.Span([html.Span(f" ("), html.Span("?", id="asset_list_count"), html.Span(")")], className="text-dark smalls"),
+                            html.Span([html.Span(f" ("), html.Span(json.dumps(num_assets), id="asset_list_count"), html.Span(")")], className="text-dark smalls"),
                         ]),
                         dbc.Checklist(id="asset_list", className="itemlist border border-1 border-dark pl-1 pr-1",
                             options=list_assets, value=[x['value'] for x in list_assets], persistence=True),
@@ -352,8 +360,8 @@ def layout_generate():
                         ]), className="w-100"),
                     ], id="core_results", style={"display":"none"}),
                 html.Div([                    
-                    html.Div("Sorry, no terms mapped yet, try typing above.")
-                    ], id="core_empty", className="h2", style={"display":"none"}),
+                    html.Div("Sorry, no assets found. Try typing above or specifing an alternate target directory.")
+                    ], id="core_empty", className="h3", style={"display":"none"}),
                 dbc.Row(dbc.Col([
                     html.Div("", id="callback_progress_note", className="text-center "),
                     dbc.Progress(value=0, id="callback_progress_animated", style={"height": "4em", 'display':'none'}, 
@@ -511,11 +519,12 @@ def callback_create(app):
         [Output('callback_progress', 'style'), Output('callback_progress_animated', 'value'), 
          Output('callback_progress_animated', 'children'), Output('callback_progress_note', 'children'),
          Output('mapped_datasets', 'value'), Output('mapped_datasets', 'options'), 
+         Output('asset_list_count', 'children'),
          Output('callback_interval', 'disabled'), Output('callback_count_last', 'children')],
         [Input('callback_interval', 'n_intervals')],
-        [State('session', 'data'), State('callback_count_last', 'children')]
+        [State('session', 'data'), State('callback_count_last', 'children'), State('asset_list_count', 'children')]
     )
-    def update_progress(n_intervals, session_data, n_interval_last):
+    def update_progress(n_intervals, session_data, n_interval_last, num_assets):
         ctx = dash.callback_context    # validate specific context (https://dash.plotly.com/advanced-callbacks)
         if not ctx.triggered :
             raise dash.exceptions.PreventUpdate
@@ -524,9 +533,8 @@ def callback_create(app):
         msg_parts = []
         list_datasets = dash.no_update
         list_datasets_sel = dash.no_update
-        list_assets = dash.no_update
-        list_assets_sel = dash.no_update
-        list_assets_count = dash.no_update
+        list_asset_count = dash.no_update
+        num_assets = json.loads(num_assets)
         interval_disabled = False
         while True:
             msg = app.processing['progress'].run_local()
@@ -535,27 +543,35 @@ def callback_create(app):
             if msg.event == "progress":
                 msg_parts.append(msg.args)
             elif msg.event == "load":
-                msg_parts.append(f"Loaded a new model with {msg.args} elements...")
+                msg_parts.append(f"Loaded a new model with {msg.args} elements ...")
+                if msg.args == 0:  # terminate now if empty target request
+                    interval_disabled = True
             elif msg.event == "map":
-                msg_parts.append(f"Mapping complete {msg.args} elements...")
+                num_assets = len([x for x in assets_refresh(app) if valid_mapping(x['value'])])
+                msg_parts.append(f"Mapping complete {msg.args} elements... ({num_assets} assets)")
                 list_datasets = targets_refresh(app)
                 list_datasets_sel = list_datasets[0]['value']
             else:
                 print("WEIRD NON_PROGRESS", msg)
         if app.processing['scheduler'].busy() or msg_parts:
             n_interval_last = n_intervals
-        elif app.dataset is not None and app.models is not None and len(app.dataset['data']):
-            print("LOADING COMPLETE, DATASET AND MDOEL DETECTED")
+        elif (app.dataset is not None and app.models is not None   # validate model finished loading
+                and app.dataset['data'] is not None and len(app.dataset['data'])  # validate dataset loaded
+                and num_assets > 0):   # validate assets are selected...
+            # print("LOADING COMPLETE, DATASET AND MODEL DETECTED", "ASSETS:", num_assets)
             interval_disabled = True
         else:
             n_interval_last = json.loads(n_interval_last)
-            if n_intervals - n_interval_last > 10:   # kinda arbitrary, but limit for spinner load
-                interval_disabled = True
+            if ((n_intervals - n_interval_last) % BACKEND_INTERVAL_WARN) == 0 and n_interval_last > BACKEND_INTERVAL_WARN:
+                msg_parts.append(f"Warning: No back-end updates in {n_intervals - n_interval_last} intervals.  Did something break or is this a slow machine?")
+            # print("NO ACTION, SHALL WE TIME OUT?")
+            # if n_intervals - n_interval_last > 10:   # kinda arbitrary, but limit for spinner load
+            #     interval_disabled = True
     
         dict_progress = {"value":0.5, "message":dash.no_update }
         if msg_parts:
-            print("LOADING UPDATE", msg_parts, n_intervals, n_interval_last, app.processing['scheduler'].busy())
             dict_progress['message'] = [html.Div(x, className="small") for x in msg_parts]
+        print("LOADING UPDATE", msg_parts, n_intervals, n_interval_last, app.processing['scheduler'].busy())
 
         # if value_last == dict_progress['message']:
         #     raise dash.exceptions.PreventUpdate
@@ -563,22 +579,21 @@ def callback_create(app):
         #     return [{"display":"none"}, 0, "(done)", "(task complete)", False]
         return [{"display":"none" if interval_disabled else "block"}, round(dict_progress['value']*100), 
                 f"{round(dict_progress['value']*100)}%", dict_progress['message'],  
-                list_datasets_sel, list_datasets, 
+                list_datasets_sel, list_datasets, json.dumps(num_assets),
                 interval_disabled, json.dumps(n_interval_last)]
 
     @app.callback(
-        [Output('asset_list', 'value'), Output('asset_list', 'options'), Output('asset_list_count', 'children')],
-        [Input('mapped_datasets', 'value')])
-    def update_assets(mapped_dataset):
-        print("WAITING FOR ASSET LIST", mapped_dataset)
-        if mapped_dataset is None:
+        [Output('asset_list', 'value'), Output('asset_list', 'options')],
+        [Input('asset_list_count', 'children')])
+    def update_assets(num_assets):
+        num_assets = json.loads(num_assets)
+        if not num_assets:
             raise dash.exceptions.PreventUpdate
-        # print(n_intervals, app.processing)
         # NOTE: it's weird, but this special callback is required on complete because of a UX update race condition
+        # print("RECEIVED ASSET LIST", num_assets)
         list_assets = assets_refresh(app)
-        list_assets_count = len(list_assets)
         list_assets_sel = [x['value'] for x in list_assets]
-        return [list_assets_sel, list_assets, list_assets_count]
+        return [list_assets_sel, list_assets]
 
     @app.callback(
         [Output('primary_item', 'children')],
