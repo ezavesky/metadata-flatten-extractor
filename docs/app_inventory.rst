@@ -56,6 +56,18 @@ The application can be configured with these options.
                             https://spacy.io/models
 
 
+A command-line example of this functionality.  Assuming that thre are flattened results
+in the directory `data`, the below commands can bootstrap the interface.
+
+.. code:: shell
+
+    # uses the 'data' directory for new model storage, and will create a new dataset called 'default'
+    python server.py  --data_dir data/ --model_target default
+
+    # just load the standard NLP embedding model for 'mapped results'
+    python server.py 
+
+
 Installation
 ------------
 
@@ -99,19 +111,20 @@ following assumptions for operation…
       console
 
 Afterwards, running your docker file is trivial with standard syntax to
-mount the target volumes.
+mount the target volumes where the directory `data` is expected to have
+output from a flattening process.
 
 .. code:: shell
 
    # Run docker container (default video path)
-   docker run -it --rm -p 8701:8701 -v ${PWD}/AutoTrader:/results lexicon
+   docker run -it --rm -p 8701:8701 -v ${PWD}/data:/results lexicon
 
 Optionally you can edit the app while running for continuous updates.
 
 .. code:: shell
 
    # Mounting app rather than copying it allows you to edit the app while container is running
-   docker run --rm -p 8701:8701 -v ${PWD}/results:/results -v ${PWD}/app:/src/app lexicon:latest
+   docker run --rm -p 8701:8701 -v ${PWD}/data:/results -v ${PWD}/app:/src/app lexicon:latest
 
 
 Data Ingest

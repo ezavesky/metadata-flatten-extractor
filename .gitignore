@@ -9,6 +9,10 @@ __pycache__/
 
 # custom data directories
 results
+**/*.gz
+**/*.pkl
+**/*.bin
+**/*.w2v
 
 # C extensions
 *.so

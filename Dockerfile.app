@@ -3,7 +3,9 @@ FROM python:3.7-slim
 ARG user=cae
 ARG uid=2000
 ARG gid=2000
-ARG spacy_model=en_core_web_lg
+ARG spacy_model=en_core_web_md
+# larger model for bigger memory docker systems
+# ARG spacy_model=en_core_web_lg
 
 ENV WORKDIR=/src
 ENV VIDEO=/videos/video.mp4
@@ -30,6 +32,7 @@ RUN bash -c 'echo -e "\
 gatherUsageStats = false\n\
 [server]\n\
 enableCORS = false\n\
+enableXsrfProtection = false\n\
 " > /$user/.streamlit/config.toml' \
     # install requirements (base package)
     && pip install --no-cache-dir -r $WORKDIR/requirements.txt \
@@ -64,14 +67,17 @@ RUN touch /tmp/run_script.sh && \
     echo "touch \$WORKDIR/app/browse/nohup.out \$WORKDIR/app/lexicon_map/nohup.out " >> /tmp/run_script.sh && \
     # --- quality app
     # echo "cd \$WORKDIR/app/quality" >> /tmp/run_script.sh  && \
-    # echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8601 -t 90  \"server:app(manifest='\$MANIFEST', media_file='\$VIDEO', data_dir='/results')\" & " >> /tmp/run_script.sh && \
+    # echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8601 --timeout 120  \"server:app(manifest='\$MANIFEST', media_file='\$VIDEO', data_dir='/results')\" & " >> /tmp/run_script.sh && \
     # --- mapping app
     echo "cd \$WORKDIR/app/lexicon_map" >> /tmp/run_script.sh  && \
-    echo "nohup gunicorn -k gevent --workers=1 --bind=0.0.0.0:8701 -t 90  \"server:app(data_dir='/results', mapping_model='$spacy_model', model_target='default')\" & " >> /tmp/run_script.sh && \
+    # (no gunicorn?!) echo "nohup gunicorn -k gevent --workers=1 --threads=1 --bind=0.0.0.0:8701 --timeout 240  \"server:app(data_dir='/results', mapping_model='$spacy_model', model_target='default')\" & " >> /tmp/run_script.sh && \
+    echo "nohup python server.py --data_dir /results --mapping_model '$spacy_model' --model_target='default' -p 8701 & " >> /tmp/run_script.sh && \
     # --- browse app
     echo "cd $WORKDIR/app/browse" >>  /tmp/run_script.sh && \
     echo "nohup streamlit run --server.enableCORS false timed.py -- --manifest \$MANIFEST --media_file \$VIDEO --mapping_moodel $spacy_model --data_dir /results --symlink /tmp/\$SYMLINK & " >> /tmp/run_script.sh && \
     # --- talk what's happening
+    echo "sleep 2 " >> /tmp/run_script.sh && \
+    
     echo "tail -f  \$WORKDIR/app/browse/nohup.out \$WORKDIR/app/lexicon_map/nohup.out " >> /tmp/run_script.sh && \
     chmod +x /tmp/run_script.sh && \
     cp /tmp/run_script.sh $WORKDIR && \
