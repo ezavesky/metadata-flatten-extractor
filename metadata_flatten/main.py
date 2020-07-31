@@ -22,6 +22,7 @@ import sys
 from os import path, makedirs
 
 import pandas as pd
+import contentaiextractor as contentai
 
 if __name__ == '__main__':
     # patch the path to include this object
@@ -29,7 +30,6 @@ if __name__ == '__main__':
     if pathRoot not in sys.path:
         sys.path.append(pathRoot)
 
-from metadata_flatten import contentai
 from metadata_flatten import parsers
 from metadata_flatten import generators
 
@@ -53,15 +53,16 @@ def main():
     if not path.exists(contentai.result_path):
         makedirs(contentai.result_path)
 
-    list_parser_modules = parsers.get_by_name(contentai.metadata['extractor'] if 'extractor' in contentai.metadata else None)
+    contentai_metadata = contentai.metadata()
+    list_parser_modules = parsers.get_by_name(contentai_metadata['extractor'] if 'extractor' in contentai_metadata else None)
 
-    list_generator_modules = generators.get_by_name(contentai.metadata['generator'] if 'generator' in contentai.metadata else None)
+    list_generator_modules = generators.get_by_name(contentai_metadata['generator'] if 'generator' in contentai_metadata else None)
 
     # allow injection of parameters from environment
     input_vars = {"force_overwrite": True, "verbose":False,
                     "compressed": True, 'all_frames': False, 'time_offset':0}
-    if contentai.metadata is not None:  # see README.md for more info
-        input_vars.update(contentai.metadata)
+    if contentai_metadata is not None:  # see README.md for more info
+        input_vars.update(contentai_metadata)
 
     need_generation = False
     map_outputs = {}
@@ -85,8 +86,8 @@ def main():
             df = parser_instance.parse(input_vars)  # attempt to process
 
             if df is None:  # skip bad results
-                if 'extractor' in contentai.metadata:
-                    parsers.Flatten.logger.warning(f"Specified extractor `{contentai.metadata['extractor']}` failed to find data. " \
+                if 'extractor' in contentai_metadata:
+                    parsers.Flatten.logger.warning(f"Specified extractor `{contentai_metadata['extractor']}` failed to find data. " \
                         f"Verify that input directory {contentai.content_path} points directly to file...")
 
         if df is not None:
