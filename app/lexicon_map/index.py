@@ -49,6 +49,7 @@ logger = logging.getLogger()
 
 import mapping_spacy as mapping    # TODO: configure this in another way
 from common import preprocessing, queueproc
+from common.media import manifest_parse
 
 MAPPING_PRIMARY = "__primary"
 MAPPING_LEXICON = "lexicon"
@@ -84,9 +85,9 @@ def create_dash_app(name, server, run_settings):
         def callback(self, str_log):
             self.cascade("progress", str_log)
 
-        def do_discover(self, data_dir):
+        def do_discover(self, data_dir, manifest_path):
             # discover the dataframes for each asset
-            dict_stems = dataset_discover(data_dir)
+            dict_stems = dataset_discover(data_dir, manifest_path)
             self.send('load', dict_stems)
             return None
 
@@ -128,7 +129,7 @@ def create_dash_app(name, server, run_settings):
     _app_obj.processing = {'scheduler':process1, 'progress':process2}
 
     # start the first process, data discovery!
-    process1.send('discover', run_settings['data_dir'])
+    process1.send('discover', run_settings['data_dir'], run_settings['manifest'])
 
     return _app_obj
 
@@ -179,17 +180,35 @@ def dataset_map(models_dict, model_name, data_dir, df, exclude_type=[], include_
     return True
 
 
-def dataset_discover(data_dir):
+def dataset_discover(data_dir, manifest_file=''):
     path_data = Path(data_dir)
-    list_files, path_new = preprocessing.data_discover_raw("lexicon", str(data_dir), bundle_files=False)
     dict_stems = {}
-    for path_test in list_files:  # consolidate inputs by the parent directory
-        str_parent = f"{path_test.parent.name} ({path_test.parent.parent.name})"  # use two parent depths
-        if str_parent not in dict_stems:
-            dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
-                                    'base':path_data.joinpath(path_test.parent.name + ".pkl.gz"),
-                                    'abs':str(path_test).lower()}
-        dict_stems[str_parent]['files'].append(path_test)
+
+    list_manifest = []
+    if manifest_file is not None and len(manifest_file):
+        list_manifest = manifest_parse(manifest_file)
+    if list_manifest:
+        re_clean = re.compile(r"[^a-zA-z0-9]+")
+        for dict_manifest in list_manifest:  # consolidate manifest entries
+            # { "name": "Parking Spots on Mars", "video": "/video/park_marks.mp4", "results": "/results/park_mars" },
+            parent_name = dict_manifest['name']
+            path_scan = Path(dict_manifest['results'])
+            list_files, path_new = preprocessing.data_discover_raw("lexicon", str(dict_manifest['results']), bundle_files=False)
+            dict_stems[parent_name] = {'data':None, 'files':list_files, 'parent':parent_name,
+                                    'base':path_data.joinpath(re_clean.sub('', parent_name) + ".pkl.gz"),
+                                    'abs':parent_name.lower()}
+
+    else:
+        logger.info(f"Failed to load or parse the manifest file '{manifest_file}', scanning result dir '{data_dir}' instead")
+
+        list_files, path_new = preprocessing.data_discover_raw("lexicon", str(data_dir), bundle_files=False)
+        for path_test in list_files:  # consolidate inputs by the parent directory
+            str_parent = f"{path_test.parent.name} ({path_test.parent.parent.name})"  # use two parent depths
+            if str_parent not in dict_stems:
+                dict_stems[str_parent] = {'data':None, 'files':[], 'parent':str(path_test.parent), 
+                                        'base':path_data.joinpath(path_test.parent.name + ".pkl.gz"),
+                                        'abs':str(path_test).lower()}
+            dict_stems[str_parent]['files'].append(path_test)
     return dict_stems
 
 

@@ -76,8 +76,10 @@ def create_app(argv=sys.argv[1:]):
     parser.add_argument("-z", "--result_count", type=int, default=30, help="Max results per page")
     parser.add_argument("-r", "--refresh_interval", type=int, default=2000, help="Refresh interval for log (in millis)")
     parser.add_argument("--verbose", "-v", action="count")
-    subparse = parser.add_argument_group('model configuration')
+    subparse = parser.add_argument_group('data analysis configuration')
     subparse.add_argument("--data_dir", type=str, default='model', help="specify the source directory for model")
+    subparse.add_argument("--manifest", type=str, default='', help="specify individual assets to scan")
+    subparse = parser.add_argument_group('model configuration')
     subparse.add_argument("--model_target", type=str, default='', help="name of the target model to validate/generate")
     subparse.add_argument('-n', '--mapping_model', dest='mapping_model', type=str, default='en_core_web_lg', 
         help='spacy mapping model if NLP models installed - https://spacy.io/models')
