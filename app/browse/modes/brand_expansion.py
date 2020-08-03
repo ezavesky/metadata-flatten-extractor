@@ -159,7 +159,7 @@ def main_sidebar(df):
 
     # confidence measure
     if len(df_sub) > 1:  # only if there are more than two samples
-        value = (df_sub["score"].min(), df_sub["score"].max())
+        value = (float(df_sub["score"].min()), float(df_sub["score"].max()))
         score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
         idx_match &= (df_sub['score'] >= score_bound[0]) & (df_sub['score'] <= score_bound[1])
 

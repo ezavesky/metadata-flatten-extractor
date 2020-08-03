@@ -103,7 +103,7 @@ def quick_timeseries(df_live, df_sub, tag_type, graph_type='line'):
     df_sub.index = df_sub.index.round('1T')
     df_filtered = pd.DataFrame([])
     for n in tag_top:    # resample each top tag
-        df_resample = pd.DataFrame(df_sub[df_sub["tag"] == n].resample('1T', base=0).mean()["score"]).dropna()
+        df_resample = pd.DataFrame(df_sub[df_sub["tag"] == n].resample('1T', offset="0s").mean()["score"]).dropna()
         df_resample.columns = ["score"]
         # need to convert to date time -- https://github.com/altair-viz/altair/issues/967#issuecomment-399774414
         df_resample["tag"] = n
