@@ -137,7 +137,7 @@ def main_sidebar(df, sort_list=None):
                     & (df['time_end'] <= pd.to_timedelta(time_bound[1], unit='min'))
 
     # confidence measure
-    value = (df["score"].min(), df["score"].max())
+    value = (float(df["score"].min()), float(df["score"].max()))
     score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
     idx_match &= (df['score'] >= score_bound[0]) & (df['score'] <= score_bound[1])
 
