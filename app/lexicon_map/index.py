@@ -79,7 +79,7 @@ def create_dash_app(name, server, run_settings):
 
     # init app objects
     _app_obj.models = models_load(run_settings['mapping_model'], run_settings['data_dir'])
-    _app_obj.dataset = dataset_load(None)
+    _app_obj.dataset = dataset_load(None, run_settings['mapping_model'])
 
     class DatasetOp(queueproc.BaseProcess):
         def callback(self, str_log):
@@ -93,7 +93,7 @@ def create_dash_app(name, server, run_settings):
 
         def do_load(self, dict_stems):
             # load the dataframes for each asset
-            result = dataset_load(dict_stems, fn_callback=self.callback)
+            result = dataset_load(dict_stems, run_settings['mapping_model'], fn_callback=self.callback)
             if result['data'] is not None:
                 self.cascade("progress", f"Scheduling mapping to target {run_settings['model_target']}...")
                 self.send('map', run_settings['model_target'], _app_obj.models, 
@@ -212,7 +212,7 @@ def dataset_discover(data_dir, manifest_file=''):
     return dict_stems
 
 
-def dataset_load(dict_stems, df=None, fn_callback=None):
+def dataset_load(dict_stems, nlp_model, df=None, fn_callback=None):
     def callback_echo(str_new):
         print(str_new)
     if fn_callback is None:
@@ -227,7 +227,7 @@ def dataset_load(dict_stems, df=None, fn_callback=None):
         def callback_load(str_new="", progress=0, is_warning=False):
             str_log = f"[{str_parent} / {progress}%] {str_new}"
             fn_callback(str_log)
-        df_new = preprocessing.data_load_callback(dict_stems[str_parent]['base'],
+        df_new = preprocessing.data_load_callback(dict_stems[str_parent]['base'], nlp_model=nlp_model,
             data_dir=dict_stems[str_parent]['files'], map_shots=False, fn_callback=callback_load)
         df_new['asset'] = str_parent   # assign asset link back
         df_new['tag'] = df_new['tag'].str.lower()   # push all tags to lower case
