@@ -1,4 +1,4 @@
 pandas
 numexpr
 pytimeparse
-contentaiextractor>=1.0.2
+contentaiextractor>=1.0.3
