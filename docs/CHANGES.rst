@@ -7,6 +7,10 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.9
 ---
 
+0.9.9
+~~~~~
+- update to optimize the pull of asset keys
+
 0.9.7
 ~~~~~
 
