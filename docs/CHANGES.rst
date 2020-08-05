@@ -7,9 +7,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.0
 ---
 
+1.0.2
+~~~~~
+- update documentation for `Metadata Browser <app_browser>`__ and `Inventory Discovery <app_inventory>`__ app
+
 1.0.1
 ~~~~~
-
 - add ability to parse input CSVs but not segment into shot
 - move to a single NLP library (spacy) for applications, using large model (with vectors)
 

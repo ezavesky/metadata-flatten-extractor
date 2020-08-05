@@ -5,7 +5,8 @@ A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI
 Platform <https://www.contentai.io>`__, published as the extractor
 ``dsai_metadata_flatten``. For interactive exploration a `data explorer
-interface <application.md>`__ was created as a quick starting place for
+interface <app_browser.rst>`__ was created as well as a `ad inventory explorer 
+interface <app_inventory.rst>`__ as quick starting places for
 a quick start.
 
 1. `Getting Started <#getting-started>`__

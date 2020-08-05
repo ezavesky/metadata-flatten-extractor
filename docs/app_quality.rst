@@ -1,5 +1,5 @@
-Metadata Flattening Service Explorer
-====================================
+Ad Inventory Discovery and Forecasting
+======================================
 
 Two interactive applications have been created for exploring metadata
 in a proof-of-concept fashion: a metadata browser and a quality check application.
