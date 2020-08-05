@@ -23,6 +23,13 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.9
 ---
 
+0.9.7
+~~~~~
+
+- upgrade to use new `contentai extractor package <https://pypi.org/project/contentaiextractor/>`__
+- update parser logic for safer key and data retrieval
+
+
 0.9.6
 ~~~~~
 - small tweaks/normalization of rounding factor for extractors
