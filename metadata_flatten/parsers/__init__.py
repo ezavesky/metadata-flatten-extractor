@@ -54,7 +54,7 @@ class Flatten():
     def __init__(self, path_content):
         super().__init__()
         self.extractor_keys = []
-        self.extractor = None
+        self.extractor_name = None
         self.path_content = path_content
 
     @staticmethod
@@ -103,15 +103,14 @@ class Flatten():
     def get_extractor_results(self, extractor_name, path, force_retrieve=False, is_json=True):
         """Get results from remote or local location.  Return a dictionary or string (dependingn on is_json), empty if not found"""
         result_data = {} if is_json else ""
-        if not force_retrieve:  # safe way to request without 404/500 error
-            if len(self.extractor_keys) < 1 or self.extractor != extractor_name:  
-                self.extractor_name = extractor_name
-                try:
-                    self.extractor_keys = self.get_extractor_keys(extractor_name)
-                    self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
-                except Exception as e:
-                    self.extractor_keys = []
-                    self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name}; error {e}")
+        if force_retrieve or (len(self.extractor_keys) < 1 or self.extractor_name != extractor_name):   # safe way to request without 404/500 error
+            self.extractor_name = extractor_name
+            try:
+                self.extractor_keys = self.get_extractor_keys(extractor_name)
+                self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
+            except Exception as e:
+                self.extractor_keys = []
+                self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name}; error {e}")
         if path in self.extractor_keys:   # have the keys, check for presence
             try:
                 if is_json:
