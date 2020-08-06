@@ -44,9 +44,9 @@ if __name__ == '__main__':
     # patch the path to include this object
     if _ROOT not in sys.path:
         sys.path.append(_ROOT)
-    # monkeypatch to import metadata_flatten package
+    # monkeypatch to import contentai_metadata_flatten package
     try:
-        from metadata_flatten import parsers
+        from contentai_metadata_flatten import parsers
     except Exception as e:
         _PACKAGE = dirname(_ROOT)
         logger.warning(f"Force-import metadata package... {_PACKAGE}")
@@ -63,7 +63,7 @@ from index import callback_create, layout_generate, create_dash_app, get_dash_ap
 
 
 def create_app(argv=sys.argv[1:]):
-    version_path = path_join("..", "..", "metadata_flatten", "_version.py")
+    version_path = path_join("..", "..", "contentai_metadata_flatten", "_version.py")
     version_data = {}
     with open(version_path) as file:
         exec(file.read(), version_data)

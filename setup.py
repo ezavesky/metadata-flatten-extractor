@@ -26,8 +26,14 @@ from pathlib import Path
 # extract __version__ from version file. importing will lead to install failures
 globals_dict = dict()
 setup_dir = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(setup_dir, 'metadata_flatten', '_version.py')) as file:
+with open(os.path.join(setup_dir, 'contentai_metadata_flatten', '_version.py')) as file:
     exec(file.read(), globals_dict)
+
+# reading string for concatenation
+doc_string = ''
+for doc_files in ["README.rst", "CHANGES.rst"]:
+    with open(os.path.join(setup_dir, 'docs', doc_files), 'rt') as file:
+       doc_string += file.read()  + "\n"
 
 # get the dependencies and installs
 print(setup_dir)
@@ -50,13 +56,15 @@ setup(
     packages=find_packages(),
     author=globals_dict['__author__'],
     description=globals_dict['__description__'],
-    long_description=(globals_dict['__description__']),
+    long_description=doc_string,
+    long_description_content_type="text/x-rst",
+    url='https://gitlab.research.att.com/turnercode/metadata-flatten-extractor',
     license="Apache",
     package_data={globals_dict['__package__']: list_data },
     # setup_requires=['pytest-runner'],
     entry_points="""
     [console_scripts]
-    metadata-flatten=metadata_flatten.main:main
+    contentai-metadata-flatten=contentai_metadata_flatten.main:main
     """,
     python_requires='>=3.6',
     install_requires=requirement_list,

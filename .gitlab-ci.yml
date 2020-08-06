@@ -98,7 +98,6 @@ setup:
     paths:
       - build
 
-
 build:
   stage: build
   script:
@@ -116,6 +115,10 @@ build:
     # upload to back-up server
     - 'which ssh-agent || ( apk add openssh-client  )'
     - scp "$CONTAINER_TEST_FILE" "$USER_NAME@$DEPLOY_HOST:$BUILD_STORAGE"
+  artifacts:
+    paths:
+      - dist
+
 
 build_app:
   stage: build
@@ -146,11 +149,11 @@ testscr:
     # otherwise, load docker from tar
     - docker image load -i $CONTAINER_TEST_FILE
     # note the magic sauce with conda! (https://github.com/tox-dev/tox-conda)
-    - docker run --rm -v `pwd`:/testrun $BUILD_IMAGE /bin/bash -c "cd /testrun && pip install -r testing/tox-requirements.txt && pip uninstall -y $DOCKER_PROJECT && pip freeze && tox . && python setup.py bdist_wheel"
+    - docker run --rm -v `pwd`:/testrun $BUILD_IMAGE /bin/bash -c "cd /testrun && pip install -r testing/tox-requirements.txt && pip uninstall -y $DOCKER_PROJECT && pip freeze && tox . && python setup.py bdist_wheel sdist "
   artifacts:
     paths:
       - htmlcov
-      - dist/*.whl
+      - dist
   coverage: '/TOTAL\s*\d+\s+\d+\s+(\d+\.?\d*)%/'
 
 
@@ -192,6 +195,17 @@ cleanup:
   dependencies:
     - setup
 
+publish_pypi:
+  stage: publish
+  image: python:3.7-slim
+  script:
+    - pip install twine
+    - TWINE_USERNAME="__token__" TWINE_PASSWORD="$TWINE_API" python -m twine upload dist/*
+  dependencies:
+    - testscr
+  only:
+    - master
+
 
 contentai_push:
   stage: deploy
@@ -224,7 +238,7 @@ contentai_push:
 
 docgen:
   stage: publish
-  image: conda/miniconda3:latest
+  image: python:3.7-slim
   script:
     - pip install -r requirements.txt
     - pip install Sphinx sphinx_rtd_theme 
