@@ -8,7 +8,8 @@ Contents:
 
    README
    modules/index
-   application
+   app_browser
+   app_inventory
    CHANGES
 
 Indices and tables

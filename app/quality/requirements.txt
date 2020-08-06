@@ -1,0 +1,7 @@
+gunicorn
+gevent
+flask
+dash
+dash_bootstrap_components==7.8.0
+pandas
+elasticsearch-dsl>=7.0.0,<8.0.0

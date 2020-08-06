@@ -1,18 +1,34 @@
-Metadata Flattening Service Explorer
-====================================
+Ad Inventory Discovery and Forecasting
+======================================
 
-An interactive `streamlit <https://www.streamlit.io/>`__ app for
-exploration of analytics events flattened with this package starting
-from `flattened metadata <README.md>`__.
+Two interactive applications have been created for exploring metadata
+in a proof-of-concept fashion: a metadata browser and a quality check application.
 
-1. `Getting Started <#getting-started>`__
-2. `Execution <#execution-and-deployment>`__
-3. `Future Development <#future-development>`__
+- Metadata Browser
 
-Getting Started Explorer
-========================
+    ... is an interactive `streamlit <https://www.streamlit.io/>`__ app for
+    exploration of analytics events flattened with this package starting
+    from `flattened metadata <README.md>`__.
 
-This wev app runs in python via a light-weight wrapper and the streamlit
+    1. `Getting Started <#getting-started-browser>`__
+    2. `Browser Execution <#browser-execution-and-deployment>`__
+    3. `Future Browser Development <#future-browser development>`__
+
+- QualityCheck (added 
+
+    ... is an interactive `Dash <https://dash.plotly.com/>`__ app for
+    exploration and quality comparisons of events flattened with this package starting
+    from `flattened metadata <README.md>`__.
+
+    1. `Getting Started <#getting-started-quality>`__
+    2. `Browser Execution <#quality-execution-and-deployment>`__
+
+
+
+Getting Started Browser
+=======================
+
+This web app runs in python via a light-weight wrapper and the streamlit
 package. It has the capability to show these event insights
 out-of-the-box.
 
@@ -29,6 +45,9 @@ with a few assumptions.
 |Explorer Demo Image| figure: demo interface reviewing a recent popular
 football game
 
+.. |Explorer Demo Image| image:: explorer-teaser.jpg
+
+
 Installation
 ------------
 
@@ -37,7 +56,7 @@ streamlit and a few processing librarieis in your environment.
 
 .. code:: shell
 
-   pip install -r app/requirements.txt
+   pip install -r app/browser/requirements.txt
 
 The application does use `spaCy <https://spacy.io/>`__ for some basic
 NLP tasks, so after the above installation, run the command below to get
@@ -77,8 +96,8 @@ docker image.
 
 **NOTE: This utility was not tested on windows.**
 
-Explorer Execution
-==================
+Browser Execution
+=================
 
 To execute, you will need to bring your own pre-processed flattened
 metadata and specifically place them into the ``data_dir`` directory.
@@ -238,16 +257,83 @@ refresh the web page, but you should note that it means some code may
 have changed (possibly resulting in an app breakage) between the live
 and historical versions.
 
-Future Explorer Development
-===========================
+Future Browser Development
+==========================
 
 Although there is no specific timeline for deliverables, this is a
 potential roadmap for future features to be implemented.
 
--  search - search for favorite items via text or celebrity
 -  HUD - creation of sparklines or overlays with events of all types
    co-visualized
 -  tech debt - speed up the ingest and processing steps
 
-.. |Explorer Demo Image| image:: explorer-teaser.jpg
+----------------------------
 
+
+Getting Started Quality
+=======================
+
+This web app runs in python via a light-weight wrapper and the dash
+package. It has the capability to show these event insights
+out-of-the-box.
+
+- event coverage between two assets  (in development)
+- extractor comparisons between two assets  (in development)
+- visual regions for brand safety (in development)
+- simple search and indexing
+- addition and monitoring of assets in an elasticsearch database
+
+At this time there are no run-time options and the app will auto-load
+with a few assumptions.
+
+
+
+Installation
+------------
+
+To install dependencies, just run the following. This will insert
+streamlit and a few processing librarieis in your environment.  You will
+also need to point to a running elasticsearch instance as decribed below.
+
+.. code:: shell
+
+   pip install -r app/quality/requirements.txt
+
+The application does use `spaCy <https://spacy.io/>`__ for some basic
+NLP tasks, so after the above installation, run the command below to get
+the right pre-built model.
+
+.. code:: shell
+
+   python -m spacy download en_core_web_sm
+
+The application can also generate small clips from an original video.
+For now, this is accomplished with a system call to ``ffmpeg``, so to
+use this functionality you must have it installed on your system.
+Historically, the `anaconda framework <https://www.anaconda.com/>`__ has
+been a great way to get `ffmpeg as a
+package <https://anaconda.org/menpo/ffmpeg>`__ working in various
+environments. Future versions may attempt to reduce this burden this via
+python package dependency.
+
+.. code:: shell
+
+   conda install ffmpeg
+
+Elasticsearch
+~~~~~~~~~~~~~
+
+`Elasticsearch <https://www.elastic.co/>`__ is a tuned OSS overlay of 
+Apache's no-SQL `Lucene <https://lucene.apache.org/>`__ engine. It provides
+a number of enterprise-ready optmizations and has a standardized full-stack
+solution for logging, distributed compute, etc.  
+
+The QualityCheck application uses Elasticsearch as the primary indexing 
+engine for generated metadata events.  To properly run the application you
+will need a running instance of ElasticSearch.  The line below demonstrates
+how to run a local instance from a standardized docker image.
+
+.. code:: shell
+
+    docker run -d  --name es -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node"  elasticsearch:7.7.1
+    docker logs es -f

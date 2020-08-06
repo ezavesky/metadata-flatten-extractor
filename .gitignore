@@ -5,9 +5,14 @@ __pycache__/
 .DS_Store
 **/*.mp4
 *results*
+**/nohup.out
 
 # custom data directories
 results
+**/*.gz
+**/*.pkl
+**/*.bin
+**/*.w2v
 
 # C extensions
 *.so
@@ -32,6 +37,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+Dockerfile*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
