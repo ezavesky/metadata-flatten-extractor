@@ -21,4 +21,4 @@ fi
 
 EXTRACTOR_METADATA="$RUNARGS" EXTRACTOR_NAME=dsai_metadata_flatten EXTRACTOR_JOB_ID=1 \
     EXTRACTOR_CONTENT_PATH=$1 EXTRACTOR_CONTENT_URL=file://$1 EXTRACTOR_RESULT_PATH=$2 \
-    python -u metadata_flatten/main.py
+    python -u contentai_metadata_flatten/main.py

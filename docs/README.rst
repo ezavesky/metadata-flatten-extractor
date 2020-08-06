@@ -12,8 +12,8 @@ a quick start.
 1. `Getting Started <#getting-started>`__
 2. `Execution <#execution-and-deployment>`__
 3. `Testing <#testing>`__
-4. `Changes <CHANGES.md>`__
-5. `Future Development <#future-development>`__
+4. `Future Development <#future-development>`__
+5. `Changes <#changes>`__
 
 Getting Started
 ===============

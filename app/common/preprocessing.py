@@ -34,7 +34,7 @@ from sklearn.neighbors import BallTree
 
 import logging
 
-from metadata_flatten import parsers
+from contentai_metadata_flatten import parsers
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)

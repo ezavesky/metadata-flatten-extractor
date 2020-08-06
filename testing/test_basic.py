@@ -30,16 +30,16 @@ PATH_TEST = path.join(path.dirname(path.dirname(path.abspath(__file__))), 'data'
 
 
 def test_version():
-    from metadata_flatten import _version
-    assert _version.__package__ == "metadata_flatten"
+    from contentai_metadata_flatten import _version
+    assert _version.__package__ == "contentai_metadata_flatten"
 
 
 def test_main():
-    from metadata_flatten import main
+    from contentai_metadata_flatten import main
 
 
 def test_discovery():
-    from metadata_flatten import generators, parsers
+    from contentai_metadata_flatten import generators, parsers
 
     list_gen = generators.get_by_type('csv')
     assert len(list_gen) > 0  # at least one member
@@ -61,7 +61,7 @@ def test_discovery():
 
 
 def test_packages():
-    from metadata_flatten import generators, parsers
+    from contentai_metadata_flatten import generators, parsers
     
     list_gen = generators.get_by_name('TimeTaggedMetadata')
     assert len(list_gen) > 0  # at least one member
