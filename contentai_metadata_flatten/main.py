@@ -30,8 +30,8 @@ if __name__ == '__main__':
     if pathRoot not in sys.path:
         sys.path.append(pathRoot)
 
-from metadata_flatten import parsers
-from metadata_flatten import generators
+from contentai_metadata_flatten import parsers
+from contentai_metadata_flatten import generators
 
 
 def main():

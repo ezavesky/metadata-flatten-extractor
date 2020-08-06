@@ -24,7 +24,7 @@ import json
 
 from pytimeparse import parse as pt_parse
 
-from metadata_flatten.parsers import Flatten
+from contentai_metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
     def __init__(self, path_content):

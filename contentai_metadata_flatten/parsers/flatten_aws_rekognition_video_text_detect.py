@@ -23,7 +23,7 @@ from pandas import DataFrame
 import json
 import re
 
-from metadata_flatten.parsers import Flatten
+from contentai_metadata_flatten.parsers import Flatten
 
 
 class Parser(Flatten):

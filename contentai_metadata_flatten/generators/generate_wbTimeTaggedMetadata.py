@@ -24,7 +24,7 @@ import re
 from pandas import DataFrame
 import hashlib   # for key hashing
 
-from metadata_flatten.generators import Generate
+from contentai_metadata_flatten.generators import Generate
 
 class Generator(Generate):
     def __init__(self, path_destination):

@@ -4,6 +4,14 @@ Changes
 A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`__.
 
+1.1
+---
+
+1.1.1
+~~~~~
+- rename to ``contentai-metadata-flatten`` and publish to pypi as a package!
+
+
 1.0
 ---
 
