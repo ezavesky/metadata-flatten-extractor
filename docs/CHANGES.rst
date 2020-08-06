@@ -4,6 +4,22 @@ Changes
 A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`__.
 
+1.0
+---
+
+1.0.2
+~~~~~
+- update documentation for `Metadata Browser <app_browser>`__ and `Inventory Discovery <app_inventory>`__ app
+
+1.0.1
+~~~~~
+- add ability to parse input CSVs but not segment into shot
+- move to a single NLP library (spacy) for applications, using large model (with vectors)
+
+1.0.0
+~~~~~
+- add new `dash/plotly <https://dash.plotly.com/>`__ driven quality check application
+
 0.9
 ---
 
@@ -21,8 +37,19 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 0.9.6
 ~~~~~
 
+- upgrade to use new `contentai extractor package <https://pypi.org/project/contentaiextractor/>`__
+- update parser logic for safer key and data retrieval
+
+
+0.9.6
+~~~~~
 - small tweaks/normalization of rounding factor for extractors
 - correct emotion souce type for azure
+- refactor app location for primary streamlit browser
+  - fix mode discovery for modules with specific UX interface
+- update file listing to show data bundle files as well
+- refactor utilities script for reuse in other apps
+
 
 0.9.5
 ~~~~~

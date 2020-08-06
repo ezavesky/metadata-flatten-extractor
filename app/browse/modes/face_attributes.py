@@ -27,6 +27,7 @@ import math
 import altair as alt
 
 from .utilities import *
+from .common.preprocessing import *
 
 
 LIST_NOFACE_TAGS = ["Face", "Age"]
@@ -34,23 +35,23 @@ LIST_NOFACE_TAGS = ["Face", "Age"]
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink="", mapping_model=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    df = data_load("data_bundle", data_dir, True, ignore_update)
+    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update, nlp_model=mapping_model)
     df_label = data_label_serialize(data_dir)
     # print(tree_query.data.shape)
 
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
-        return
+        return None
     df_sub = df[df["tag_type"]=="face"]
     if len(df_sub) < 1:
         st.error("No face attributes (emotions, etc.) detected with current data, please check input metadata.")
-        return
+        return None
     df_live = main_sidebar(df)
 
     # Create the runtime info
@@ -126,7 +127,7 @@ def main_sidebar(df):
                     & (df_sub['time_end'] <= pd.to_timedelta(time_bound[1], unit='min'))
 
     # confidence measure
-    value = (df_sub["score"].min(), df_sub["score"].max())
+    value = (float(df_sub["score"].min()), float(df_sub["score"].max()))
     score_cutoff = df_sub[idx_match]['score'].mean()
     score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], 
                                     value=(max(value[0],score_cutoff), value[1]), step=0.01, 

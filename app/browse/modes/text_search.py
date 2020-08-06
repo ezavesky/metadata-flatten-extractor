@@ -27,32 +27,33 @@ import math
 import altair as alt
 
 from .utilities import *
+from .common.preprocessing import *
 
 # https://stackoverflow.com/a/16710842 - split, but save quotes
 REGEX_SEARCH = re.compile(r'(?:[^\s,"]|"(?:\\.|[^"])*")+')
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink="", mapping_model=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    df = data_load("data_bundle", data_dir, True, ignore_update)
+    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update, nlp_model=mapping_model)
     df_label = data_label_serialize(data_dir)
     # print(tree_query.data.shape)
 
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
-        return
+        return None
     df_live = main_sidebar(df)
 
     # Create the runtime info
     if len(df_live) == 0:
         st.markdown("## Too few samples")
         st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
-        return
+        return None
 
     # plunk down a dataframe for people to explore as they want
     st.markdown(f"## text search (top {min(SAMPLE_TABLE, len(df_live))}/{len(df_live)} events)")

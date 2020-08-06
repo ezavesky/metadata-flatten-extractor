@@ -27,30 +27,31 @@ import math
 import altair as alt
 
 from .utilities import *
+from .common.preprocessing import *
 
 ### ------------ main rendering page and sidebar ---------------------
 
-def main_page(data_dir=None, media_file=None, ignore_update=False, symlink=""):
+def main_page(data_dir=None, media_file=None, ignore_update=False, symlink="", mapping_model=""):
     """Main page for execution"""
     # read in version information
     ux_report = st.empty()
     ux_progress = st.empty()
 
-    df = data_load("data_bundle", data_dir, True, ignore_update)
-    tree_query, tree_shots = data_index("data_vectors", data_dir, df, ignore_update=ignore_update)   # convert data to numbers
-    df_label = data_label_serialize(data_dir)
+    df = data_load(PATH_BASE_BUNDLE, data_dir, True, ignore_update, nlp_model=mapping_model)
     # print(tree_query.data.shape)
 
     if df is None:
         st.error("No data could be loaded, please check configuration options.")
-        return
+        return None
+    tree_query, tree_shots = data_index(PATH_BASE_VECTORS, data_dir, df, ignore_update=ignore_update)   # convert data to numbers
+    df_label = data_label_serialize(data_dir)
     df_live = main_sidebar(df)
 
     # Create the runtime info
     if len(df_live) < MIN_INSIGHT_COUNT:
         st.markdown("## Too few samples")
         st.markdown("The specified filter criterion are too rigid. Please modify your exploration and try again.")
-        return
+        return None
 
     # plunk down a dataframe for people to explore as they want
     st.markdown(f"## brand expansion (top {min(SAMPLE_TABLE, len(df_live))}/{len(df_live)} events)")
@@ -158,7 +159,7 @@ def main_sidebar(df):
 
     # confidence measure
     if len(df_sub) > 1:  # only if there are more than two samples
-        value = (df_sub["score"].min(), df_sub["score"].max())
+        value = (float(df_sub["score"].min()), float(df_sub["score"].max()))
         score_bound = st.sidebar.slider("Insight Score", min_value=value[0], max_value=value[1], value=value, step=0.01)
         idx_match &= (df_sub['score'] >= score_bound[0]) & (df_sub['score'] <= score_bound[1])
 
