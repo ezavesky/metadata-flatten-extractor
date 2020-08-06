@@ -24,7 +24,7 @@ import json
 
 import streamlit as st
 
-version_path = path.join("..", "..", "metadata_flatten", "_version.py")
+version_path = path.join("..", "..", "contentai_metadata_flatten", "_version.py")
 
 import modes
 from modes.utilities import manifest_parse_cached

@@ -22,7 +22,7 @@ from os import path
 from pandas import DataFrame
 import re
 
-from metadata_flatten.parsers import Flatten
+from contentai_metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
     def __init__(self, path_content):

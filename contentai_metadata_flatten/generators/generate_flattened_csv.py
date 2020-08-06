@@ -23,7 +23,7 @@ import json
 import re
 import pandas as pd
 
-from metadata_flatten.generators import Generate
+from contentai_metadata_flatten.generators import Generate
 
 class Generator(Generate):
     def __init__(self, path_destination):
