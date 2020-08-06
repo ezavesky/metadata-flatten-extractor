@@ -64,7 +64,7 @@ setup(
     # setup_requires=['pytest-runner'],
     entry_points="""
     [console_scripts]
-    metadata-flatten=metadata_flatten.main:main
+    contentai-metadata-flatten=contentai_metadata_flatten.main:main
     """,
     python_requires='>=3.6',
     install_requires=requirement_list,
