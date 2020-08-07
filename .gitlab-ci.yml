@@ -205,6 +205,8 @@ publish_pypi:
     - testscr
   only:
     - master
+  before_script:
+    - echo "Skipping SSH access"
 
 
 contentai_push:
