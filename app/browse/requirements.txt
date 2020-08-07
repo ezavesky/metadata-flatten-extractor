@@ -2,3 +2,4 @@ streamlit
 pandas
 spacy
 scikit-learn
+contentai-metadata-flatten
