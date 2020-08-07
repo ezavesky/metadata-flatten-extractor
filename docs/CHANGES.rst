@@ -7,6 +7,11 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.1.2
+~~~~~
+- deployed extractor (docker fix) for updated namespace
+
+
 1.1.1
 ~~~~~
 - docs update, testing fixes, version bump for publication
