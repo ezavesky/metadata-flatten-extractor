@@ -9,6 +9,10 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 
 1.1.1
 ~~~~~
+- docs update, testing fixes, version bump for publication
+
+1.1.0
+~~~~~
 - rename to ``contentai-metadata-flatten`` and publish to pypi as a package!
 
 
