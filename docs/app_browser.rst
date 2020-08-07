@@ -46,7 +46,7 @@ streamlit and a few processing librarieis in your environment.
 
 .. code:: shell
 
-   pip install -r app/browser/requirements.txt
+   pip install -r app/browse/requirements.txt
 
 The application does use `spaCy <https://spacy.io/>`__ for some basic
 NLP tasks, so after the above installation, run the command below to get
