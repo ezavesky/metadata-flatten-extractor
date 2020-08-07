@@ -24,4 +24,4 @@ RUN python -V \
 
 
 EXPOSE 9101
-CMD metadata-flatten
+CMD contentai-metadata-flatten
