@@ -187,7 +187,7 @@ def clip_display(df_live, df, media_file, field_group="tag", label_dir=None, df_
     media_image = dir_media.joinpath("temp_thumb.jpg")
 
     if st.button("Play Clip", key=f"{field_group}_{time_begin_sec}"):
-        status = media.clip_video(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
+        status = media.clip_media(media_file, media_clip, int(time_begin_sec-DEFAULT_REWIND), time_duration_sec)
         if status == 0: # play clip
             st.video(open(media_clip, 'rb'))
             st.markdown(caption_str)

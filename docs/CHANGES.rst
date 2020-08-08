@@ -7,6 +7,11 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.1.3
+~~~~~
+- hotfix for build distribution
+- fix for content creation in streamlit/browsing app
+
 1.1.2
 ~~~~~
 - deployed extractor (docker fix) for updated namespace
