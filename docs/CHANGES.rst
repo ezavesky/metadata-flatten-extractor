@@ -7,6 +7,10 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.1.4
+~~~~~
+- name update for ``dsai_moderation_image`` extractor
+
 1.1.3
 ~~~~~
 - hotfix for build distribution

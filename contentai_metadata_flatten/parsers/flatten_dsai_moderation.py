@@ -29,7 +29,7 @@ from contentai_metadata_flatten.parsers import Flatten
 class Parser(Flatten):
     def __init__(self, path_content):
         super().__init__(path_content)
-        self.EXTRACTOR = "dsai_moderation"
+        self.EXTRACTOR = "dsai_moderation_image"
         self.SCORE_THRESHOLD = 0.05
 
     @staticmethod
