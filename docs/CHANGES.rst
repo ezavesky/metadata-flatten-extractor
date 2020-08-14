@@ -7,6 +7,11 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.1.6
+~~~~~
+- remove applicaitons, fork to new `metatata-database` source, to be posted
+  at a `pypi database package <https://pypi.org/project/contentai-metadata-database>`__
+
 1.1.5
 ~~~~~
 - add ``dsai_activity_emotions`` parser (a clone of ``dsai_activity_classifier``)
