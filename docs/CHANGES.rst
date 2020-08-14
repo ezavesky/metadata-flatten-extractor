@@ -7,6 +7,10 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.1.5
+~~~~~
+- add ``dsai_activity_emotions`` parser (a clone of ``dsai_activity_classifier``)
+
 1.1.4
 ~~~~~
 - name update for ``dsai_moderation_image`` extractor

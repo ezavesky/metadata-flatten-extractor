@@ -58,7 +58,7 @@ fields.
 -  ``source_event`` = source media for event to add granularity for
    event inpact (e.g. face, video, audio, speech, image, ocr, script)
 -  ``tag`` = simple text word or phrase
--  ``tag_type`` = descriptor for type of tag; e.g. tag=concept/label, keyword=special word,
+-  ``tag_type`` = descriptor for type of tag; e.g. tag=concept/label/emotion, keyword=special word,
    shot=segment, transcript=text, moderation=moderation, word=text/speech word,
    phrase=long utterance, face=face emotion/properties, identity=face or speaker
    recognition, scene=semantic scenes, brand=product or logo mention
@@ -249,7 +249,9 @@ Testing can also be run for a specific file within the package by setting the ev
 Future Development
 ==================
 
--  the remaining known extractors...  ``openpose``
+-  the remaining known extractors...  ``openpose``, ``dsai_tmstext_classifier_extractor``, 
+    ``dsai_vinyl_sound_ai``, ``dsai_name_entity_extractor``, ``gcp_videointelligence_text_detection``,
+    ``aws_rekognition_video_segments``
 -  integration of viewership insights
 -  creation of sentiment and mood-based insights (which tags most
    co-occur here?)
