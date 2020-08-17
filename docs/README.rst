@@ -4,10 +4,9 @@ metadata-flatten-extractor
 A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI
 Platform <https://www.contentai.io>`__, published as the extractor
-``dsai_metadata_flatten``. For interactive exploration a `data explorer
-interface <app_browser.rst>`__ was created as well as a `ad inventory explorer 
-interface <app_inventory.rst>`__ as quick starting places for
-a quick start.
+``dsai_metadata_flatten``.   There is also a 
+`pypi package <https://pypi.org/project/contentai-metadata-flatten/>`__ 
+of this package published for easy incorporation in other projects.
 
 1. `Getting Started <#getting-started>`__
 2. `Execution <#execution-and-deployment>`__

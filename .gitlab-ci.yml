@@ -120,25 +120,6 @@ build:
       - dist
 
 
-build_app:
-  stage: build
-  script:
-    # build but with a specifc username
-    - docker build -t intermediate --build-arg user=$USER_NAME --build-arg=model_repo=$MODEL_REPO --build-arg uid=$USER_UID --build-arg gid=$GROUP_UID -f Dockerfile.app .
-    - docker tag intermediate $BUILD_IMAGE-app
-    # print out the size of the new docker image
-    - docker image inspect $BUILD_IMAGE-app --format='{{.Size}}'
-    # attempt to push to docker hub
-    - docker info
-    # save to local disk
-    - docker save --output="$CONTAINER_TEST_FILE_APP" $BUILD_IMAGE-app
-    - chmod a+r,g+rw "$CONTAINER_TEST_FILE_APP"
-    # - docker push $BUILD_IMAGE-app
-    # upload to back-up server
-    - 'which ssh-agent || ( apk add openssh-client  )'
-    - scp "$CONTAINER_TEST_FILE_APP" "$USER_NAME@$DEPLOY_HOST:$BUILD_STORAGE_APP"
-
-
 testscr:
   stage: test
   dependencies:
@@ -157,29 +138,6 @@ testscr:
   coverage: '/TOTAL\s*\d+\s+\d+\s+(\d+\.?\d*)%/'
 
 
-launch:
-  stage: deploy
-  dependencies:
-    - setup
-  script:
-    - echo "Deploy Information-- image- $BUILD_IMAGE ; Ver- $BUILD_VER ; Intermediate- $CONTAINER_TEST_FILE_APP; Storage- $BUILD_STORAGE_APP; Manifest= $DEPLOY_MANIFEST"
-    # get instance name 
-    - export DOCKER_INSTANCE=$(ssh $USER_NAME@$DEPLOY_HOST "docker ps -a | grep $BUILD_NAME " | awk "{print \$1}" | xargs echo)
-    # find previous docker imaages
-    - export DOCKER_IMAGE=$(ssh $USER_NAME@$DEPLOY_HOST "docker image ls | grep $BUILD_NAME " | awk "{print \$3}" | xargs echo)
-    # if there are some instances to stop, try to do so here
-    - echo "Found Instances= $DOCKER_INSTANCE; Found Image= $DOCKER_IMAGE "
-    # stop and remove the container and the imge of the previous docker instance (if one existed)
-    - '[ ! -z "$DOCKER_INSTANCE" ] && ssh $USER_NAME@$DEPLOY_HOST "docker stop $DOCKER_INSTANCE && docker rm $DOCKER_INSTANCE"'
-    - '[ ! -z "$DOCKER_IMAGE" ] && ssh $USER_NAME@$DEPLOY_HOST "docker image rm $DOCKER_IMAGE"'
-    # load new docker image from tar
-    - ssh $USER_NAME@$DEPLOY_HOST "docker load -i $BUILD_STORAGE_APP"
-    # restart new instance with proper port
-    - export RUN_CMD="docker run -d -p $BUILD_PORT:8501 $DEPLOY_VOLUMES  --env MANIFEST='$DEPLOY_MANIFEST' $BUILD_IMAGE-app "
-    - echo "Running= '$RUN_CMD'"
-    - ssh $USER_NAME@$DEPLOY_HOST $RUN_CMD
-
-
 cleanup:
   stage: publish
   script:
@@ -194,19 +152,6 @@ cleanup:
     - ssh $USER_NAME@$DEPLOY_HOST "cd $DEPLOY_STORAGE && touch /tmp/$DOCKER_PROJECT-empty && rm /tmp/$DOCKER_PROJECT-empty $EXISTING_FILES"
   dependencies:
     - setup
-
-publish_pypi:
-  stage: publish
-  image: python:3.7-slim
-  script:
-    - pip install twine
-    - TWINE_USERNAME="__token__" TWINE_PASSWORD="$TWINE_API" python -m twine upload dist/*
-  dependencies:
-    - testscr
-  only:
-    - master
-  before_script:
-    - echo "Skipping SSH access"
 
 
 contentai_push:
@@ -231,11 +176,28 @@ contentai_push:
     # load this docker image to local host, retag
     - docker load -i $CONTAINER_TEST_FILE
     # deploy via contentai
-    - /tmp/contentai deploy dsai_$DOCKER_PROJECT -i "$BUILD_IMAGE"
+    - 'export CORE_CONTAINER_NAME=$(grep "name: " extractor.yml | sed -e "s/.*: //g")'
+    - 'export DEV_CONTAINER_NAME=$(echo $CORE_CONTAINER_NAME | sed -e "s/$/_dev/g")'
+    - echo "Dev Container - $DEV_CONTAINER_NAME"
+    - if [ "$CI_COMMIT_REF_NAME" == "master" ] ; then /tmp/contentai extractors remove $DEV_CONTAINER_NAME; else sed -e "s/\(name.*\) .*/\1 $DEV_CONTAINER_NAME/g" -i".bak" extractor.yml; fi
+    - echo "Deploy extractor name=  $(grep 'name:' extractor.yml) ; DEV name= $DEV_CONTAINER_NAME"
+    - /tmp/contentai deploy -i "$BUILD_IMAGE"
   dependencies:
     - setup
+
+
+publish_pypi:
+  stage: publish
+  image: python:3.7-slim
+  script:
+    - pip install twine
+    - TWINE_USERNAME="__token__" TWINE_PASSWORD="$TWINE_API" python -m twine upload dist/*
+  dependencies:
+    - testscr
   only:
     - master
+  before_script:
+    - echo "Skipping SSH access"
 
 
 docgen:
