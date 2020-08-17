@@ -153,19 +153,6 @@ cleanup:
   dependencies:
     - setup
 
-publish_pypi:
-  stage: publish
-  image: python:3.7-slim
-  script:
-    - pip install twine
-    - TWINE_USERNAME="__token__" TWINE_PASSWORD="$TWINE_API" python -m twine upload dist/*
-  dependencies:
-    - testscr
-  only:
-    - master
-  before_script:
-    - echo "Skipping SSH access"
-
 
 contentai_push:
   stage: deploy
@@ -189,11 +176,28 @@ contentai_push:
     # load this docker image to local host, retag
     - docker load -i $CONTAINER_TEST_FILE
     # deploy via contentai
-    - /tmp/contentai deploy dsai_$DOCKER_PROJECT -i "$BUILD_IMAGE"
+    - 'export CORE_CONTAINER_NAME=$(grep "name: " extractor.yml | sed -e "s/.*: //g")'
+    - 'export DEV_CONTAINER_NAME=$(echo $CORE_CONTAINER_NAME | sed -e "s/$/_dev/g")'
+    - echo "Dev Container - $DEV_CONTAINER_NAME"
+    - if [ "$CI_COMMIT_REF_NAME" == "master" ] ; then /tmp/contentai extractors remove $DEV_CONTAINER_NAME; else sed -e "s/\(name.*\) .*/\1 $DEV_CONTAINER_NAME/g" -i".bak" extractor.yml; fi
+    - echo "Deploy extractor name=  $(grep 'name:' extractor.yml) ; DEV name= $DEV_CONTAINER_NAME"
+    - /tmp/contentai deploy -i "$BUILD_IMAGE"
   dependencies:
     - setup
+
+
+publish_pypi:
+  stage: publish
+  image: python:3.7-slim
+  script:
+    - pip install twine
+    - TWINE_USERNAME="__token__" TWINE_PASSWORD="$TWINE_API" python -m twine upload dist/*
+  dependencies:
+    - testscr
   only:
     - master
+  before_script:
+    - echo "Skipping SSH access"
 
 
 docgen:
