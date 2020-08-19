@@ -7,14 +7,16 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.1.7
+~~~~~
+- inclusion of other constants for compatibility with other packages
+- refactor/rename of parser classes to mandate a filename output prefix (e.g. ``flatten_``)
+- add ``dsai_activity_emotions`` parser (a clone of ``dsai_activity_classifier``)
+
 1.1.6
 ~~~~~
-- remove applicaitons, fork to new `metatata-database` source, to be posted
+- remove applications, fork to new `metatata-database` source, to be posted
   at a `pypi database package <https://pypi.org/project/contentai-metadata-database>`__
-
-1.1.5
-~~~~~
-- add ``dsai_activity_emotions`` parser (a clone of ``dsai_activity_classifier``)
 
 1.1.4
 ~~~~~
