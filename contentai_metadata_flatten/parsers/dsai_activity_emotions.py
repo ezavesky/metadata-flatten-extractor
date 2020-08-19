@@ -25,9 +25,9 @@ import json
 
 from pytimeparse import parse as pt_parse
 
-from contentai_metadata_flatten.parsers import flatten_dsai_activity_classifier
+from contentai_metadata_flatten.parsers.dsai_activity_classifier import Parser as ParserBase
 
-class Parser(flatten_dsai_activity_classifier.Parser):
+class Parser(ParserBase):
     def __init__(self, path_content):
         super().__init__(path_content)
         self.EXTRACTOR = "dsai_activity_emotions"
