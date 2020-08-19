@@ -82,7 +82,7 @@ def main():
             parser_instance = parser_obj['obj'](contentai.content_path)   # create instance
         
             if input_vars["verbose"]:
-                parsers.Flatten.logger.info(f"ContentAI argments: {input_vars}")
+                parsers.Flatten.logger.info(f"ContentAI arguments: {input_vars}")
             df = parser_instance.parse(input_vars)  # attempt to process
 
             if df is None:  # skip bad results

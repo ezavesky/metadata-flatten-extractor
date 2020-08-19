@@ -25,7 +25,7 @@ import json
 from pytimeparse import parse as pt_parse
 
 # NOTE: we reuse the parser (also CSV source) for this type as well
-from contentai_metadata_flatten.parsers.flatten_dsai_activity_slowfast import Parser as ParserBase
+from contentai_metadata_flatten.parsers.dsai_activity_slowfast import Parser as ParserBase
 # NOTE: non-CSV parser (JSON) will use core flattener
 from contentai_metadata_flatten.parsers import Flatten
 

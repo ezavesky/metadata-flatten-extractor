@@ -101,7 +101,7 @@ class Flatten():
         return ""
 
     def get_extractor_results(self, extractor_name, path, force_retrieve=False, is_json=True):
-        """Get results from remote or local location.  Return a dictionary or string (dependingn on is_json), empty if not found"""
+        """Get results from remote or local location.  Return a dictionary or string (depending on is_json), empty if not found"""
         result_data = {} if is_json else ""
         if force_retrieve or (len(self.extractor_keys) < 1 or self.extractor_name != extractor_name):   # safe way to request without 404/500 error
             self.extractor_name = extractor_name
@@ -159,7 +159,7 @@ def get_by_type(type_list=None):
     """Get parsers with a specific filter for type.
 
     :param local_list: (list) list of tag type required in output (e.g. ['shot', 'tag']) (default=None or all available)
-    :return list: list of raw "Parser()" classes that are instiatioed with input file paths
+    :return list: list of raw "Parser()" classes that are instantiated with input file paths
     """
     local_list = []
     if type_list is None:
@@ -175,7 +175,7 @@ def get_by_type(type_list=None):
 def get_by_name(name_limit=None):
     """Get parsers with a specific filter for name.
     :param name_limit: (str) list of tag type required in output (e.g. 'dsai_metadata', 'azure') (default=None or all available)
-    :return list: list of raw "Parser()" classes that are instiatioed with input file paths
+    :return list: list of raw "Parser()" classes that are instantiated with input file paths
     """
     local_list = []
     if name_limit is None:

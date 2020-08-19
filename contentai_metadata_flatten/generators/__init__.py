@@ -35,6 +35,7 @@ class Generate():
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     PATH_DATA = path.join(path.dirname(path.dirname(__file__)), 'data')
+    BASE_PREFIX = "flatten_"
 
     def __init__(self, path_destination, generator="unknown", format=".csv", universal=False):
         """Construct new generator instance
@@ -64,7 +65,7 @@ class Generate():
     def get_output_path(self, name_parser):
         if self._universal:
             return path.join(self._path_destination, self._generator + self._format)
-        return path.join(self._path_destination, f"{self._generator}_{name_parser}{self._format}")
+        return path.join(self._path_destination, f"{self._generator}_{BASE_PREFIX}{name_parser}{self._format}")
 
     def json_load(self, path_file):
         """Helper to read dict object from JSON
@@ -117,7 +118,7 @@ def get_by_type(type_list=None):
     """Get parsers with a specific filter for type.
 
     :param type_list: (list) list of tag type required in output (e.g. ['csv', 'json']) (default=None or all available)
-    :return list: list of raw "Parser()" classes that are instiatioed with input file paths
+    :return list: list of raw "Parser()" classes that are instantiated with input file paths
     """
     local_list = []
     if type_list is None:
@@ -133,7 +134,7 @@ def get_by_name(name_limit=None):
     """Get parsers with a specific filter for name.
     
     :param name_limit: (str) list of tag type required in output (e.g. 'flattened_csv') (default=None or all available)
-    :return list: list of raw "Parser()" classes that are instiatioed with input file paths
+    :return list: list of raw "Parser()" classes that are instantiated with input file paths
     """
     local_list = []
     if name_limit is None:
