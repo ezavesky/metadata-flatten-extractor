@@ -7,6 +7,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.1.8
+~~~~~
+- fix issue about constant reference
+- fix `run_local.sh` script for extra run param config
+- fix querying for local files in non-contentai environments (regression since 1.1.0)
+
 1.1.7
 ~~~~~
 - inclusion of other constants for compatibility with other packages
