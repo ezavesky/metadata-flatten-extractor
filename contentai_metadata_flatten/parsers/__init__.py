@@ -105,12 +105,13 @@ class Flatten():
         result_data = {} if is_json else ""
         if force_retrieve or (len(self.extractor_keys) < 1 or self.extractor_name != extractor_name):   # safe way to request without 404/500 error
             self.extractor_name = extractor_name
-            self.extractor_keys = self.get_extractor_keys(extractor_name)
-            if self.extractor_keys is None:
-                self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name}")
-                self.extractor_keys = []
-            else:
+            try:
+                self.extractor_keys = self.get_extractor_keys(extractor_name)
                 self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
+                if self.extractor_keys is None:
+                    self.extractor_keys = []
+            except Exception as e:
+                self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name} (error: '{e}')")
         if self.extractor_keys is not None and path in self.extractor_keys:   # have the keys, check for presence
             try:
                 if is_json:
