@@ -11,7 +11,11 @@ if [ $# -lt 1 ]; then
     exit -1
 fi
 
-RUNARGS="$3"
+RUNARGS="{}"
+if [ $# -gt 2 ]; then
+    RUNARGS="$3"
+fi
+
 if [ -f "$1/timing.txt" ]; then
     OFFSET=$(cat "$1/timing.txt")
     echo "Detected timing file '$1/timing.txt' with offset $OFFSET seconds..."

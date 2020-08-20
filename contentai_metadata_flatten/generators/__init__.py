@@ -32,8 +32,6 @@ from sys import stdout as STDOUT
 import pandas as pd
 
 class Generate():
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
     PATH_DATA = path.join(path.dirname(path.dirname(__file__)), 'data')
     BASE_PREFIX = "flatten_"
 
@@ -51,6 +49,9 @@ class Generate():
         self._universal = universal
         self._path_destination = path_destination
 
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.DEBUG)
+
     @property
     def is_universal(self):
         return self._universal
@@ -65,7 +66,7 @@ class Generate():
     def get_output_path(self, name_parser):
         if self._universal:
             return path.join(self._path_destination, self._generator + self._format)
-        return path.join(self._path_destination, f"{self._generator}_{BASE_PREFIX}{name_parser}{self._format}")
+        return path.join(self._path_destination, f"{self._generator}_{Generate.BASE_PREFIX}{name_parser}{self._format}")
 
     def json_load(self, path_file):
         """Helper to read dict object from JSON

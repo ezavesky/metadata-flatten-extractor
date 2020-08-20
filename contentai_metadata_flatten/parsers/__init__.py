@@ -108,10 +108,11 @@ class Flatten():
             try:
                 self.extractor_keys = self.get_extractor_keys(extractor_name)
                 self.logger.info(f"Retrieved available keys {self.extractor_keys} for extractor {self.extractor_name} ")
+                if self.extractor_keys is None:
+                    self.extractor_keys = []
             except Exception as e:
-                self.extractor_keys = []
-                self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name}; error {e}")
-        if path in self.extractor_keys:   # have the keys, check for presence
+                self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name} (error: '{e}')")
+        if self.extractor_keys is not None and path in self.extractor_keys:   # have the keys, check for presence
             try:
                 if is_json:
                     _local_data = contentai.get_json(extractor_name, path)
