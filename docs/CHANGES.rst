@@ -7,6 +7,11 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.2.0
+~~~~~
+- add unit-testing to package build
+- add command-line / parser input as complement to contentai-driven ENV variables
+
 1.1.8
 ~~~~~
 - fix issue about constant reference

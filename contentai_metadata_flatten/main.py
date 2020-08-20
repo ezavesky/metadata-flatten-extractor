@@ -19,50 +19,79 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from os import path, makedirs
+import argparse
+from pathlib import Path
+import logging
 
 import pandas as pd
 import contentaiextractor as contentai
 
 if __name__ == '__main__':
     # patch the path to include this object
-    pathRoot = path.dirname(path.dirname(path.abspath(__file__)))
+    pathRoot = str(Path(__file__).resolve().parent.parent)
     if pathRoot not in sys.path:
         sys.path.append(pathRoot)
 
-from contentai_metadata_flatten import parsers
-from contentai_metadata_flatten import generators
+from contentai_metadata_flatten import parsers, generators
 
 
-def main():
-    # check for a single argument as input for the path as an override
-    if len(sys.argv) > 1:
-        parsers.Flatten.logger.info(f"Detected command line input: {sys.argv}")
-        contentai.content_path = sys.argv[-1]
-        if not path.exists(contentai.content_path):
-            parsers.Flatten.logger.fatal(f"Content path '{contentai.content_path}' does not exist, aborting.")
-            return -1
-        contentai.result_path = path.dirname(contentai.content_path)
-    
-    # extract data from contentai.content_url
-    # or if needed locally use contentai.content_path
-    # after calling contentai.download_content()
-    parsers.Flatten.logger.info("Skipping raw content download from ContentAI")
-    # contentai.download_content()   # critical, do not download content, we post-process!
+def flatten(input_params=None, args=None, logger=None):
+    # from contentai_metadata_flatten import parsers
+    if logger is None:
+        logger = logging.getLogger()
+    logging.basicConfig(level=logging.WARNING)
 
-    if not path.exists(contentai.result_path):
-        makedirs(contentai.result_path)
+    parser = argparse.ArgumentParser(
+        description="""A script to perform metadata parsing""",
+        epilog="""
+        Launch to parse a set of downloaded and flattened assets... 
+            python main.py --path_content=path/to/dir --path_result results
+    """, formatter_class=argparse.RawTextHelpFormatter)
+    submain = parser.add_argument_group('main execution and evaluation functionality')
+    submain.add_argument('--path_content', dest='path_content', type=str, default=contentai.content_path, 
+                            help='input video path for files to label')
+    submain.add_argument('--path_result', dest='path_result', type=str, default=contentai.result_path, 
+                            help='output path for samples')
+    submain.add_argument('--verbose', dest='verbose', default=False, action='store_true', 
+                            help='verbosely print operations')
+    submain = parser.add_argument_group('input and parsing options')
+    submain.add_argument('--extractor', dest='extractor', type=str, default="", 
+                            help='specify one extractor to flatten, skipping nested module import (*default=all*, e.g. ``dsai_metadata``)')
+    submain.add_argument('--time_offset', dest='time_offset', type=int, default=0, 
+                            help='when merging events for an asset split into multiple parts, time in seconds (*default=0*); negative numbers will cause a truncation (skip) of events happening before the zero time mark *(added v0.7.1)*')
+    submain.add_argument('--all_frames', dest='all_frames', default=False, action='store_true', 
+                            help='for video-based events, log all instances in box or just the center')
+    submain = parser.add_argument_group('output modulation')
+    submain.add_argument('--generator', dest='generator', type=str, default="", 
+                            help='specify one generator for output, skipping nested module import (*default=all*)')
+    submain.add_argument('--no_compression', dest='compressed', default=True, action='store_false', 
+                            help="compress output CSVs instead of raw write (*default=True*, e.g. append ‘.gz’)")
+    submain.add_argument('--force_overwrite', dest='force_overwrite', default=False, action='store_true', 
+                            help="compforce existing files to be overwritten (*default=False*)")
 
-    contentai_metadata = contentai.metadata()
-    list_parser_modules = parsers.get_by_name(contentai_metadata['extractor'] if 'extractor' in contentai_metadata else None)
-
-    list_generator_modules = generators.get_by_name(contentai_metadata['generator'] if 'generator' in contentai_metadata else None)
+    if args is not None:
+        config = vars(parser.parse_args(args))
+    else:
+        config = vars(parser.parse_args())
+    if input_params is not None:
+        config.update(input_params)
 
     # allow injection of parameters from environment
-    input_vars = {"force_overwrite": True, "verbose":False,
-                    "compressed": True, 'all_frames': False, 'time_offset':0}
+    contentai_metadata = contentai.metadata()
     if contentai_metadata is not None:  # see README.md for more info
-        input_vars.update(contentai_metadata)
+        config.update(contentai_metadata)
+    print(f"Run arguments: {config}")
+    if not config['path_content'] or not config['path_result']:
+        logger.critical(f"Missing content path ({config['path_content']}) or result path ({config['path_result']})")
+        parser.print_help(sys.stderr)
+        return 
+
+    path_result = Path(config['path_result'])
+    if not path_result.exists():
+        path_result.mkdir(parents=True)
+
+    list_parser_modules = parsers.get_by_name(config['extractor'] if len(config['extractor']) else None)
+    list_generator_modules = generators.get_by_name(config['generator'] if len(config['generator']) else None)
 
     need_generation = False
     map_outputs = {}
@@ -71,40 +100,39 @@ def main():
             generator_instance = generator_obj['obj'](contentai.result_path)   # create instance
             generator_name = generator_obj['name']
             map_outputs[generator_name] = {'module': generator_instance, 'path': generator_instance.get_output_path(parser_obj['name'])}
-            if "compressed" in input_vars and input_vars["compressed"]:  # allow compressed version
+            if "compressed" in config and config["compressed"]:  # allow compressed version
                 map_outputs[generator_name]["path"] += ".gz"
-            need_generation |= (generator_instance.is_universal or not path.exists(map_outputs[generator_name]["path"]))
+            need_generation |= (generator_instance.is_universal or not Path(map_outputs[generator_name]["path"]).exists())
 
         df = None
-        if not need_generation and not input_vars['force_overwrite']:
-            parsers.Flatten.logger.info(f"Skipping re-process of {input_vars['path_result']}...")
+        if not need_generation and not config['force_overwrite']:
+            parsers.Flatten.logger.info(f"Skipping re-process of {config['path_result']}...")
         else:
-            parser_instance = parser_obj['obj'](contentai.content_path)   # create instance
+            parser_instance = parser_obj['obj'](config['path_content'])   # create instance
         
-            if input_vars["verbose"]:
-                parsers.Flatten.logger.info(f"ContentAI arguments: {input_vars}")
-            df = parser_instance.parse(input_vars)  # attempt to process
+            if config["verbose"]:
+                parsers.Flatten.logger.info(f"ContentAI arguments: {config}")
+            df = parser_instance.parse(config)  # attempt to process
 
             if df is None:  # skip bad results
-                if 'extractor' in contentai_metadata:
-                    parsers.Flatten.logger.warning(f"Specified extractor `{contentai_metadata['extractor']}` failed to find data. " \
-                        f"Verify that input directory {contentai.content_path} points directly to file...")
+                if len(config['extractor']):
+                    parsers.Flatten.logger.warning(f"Specified extractor `{config['extractor']}` failed to find data. " \
+                        f"Verify that input directory {config['path_content']} points directly to file...")
 
         if df is not None:
-            if input_vars['time_offset'] != 0:  # need offset?
-                parsers.Flatten.logger.info(f"Applying time offset of {input_vars['time_offset']} seconds to {len(df)} events ('{parser_obj['name']}')...")
+            if config['time_offset'] != 0:  # need offset?
+                parsers.Flatten.logger.info(f"Applying time offset of {config['time_offset']} seconds to {len(df)} events ('{parser_obj['name']}')...")
                 for col_name in ['time_begin', 'time_end', 'time_event']:
-                    df[col_name] += input_vars ['time_offset']
+                    df[col_name] += config ['time_offset']
             df.drop(df[df["time_begin"] < 0].index, inplace=True)  # drop rows if trimmed from front
 
             for generator_name in map_outputs:  # iterate through auto-discovered packages
-                if map_outputs[generator_name]['module'].is_universal or not path.exists(map_outputs[generator_name]["path"]):
-                    num_items = map_outputs[generator_name]['module'].generate(map_outputs[generator_name]["path"], input_vars, df)  # attempt to process
+                if map_outputs[generator_name]['module'].is_universal or not Path(map_outputs[generator_name]["path"]).exists():
+                    num_items = map_outputs[generator_name]['module'].generate(map_outputs[generator_name]["path"], config, df)  # attempt to process
                     parsers.Flatten.logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
                 else:
                     parsers.Flatten.logger.info(f"Skipping re-generate of {generator_name} to file '{map_outputs[generator_name]['path']}''...")
-
         pass
 
 if __name__ == "__main__":
-    main()
+    flatten()
