@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tt xml:lang="en-US" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+  <head>
+    <metadata>
+      <ttm:copyright>Copyright (c) 2013 Microsoft Corporation.  All rights reserved.</ttm:copyright>
+    </metadata>
+    <styling>
+      <style xml:id="Style1" tts:fontFamily="proportionalSansSerif" tts:fontSize="0.8c" tts:textAlign="center" tts:color="white" />
+    </styling>
+    <layout>
+      <region style="Style1" xml:id="CaptionArea" tts:origin="0c 12.6c" tts:extent="32c 2.4c" tts:backgroundColor="rgba(0,0,0,160)" tts:displayAlign="center" tts:padding="0.3c 0.5c" />
+    </layout>
+  </head>
+  <body region="CaptionArea">
+    <div>
+      <!-- Confidence: 0.7807 -->
+      <p begin="00:00:00.000" end="00:00:04.410">I've been waiting for</p>
+
+      <!-- Confidence: 0.7807 -->
+      <p begin="00:00:04.410" end="00:00:06.600">this moment,</p>
+
+      <!-- Confidence: 0.7807 -->
+      <p begin="00:00:06.600" end="00:00:08.790">show me.</p>
+
+      <!-- Confidence: 0.65 -->
+      <p begin="00:00:29.070" end="00:00:35.830">Johnny</p>
+
+      <!-- Confidence: 0.65 -->
+      <p begin="00:00:35.830" end="00:00:42.580">just</p>
+
+      <!-- Confidence: 0.65 -->
+      <p begin="00:00:42.580" end="00:00:49.340">begun.</p>
+
+      <!-- Confidence: 0.9253 -->
+      <p begin="00:00:50.430" end="00:00:51.080">People</p>
+
+      <!-- Confidence: 0.9253 -->
+      <p begin="00:00:51.080" end="00:00:53.700">are starting to notice.</p>
+    </div>
+  </body>
+</tt>
