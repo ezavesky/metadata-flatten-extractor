@@ -80,7 +80,7 @@ def flatten(input_params=None, args=None, logger=None):
     contentai_metadata = contentai.metadata()
     if contentai_metadata is not None:  # see README.md for more info
         config.update(contentai_metadata)
-    print(f"Run arguments: {config}")
+    logger.info(f"Run arguments: {config}")
     if not config['path_content'] or not config['path_result']:
         logger.critical(f"Missing content path ({config['path_content']}) or result path ({config['path_result']})")
         parser.print_help(sys.stderr)
@@ -137,11 +137,14 @@ def flatten(input_params=None, args=None, logger=None):
                     logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
                 else:
                     logger.info(f"Skipping re-generate of {generator_name} to file '{map_outputs[generator_name]['path']}''...")
-                print("GENERATOR", generator_name)
                 set_results.add(map_outputs[generator_name]["path"])
 
     # resolve and return fully qualified path
     return [str(Path(config['path_result']).joinpath(k).resolve()) for k in set_results]
+
+def main():
+    """Helper wrapper for CLI return status"""
+    flatten()
 
 if __name__ == "__main__":
     flatten()

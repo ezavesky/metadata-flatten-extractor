@@ -114,7 +114,7 @@ class Flatten():
                 if self.extractor_keys is None:
                     self.extractor_keys = []
             except Exception as e:
-                self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name} (error: '{e}')")
+                self.logger.info(f"Failed to get extractor keys for extractor {self.extractor_name} (error: '{e}')")
         if self.extractor_keys is not None and path in self.extractor_keys:   # have the keys, check for presence
             try:
                 if is_json:
