@@ -84,7 +84,7 @@ def flatten(input_params=None, args=None, logger=None):
     if not config['path_content'] or not config['path_result']:
         logger.critical(f"Missing content path ({config['path_content']}) or result path ({config['path_result']})")
         parser.print_help(sys.stderr)
-        return 
+        return []
 
     path_result = Path(config['path_result'])
     if not path_result.exists():
@@ -92,12 +92,17 @@ def flatten(input_params=None, args=None, logger=None):
 
     list_parser_modules = parsers.get_by_name(config['extractor'] if len(config['extractor']) else None)
     list_generator_modules = generators.get_by_name(config['generator'] if len(config['generator']) else None)
+    path_source = Path(config['path_content'])
+    if not path_source.is_dir():
+        path_source = path_source.parent
+    path_source = str(path_source.resolve())
 
     need_generation = False
     map_outputs = {}
+    set_results = set()
     for parser_obj in list_parser_modules:  # iterate through auto-discovered packages
         for generator_obj in list_generator_modules:  # iterate through auto-discovered packages
-            generator_instance = generator_obj['obj'](contentai.result_path)   # create instance
+            generator_instance = generator_obj['obj'](str(path_result), logger=logger)   # create instance
             generator_name = generator_obj['name']
             map_outputs[generator_name] = {'module': generator_instance, 'path': generator_instance.get_output_path(parser_obj['name'])}
             if "compressed" in config and config["compressed"]:  # allow compressed version
@@ -106,33 +111,37 @@ def flatten(input_params=None, args=None, logger=None):
 
         df = None
         if not need_generation and not config['force_overwrite']:
-            parsers.Flatten.logger.info(f"Skipping re-process of {config['path_result']}...")
+            logger.info(f"Skipping re-process of {config['path_result']}...")
         else:
-            parser_instance = parser_obj['obj'](config['path_content'])   # create instance
+            parser_instance = parser_obj['obj'](path_source, logger=logger)   # create instance
         
             if config["verbose"]:
-                parsers.Flatten.logger.info(f"ContentAI arguments: {config}")
+                logger.info(f"ContentAI arguments: {config}")
             df = parser_instance.parse(config)  # attempt to process
 
             if df is None:  # skip bad results
                 if len(config['extractor']):
-                    parsers.Flatten.logger.warning(f"Specified extractor `{config['extractor']}` failed to find data. " \
-                        f"Verify that input directory {config['path_content']} points directly to file...")
+                    logger.warning(f"Specified extractor `{config['extractor']}` failed to find data. " \
+                        f"Verify that input directory {path_source} points directly to file...")
 
         if df is not None:
             if config['time_offset'] != 0:  # need offset?
-                parsers.Flatten.logger.info(f"Applying time offset of {config['time_offset']} seconds to {len(df)} events ('{parser_obj['name']}')...")
+                logger.info(f"Applying time offset of {config['time_offset']} seconds to {len(df)} events ('{parser_obj['name']}')...")
                 for col_name in ['time_begin', 'time_end', 'time_event']:
-                    df[col_name] += config ['time_offset']
+                    df[col_name] += config['time_offset']
             df.drop(df[df["time_begin"] < 0].index, inplace=True)  # drop rows if trimmed from front
 
             for generator_name in map_outputs:  # iterate through auto-discovered packages
                 if map_outputs[generator_name]['module'].is_universal or not Path(map_outputs[generator_name]["path"]).exists():
                     num_items = map_outputs[generator_name]['module'].generate(map_outputs[generator_name]["path"], config, df)  # attempt to process
-                    parsers.Flatten.logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
+                    logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
                 else:
-                    parsers.Flatten.logger.info(f"Skipping re-generate of {generator_name} to file '{map_outputs[generator_name]['path']}''...")
-        pass
+                    logger.info(f"Skipping re-generate of {generator_name} to file '{map_outputs[generator_name]['path']}''...")
+                print("GENERATOR", generator_name)
+                set_results.add(map_outputs[generator_name]["path"])
+
+    # resolve and return fully qualified path
+    return [str(Path(config['path_result']).joinpath(k).resolve()) for k in set_results]
 
 if __name__ == "__main__":
     flatten()

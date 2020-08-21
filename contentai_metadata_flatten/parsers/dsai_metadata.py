@@ -27,8 +27,8 @@ from pytimeparse import parse as pt_parse
 from contentai_metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
-    def __init__(self, path_content):
-        super().__init__(path_content)
+    def __init__(self, path_content, logger=None):
+        super().__init__(path_content, logger=logger)
         self.EXTRACTOR = "dsai_metadata"
         self.SCORE_DEFAULT_FIXED = 0.75
 

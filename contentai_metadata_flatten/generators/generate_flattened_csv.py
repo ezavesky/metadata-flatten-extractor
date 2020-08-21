@@ -26,8 +26,8 @@ import pandas as pd
 from contentai_metadata_flatten.generators import Generate
 
 class Generator(Generate):
-    def __init__(self, path_destination):
-        super().__init__(path_destination, "csv", ".csv")
+    def __init__(self, path_destination, logger=None):
+        super().__init__(path_destination, "csv", ".csv", logger=logger)
 
     @staticmethod
     def known_types():

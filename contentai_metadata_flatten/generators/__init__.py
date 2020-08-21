@@ -35,7 +35,7 @@ class Generate():
     PATH_DATA = path.join(path.dirname(path.dirname(__file__)), 'data')
     BASE_PREFIX = "flatten_"
 
-    def __init__(self, path_destination, generator="unknown", format=".csv", universal=False):
+    def __init__(self, path_destination, generator="unknown", format=".csv", universal=False, logger=None):
         """Construct new generator instance
 
         :param path_destination: (str): Path (directory) for output file
@@ -49,7 +49,9 @@ class Generate():
         self._universal = universal
         self._path_destination = path_destination
 
-        self.logger = logging.getLogger()
+        if logger is None:
+            logger = logging.getLogger()
+        self.logger = logger
         self.logger.setLevel(logging.DEBUG)
 
     @property

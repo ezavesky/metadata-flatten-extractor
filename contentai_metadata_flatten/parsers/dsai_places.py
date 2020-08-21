@@ -30,8 +30,8 @@ from contentai_metadata_flatten.parsers.dsai_activity_slowfast import Parser as 
 from contentai_metadata_flatten.parsers import Flatten
 
 class ParserLegacy(ParserBase):
-    def __init__(self, path_content):
-        super().__init__(path_content)
+    def __init__(self, path_content, logger=None):
+        super().__init__(path_content, logger=logger)
         self.EXTRACTOR = "dsai_places"
 
     def get_source_types(self, column_clean):
@@ -45,8 +45,8 @@ class ParserLegacy(ParserBase):
 
 
 class Parser(Flatten):
-    def __init__(self, path_content):
-        super().__init__(path_content)
+    def __init__(self, path_content, logger=None):
+        super().__init__(path_content, logger=logger)
         self.EXTRACTOR = "dsai_places"
         self.parser_legacy = ParserLegacy(path_content)
 

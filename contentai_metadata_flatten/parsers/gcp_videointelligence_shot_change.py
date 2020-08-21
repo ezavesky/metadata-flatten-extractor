@@ -26,9 +26,10 @@ from contentai_metadata_flatten.parsers import Flatten
 
 
 class Parser(Flatten):
-    def __init__(self, path_content):
-        super().__init__(path_content)
+    def __init__(self, path_content, logger=None):
+        super().__init__(path_content, logger=logger)
         self.SCORE_DEFAULT= 0.75
+        self.EXTRACTOR = "gcp_videointelligence_shot_change"
 
     @staticmethod
     def known_types():
@@ -48,7 +49,7 @@ class Parser(Flatten):
         #     "startTimeOffset": "0s",
         #     "endTimeOffset": "19.285933s"
         #   }, ...
-        dict_data = self.get_extractor_results("gcp_videointelligence_shot_change", "data.json")
+        dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
         if "annotationResults" not in dict_data:
             if run_options["verbose"]:
                 self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_shot_change'")
@@ -66,7 +67,7 @@ class Parser(Flatten):
                         "time_end": float(re_time_clean.sub('', shot_item["endTimeOffset"])), 
                         "time_event": float(re_time_clean.sub('', shot_item["startTimeOffset"])), 
                         "source_event": "video", "tag": "shot", "score": self.SCORE_DEFAULT, "details": "", "tag_type": "shot",
-                        "extractor": "gcp_videointelligence_shot_change"})
+                        "extractor": self.EXTRACTOR})
                 return DataFrame(list_items)
 
         if run_options["verbose"]:

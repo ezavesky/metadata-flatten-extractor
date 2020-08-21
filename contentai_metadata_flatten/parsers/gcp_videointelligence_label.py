@@ -26,8 +26,9 @@ from pandas import DataFrame
 from contentai_metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
-    def __init__(self, path_content):
-        super().__init__(path_content)
+    def __init__(self, path_content, logger=None):
+        super().__init__(path_content, logger=logger)
+        self.EXTRACTOR = "gcp_videointelligence_label"
 
     @staticmethod
     def known_types():
@@ -45,7 +46,7 @@ class Parser(Flatten):
         """
 
         # read data.json
-        dict_data = self.get_extractor_results("gcp_videointelligence_label", "data.json")
+        dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
         if "annotationResults" not in dict_data:
             if run_options["verbose"]:
                 self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_label'")
@@ -85,7 +86,7 @@ class Parser(Flatten):
                                 "time_begin": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
                                 "time_end": float(re_time_clean.sub('', local_seg["segment"]["endTimeOffset"])),
                                 "time_event": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
-                                "details": str_json, "extractor": "gcp_videointelligence_label", "tag_type": "tag",
+                                "details": str_json, "extractor": self.EXTRACTOR, "tag_type": "tag",
                                 "tag": tag_name})
             if "shotLabelAnnotations" in annotation_obj:  # validate object
                 for segment_item in annotation_obj["shotLabelAnnotations"]:  # shots
@@ -96,7 +97,7 @@ class Parser(Flatten):
                                 "time_begin": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
                                 "time_end": float(re_time_clean.sub('', local_seg["segment"]["endTimeOffset"])),
                                 "time_event": float(re_time_clean.sub('', local_seg["segment"]["startTimeOffset"])),
-                                "details": str_json, "extractor": "gcp_videointelligence_label", "tag_type": "tag",
+                                "details": str_json, "extractor": self.EXTRACTOR, "tag_type": "tag",
                                 "tag": tag_name})
             # convert list to a dataframe
             return DataFrame(list_items)
