@@ -45,17 +45,20 @@ class Flatten():
     ROUND_DIGITS = 5
     SCORE_DEFAULT = 0.5
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler(STDOUT)
-    handler.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
 
-    def __init__(self, path_content):
+    def __init__(self, path_content, logger=None):
         super().__init__()
         self.extractor_keys = []
         self.extractor_name = None
         self.path_content = path_content
+        if logger is None:
+            logger = logging.getLogger()
+            logger = logging.getLogger()
+            logger.setLevel(logging.DEBUG)
+            handler = logging.StreamHandler(STDOUT)
+            handler.setLevel(logging.DEBUG)
+            logger.addHandler(handler)
+        self.logger = logger
 
     @staticmethod
     def known_types():
@@ -111,7 +114,7 @@ class Flatten():
                 if self.extractor_keys is None:
                     self.extractor_keys = []
             except Exception as e:
-                self.logger.warning(f"Failed to get extractor keys for extractor {self.extractor_name} (error: '{e}')")
+                self.logger.info(f"Failed to get extractor keys for extractor {self.extractor_name} (error: '{e}')")
         if self.extractor_keys is not None and path in self.extractor_keys:   # have the keys, check for presence
             try:
                 if is_json:

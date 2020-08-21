@@ -25,8 +25,9 @@ import re
 from contentai_metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
-    def __init__(self, path_content):
-        super().__init__(path_content)
+    def __init__(self, path_content, logger=None):
+        super().__init__(path_content, logger=logger)
+        self.EXTRACTOR = "gcp_videointelligence_explicit_content"
 
     @staticmethod
     def known_types():
@@ -48,7 +49,7 @@ class Parser(Flatten):
         #     "timeOffset": "0s",
         #     "pornographyLikelihood": "VERY_UNLIKELY"
         #   }, ...
-        dict_data = self.get_extractor_results("gcp_videointelligence_explicit_content", "data.json")
+        dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
 
         if "annotationResults" not in dict_data:
             if run_options["verbose"]:
@@ -70,7 +71,7 @@ class Parser(Flatten):
                             list_items.append( {"time_begin": time_clean, "source_event": "image",  "tag_type": "moderation",
                                 "time_end": time_clean, "time_event": time_clean, "tag": dict_scores[n],                   
                                 "score": Flatten.GCP_LIKELIHOOD_MAP[frame_item[n]], "details": "",
-                                "extractor": "gcp_videointelligence_explicit_content"})
+                                "extractor": self.EXTRACTOR})
                 return DataFrame(list_items)
 
         if run_options["verbose"]:

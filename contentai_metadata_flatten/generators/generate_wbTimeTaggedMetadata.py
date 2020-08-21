@@ -27,8 +27,8 @@ import hashlib   # for key hashing
 from contentai_metadata_flatten.generators import Generate
 
 class Generator(Generate):
-    def __init__(self, path_destination):
-        super().__init__(path_destination, "wbTimeTaggedMetadata", ".json", universal=True)
+    def __init__(self, path_destination, logger=None):
+        super().__init__(path_destination, "wbTimeTaggedMetadata", ".json", universal=True, logger=logger)
         self.template_path = path.join(self.PATH_DATA, 'templates', "wbTimeTaggedMetadata.json")
         self.schema_path = path.join(self.PATH_DATA, 'templates', "metadataEvent.schema.json")
 

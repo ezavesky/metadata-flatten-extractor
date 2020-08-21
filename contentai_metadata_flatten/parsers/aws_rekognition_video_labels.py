@@ -25,8 +25,8 @@ from pandas import DataFrame
 from contentai_metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
-    def __init__(self, path_content):
-        super().__init__(path_content)
+    def __init__(self, path_content, logger=None):
+        super().__init__(path_content, logger=logger)
         self.EXTRACTOR = "aws_rekognition_video_labels"
 
     @staticmethod

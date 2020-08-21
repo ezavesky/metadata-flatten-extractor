@@ -27,8 +27,9 @@ from pandas import DataFrame
 from contentai_metadata_flatten.parsers import Flatten
 
 class Parser(Flatten):
-    def __init__(self, path_content):
-        super().__init__(path_content)
+    def __init__(self, path_content, logger=None):
+        super().__init__(path_content, logger=logger)
+        self.EXTRACTOR = "gcp_videointelligence_logo_recognition"
 
     @staticmethod
     def known_types():
@@ -49,7 +50,7 @@ class Parser(Flatten):
         #    "tracks": [ { "segment": { "startTimeOffset": "168s",  "endTimeOffset": "171.600s" },
         #     "timestampedObjects": [ { "normalizedBoundingBox": { "left": 0.439,
         #     "top": 0.717, "right": 0.482, "bottom": 0.822  },  "timeOffset": "168s"}, ...
-        dict_data = self.get_extractor_results("gcp_videointelligence_logo_recognition", "data.json")
+        dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
         if "annotationResults" not in dict_data:
             if run_options["verbose"]:
                 self.logger.critical(f"Missing nested 'annotationResults' from source 'gcp_videointelligence_logo_recognition'")
@@ -89,7 +90,7 @@ class Parser(Flatten):
                                     "time_event": float(re_time_clean.sub('', timestamped_item["timeOffset"])), 
                                     "source_event": "video", "tag": logo_item["entity"]["description"], "tag_type": "brand",
                                     "score": round(track_item["confidence"], self.ROUND_DIGITS), "details": json.dumps(details_obj), 
-                                    "extractor": "gcp_videointelligence_logo_recognition"})
+                                    "extractor": self.EXTRACTOR})
                 return DataFrame(list_items)
 
         if run_options["verbose"]:
