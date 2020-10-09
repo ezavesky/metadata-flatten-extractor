@@ -7,6 +7,10 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.1
 ---
 
+1.2.1
+~~~~~
+- update `azure_videoindexer` for `tag_type` in detected brands (was speech, now video)
+
 1.2.0
 ~~~~~
 - add unit-testing to package build
