@@ -4,8 +4,13 @@ Changes
 A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`__.
 
-1.1
+1.2
 ---
+
+1.2.2
+~~~~~
+- add parser for `gcp_videointelligence_text_detection`
+- improve testing to iterate over known set of data in testing dir
 
 1.2.1
 ~~~~~
@@ -16,6 +21,9 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 - add unit-testing to package build
 - add command-line / parser input as complement to contentai-driven ENV variables
 - fix bugs around specification of result path or specific generator
+
+1.1
+---
 
 1.1.8
 ~~~~~

@@ -67,6 +67,11 @@ class Flatten():
         """
         return None
 
+    @staticmethod
+    def default_config():
+        """Return default configuration dictionary for parsing..."""
+        return {"verbose": True}
+
     def json_load(self, path_file):
         """Helper to read dict object from JSON
 
