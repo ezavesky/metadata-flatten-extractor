@@ -34,24 +34,26 @@ PATH_TEST_ALT = Path(__file__).parent.joinpath('data', 'results-friends', 'job-d
 from contentai_metadata_flatten import parsers
 
 def test_subdirs():
-    path_asset_str = str(PATH_TEST.resolve())
 
     logger = logging.getLogger()
-    logging.basicConfig(level=logging.WARNING)
+    logger.setLevel(logging.INFO)
 
-    for path_sub in PATH_TEST.rglob("*"):
-        if path_sub.is_dir():
-            list_parser = parsers.get_by_name(path_sub.name)
-            if len(list_parser) < 1:   # at least one member
-                logger.warning(f"WARNING, missing extractor '{path_sub.name}', from {str(path_sub)}")
-                continue
-            # assert len(list_parser) > 1   # at least one member
-            logger.warning(f"Processing extractor '{path_sub.name}', from {str(path_sub)}")
+    for asset_active in [PATH_TEST, PATH_TEST_ALT]:
+        path_asset_str = str(asset_active.resolve())
+        for path_sub in asset_active.rglob("*"):
+            if path_sub.is_dir():
+                list_parser = parsers.get_by_name(path_sub.name)
+                if len(list_parser) < 1:   # at least one member
+                    logger.warning(f"WARNING, missing extractor '{path_sub.name}', from {str(path_sub)}")
+                    continue
+                # assert len(list_parser) > 1   # at least one member
+                logger.info(f"Processing extractor '{path_sub.name}', from {str(path_sub)}")
 
-            parser_instance = list_parser[0]['obj'](path_asset_str, logger=logger)
-            config_default = parser_instance.default_config()
-            input_df = parser_instance.parse(config_default)
-            assert len(input_df) > 0
+                parser_instance = list_parser[0]['obj'](path_asset_str, logger=logger)
+                config_default = parser_instance.default_config()
+                input_df = parser_instance.parse(config_default)
+                assert len(input_df) > 0
+    logger.critical("STOP!")
 
     # config['extractor'] = content_extractor_name
     # list_parser_modules = parsers.get_by_name(config['extractor'])

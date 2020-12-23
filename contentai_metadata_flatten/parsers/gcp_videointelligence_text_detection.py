@@ -88,8 +88,9 @@ class Parser(Flatten):
                         "time_end": time_end_clean, "time_event": time_begin_clean, "tag": local_obj['text'],
                         "score": score_detect, "details": json.dumps(details_obj), "extractor": self.EXTRACTOR})
 
-        if list_items:
-            return list_items
+        if len(list_items) > 0:   # return the whole thing as dataframe
+            return DataFrame(list_items)
+
         if run_options["verbose"]:
             self.logger.critical(f"Missing nested 'textAnnotations' in annotationResults chunks from source '{self.EXTRACTOR}'")
         return None
