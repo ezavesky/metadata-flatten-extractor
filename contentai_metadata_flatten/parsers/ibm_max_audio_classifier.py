@@ -76,7 +76,7 @@ class Parser(Flatten):
                     if 'label' in local_obj and 'probability' in local_obj:  # validate the object input
                         new_obj = {"tag": local_obj['label'],
                             "time_begin": time_begin, "time_end": time_end,
-                            "time_event": time_begin, "score": local_obj['probability'],
+                            "time_event": time_begin, "score": round(local_obj['probability'], self.ROUND_DIGITS),
                             "details": json.dumps({"model": local_obj['label_id']})}
                         new_obj.update(base_obj)
                         list_items.append(new_obj)
