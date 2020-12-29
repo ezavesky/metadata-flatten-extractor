@@ -45,9 +45,9 @@ defined here.**
 generated schema
 ----------------
 
-The output of this flattening will be a set of CSV files, one for each
-extractor. the standard schema for these CSV files has the following
-fields.
+One output of this flattening will be a set of CSV files if the ``flattened_csv``
+is enabled as a generator.  One file is created for each discovered/input parser/extractor. 
+The standard schema for these CSV files has the following fields.
 
 -  ``time_begin`` = time in seconds of event start
 -  ``time_end`` = time in seconds of end (may be equal to time_start if
@@ -60,7 +60,7 @@ fields.
 -  ``tag_type`` = descriptor for type of tag; e.g. tag=concept/label/emotion, keyword=special word,
    shot=segment, transcript=text, moderation=moderation, word=text/speech word,
    phrase=long utterance, face=face emotion/properties, identity=face or speaker
-   recognition, scene=semantic scenes, brand=product or logo mention
+   recognition, scene=semantic scenes/commercials, brand=product or logo mention
 -  ``score`` = confidence/probability
 -  ``details`` = possible bounding box or other long-form (JSON-encoded)
    details
@@ -249,7 +249,7 @@ Future Development
 ==================
 
 -  the remaining known extractors...  ``openpose``, ``dsai_tmstext_classifier_extractor``, 
-    ``dsai_vinyl_sound_ai``, ``dsai_name_entity_extractor``, ``gcp_videointelligence_text_detection``,
+    ``dsai_vinyl_sound_ai``, ``dsai_name_entity_extractor``, 
     ``aws_rekognition_video_segments``
 -  integration of viewership insights
 -  creation of sentiment and mood-based insights (which tags most
