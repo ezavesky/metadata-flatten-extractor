@@ -9,7 +9,7 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 
 1.2.2
 ~~~~~
-- add parser for `gcp_videointelligence_text_detection` and `comskip_json`
+- add parser for `gcp_videointelligence_text_detection` and `comskip_json`, `ibm_max_audio_classifier`
 - improve testing to iterate over known set of data in testing dir
 - fix generator/parser retrieve for whole name matches, not partials
 
