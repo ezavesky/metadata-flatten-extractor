@@ -47,7 +47,7 @@ def test_discovery():
     list_gen = generators.get_by_type(['csv', 'json'])
     assert len(list_gen) > 1  # at least one member
 
-    list_gen = generators.get_by_name('csv')
+    list_gen = generators.get_by_name('flattened_csv')
     assert len(list_gen) > 0  # at least one member
 
     list_parser = parsers.get_by_type('moderation')
@@ -56,14 +56,14 @@ def test_discovery():
     list_parser = parsers.get_by_type(['shot', 'scene'])
     assert len(list_parser) > 1  # at least one member
 
-    list_parser = parsers.get_by_name('aws')
-    assert len(list_parser) > 1   # at least one member
+    list_parser = parsers.get_by_name('aws_rekognition_video_labels')
+    assert len(list_parser) == 1   # at least one member
 
 
 def test_packages():
     from contentai_metadata_flatten import generators, parsers
     
-    list_gen = generators.get_by_name('TimeTaggedMetadata')
+    list_gen = generators.get_by_name('wbTimeTaggedMetadata')
     assert len(list_gen) > 0  # at least one member
 
     instance_gen = list_gen[0]['obj']('junk')

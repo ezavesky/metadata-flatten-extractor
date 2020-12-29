@@ -27,62 +27,47 @@ from pytimeparse import parse as pt_parse
 
 from contentai_metadata_flatten.parsers import Flatten
 
+
 class Parser(Flatten):
     def __init__(self, path_content, logger=None):
         super().__init__(path_content, logger=logger)
-        self.EXTRACTOR = "dsai_activity_classifier"
-        self.TAG_TYPE = "tag"
+        self.EXTRACTOR = "comskip_json"
 
     @staticmethod
     def known_types():
         """Return the output types for this generator
         :return: list.  List of output types (file types) for this generator
         """
-        return ['tag']
+        return ['scene']
 
     def parse(self, run_options):
-        """Flatten activity classifier score results
+        """Flatten SlowFast actions results
 
         :param: run_options (dict): specific runtime information
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
-        dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json", is_json=True)
-        if not dict_data:
+        dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
+        if "commercials" not in dict_data:
             if run_options["verbose"]:
-                self.logger.critical(f"Empty result string for extractor '{self.EXTRACTOR}', aborting")
+                self.logger.critical(f"Missing nested 'commercials' from source 'comskip_json' VERBOSE: {dict_data}")
             return None
 
-        # "results": [
-        #     {
-        #         "time_begin": 0,
-        #         "time_end": 1.5,
-        #         "type_audio": "",
-        #         "type_video": "dsai_videocnn",
-        #         "score": 0.28173,
-        #         "class": "BuildingExplode"
-        #     },
+        # (parsed JSON format)
+        # {"commercials": [{"start": 0.03336666666666667, "end": 22.355666666666668}, 
+        # {"start": 109.54276666666667, "end": 295.92896666666667}, {"start": 809.6421666666666, "end": 1011.5772333333333}, 
+        # {"start": 1257.9900666666667, "end": 1484.3161666666667}, {"start": 1799.9982, "end": 1800.0315666666668}]}
+
+        base_obj = {"source_event": "video", "tag_type": "scene", "tag": "commercial",
+                    "extractor": self.EXTRACTOR, "score": self.SCORE_DEFAULT}
 
         list_items = []
-
-        if dict_data is None or 'results' not in dict_data or 'config' not in dict_data:
-            self.logger.critical(f"Missing nested 'results' from source '{self.EXTRACTOR}'")
-            return None
-        for local_obj in dict_data["results"]:
-            if "class" in local_obj and "score" in local_obj:  # validate object
-                time_begin = float(local_obj['time_begin'])
-                time_end = float(local_obj['time_end'])
-                details_obj = {}
-                source_type = 'video'
-                if 'type_video' in local_obj and len(local_obj['type_video']) > 0:
-                    details_obj['video'] = local_obj['type_video']
-                if 'type_audio' in local_obj and len(local_obj['type_audio']) > 0:
-                    details_obj['audio'] = local_obj['type_audio']
-                    if "video" not in details_obj:
-                        source_type = 'audio'
-                list_items.append({"time_begin": time_begin, "source_event": source_type, "tag_type": self.TAG_TYPE,
-                    "time_end": time_end, "time_event": time_begin, "tag": local_obj["class"],
-                    "score":  local_obj['score'], "details": json.dumps(details_obj),
-                    "extractor": self.EXTRACTOR})
+        for annotation_obj in dict_data["commercials"]:  # traverse items
+            if "start" in annotation_obj and "end" in annotation_obj:  # validate object
+                item_new = {"time_begin": round(annotation_obj["start"], self.ROUND_DIGITS),
+                            "time_end": round(annotation_obj["end"], self.ROUND_DIGITS),
+                            "time_event": round(annotation_obj["start"], self.ROUND_DIGITS), "details": ""}
+                item_new.update(base_obj)
+                list_items.append(item_new)
 
         if len(list_items) > 0:   # return the whole thing as dataframe
             return DataFrame(list_items)
@@ -90,3 +75,4 @@ class Parser(Flatten):
         if run_options["verbose"]:
             self.logger.critical(f"No valid events detected for '{self.EXTRACTOR}'")
         return None
+

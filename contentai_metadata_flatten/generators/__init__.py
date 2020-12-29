@@ -142,7 +142,6 @@ def get_by_name(name_limit=None):
     local_list = []
     if name_limit is None:
         local_list = [local_obj for local_obj in _modules]
-    else:
-        local_list = [local_obj for local_obj in _modules if name_limit in local_obj['name']]
+    else:  # update from "in" to "==" for name compare in v 1.2.2 to avoid partial match (e.g. metadata -> dsai_metadata)
+        local_list = [local_obj for local_obj in _modules if name_limit == local_obj['name']] 
     return local_list
-

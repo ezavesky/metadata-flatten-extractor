@@ -31,10 +31,11 @@ class Parser(ParserBase):
     def __init__(self, path_content, logger=None):
         super().__init__(path_content, logger=logger)
         self.EXTRACTOR = "dsai_activity_emotions"
+        self.TAG_TYPE = "emotion"
 
     @staticmethod
     def known_types():
         """Return the output types for this generator
         :return: list.  List of output types (file types) for this generator
         """
-        return ['tag']
+        return ['emotion']
