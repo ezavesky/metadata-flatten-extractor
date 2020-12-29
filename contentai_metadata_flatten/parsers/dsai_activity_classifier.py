@@ -31,6 +31,7 @@ class Parser(Flatten):
     def __init__(self, path_content, logger=None):
         super().__init__(path_content, logger=logger)
         self.EXTRACTOR = "dsai_activity_classifier"
+        self.TAG_TYPE = "tag"
 
     @staticmethod
     def known_types():
@@ -78,7 +79,7 @@ class Parser(Flatten):
                     details_obj['audio'] = local_obj['type_audio']
                     if "video" not in details_obj:
                         source_type = 'audio'
-                list_items.append({"time_begin": time_begin, "source_event": source_type, "tag_type": "tag",
+                list_items.append({"time_begin": time_begin, "source_event": source_type, "tag_type": self.TAG_TYPE,
                     "time_end": time_end, "time_event": time_begin, "tag": local_obj["class"],
                     "score":  local_obj['score'], "details": json.dumps(details_obj),
                     "extractor": self.EXTRACTOR})

@@ -58,9 +58,9 @@ The standard schema for these CSV files has the following fields.
    event inpact (e.g. face, video, audio, speech, image, ocr, script)
 -  ``tag`` = simple text word or phrase
 -  ``tag_type`` = descriptor for type of tag; e.g. tag=concept/label/emotion, keyword=special word,
-   shot=segment, transcript=text, moderation=moderation, word=text/speech word,
-   phrase=long utterance, face=face emotion/properties, identity=face or speaker
-   recognition, scene=semantic scenes/commercials, brand=product or logo mention
+   shot=segment, transcript=text, moderation=moderation, word=text/speech word, person=face or skeleton,
+   phrase=long utterance, face=face emotion/properties, identity=face or speaker recognition, 
+   scene=semantic scenes/commercials, brand=product or logo mention, emotion=visual or audio sentiment/emotion
 -  ``score`` = confidence/probability
 -  ``details`` = possible bounding box or other long-form (JSON-encoded)
    details

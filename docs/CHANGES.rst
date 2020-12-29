@@ -12,6 +12,8 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 - add parsers for `gcp_videointelligence_text_detection` and `comskip_json`, `ibm_max_audio_classifier`, `gcp_videointelligence_object_tracking`
 - improve testing to iterate over known set of data in testing dir
 - fix generator/parser retrieve for whole name matches, not partials
+- add documentation for new types, explicitly call out `person` tag_type
+- update the `dsai_activity_emotions` parser to return tag type `emotion` (matching that of other AWS, Azure parsers)
 
 1.2.1
 ~~~~~
