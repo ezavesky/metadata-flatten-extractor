@@ -39,8 +39,8 @@ defined here.**
    (*default=False*)
 -  ``extractor`` - *(string)* - specify one extractor to flatten,
    skipping nested module import (*default=all*, e.g. ``dsai_metadata``)
--  ``generator`` - *(string)* - specify one generator for output,
-   skipping nested module import (*default=all*, e.g. ``flattened_csv``)
+-  ``generator`` - *(string)* - cify one generator for output,
+   skipping nested module import (*=all, empty=none), e.g. ``flattened_csv``)
 
 generated schema
 ----------------
@@ -66,18 +66,24 @@ The standard schema for these CSV files has the following fields.
    details
 -  ``extractor`` = name of extractor for insight
 
-dependencies
+Return Value
 ------------
 
-| To install package dependencies in a fresh system, the recommended
-  technique is a set of
-| vanilla pip packages. The latest requirements should be validated from
-  the ``requirements.txt`` file but at time of writing, they were the
-  following.
+The main function `main.py::flatten` now returns a richer dictionary (*v1.3.0*).
+For programatic callers of the function the dictionary object contains a 
+`data` property (all of the flattened data as a list) and a `generated` property 
+which contains a list of nested dictionaries indicating generated outptu (if enabled).
+An example output below demonstrates the flattened results as well as two enabled generators.
 
-.. code:: shell
-
-   pip install --no-cache-dir -r requirements.txt 
+   {'data': [
+      {'tag': 'Clock', 'time_begin': 0, 'time_end': 1, 'time_event': 0, 'score': 0.08157, 'details': '{"model": "/m/01x3z"}', 'source_event': 'audio', 'tag_type': 'tag', 'extractor': 'example_extractor'}, 
+      {'tag': 'Sine wave', 'time_begin': 0, 'time_end': 1, 'time_event': 0, 'score': 0.07586, 'details': '{"model": "/m/01v_m0"}', 'source_event': 'audio', 'tag_type': 'tag', 'extractor': 'example_extractor'}, 
+      {'tag': 'Tick-tock', 'time_begin': 0, 'time_end': 1, 'time_event': 0, 'score': 0.07297, 'details': '{"model": "/m/07qjznl"}', 'source_event': 'audio', 'tag_type': 'tag', 'extractor': 'example_extractor'}, 
+      ... ]
+   'generated': [
+      {'generator': 'flattened_csv', 'path': 'testme/example_extractor.csv.gz'}, 
+      {'generator': 'wbTimeTaggedMetadata', 'path': 'testme/wbTimeTaggedMetadata.json.gz'}] 
+   }
 
 Execution and Deployment
 ========================

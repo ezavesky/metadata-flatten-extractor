@@ -4,6 +4,16 @@ Changes
 A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`__.
 
+
+1.3
+---
+
+1.3.0
+~~~~~
+- update output of main parse function to return a dict instead of file listing
+- modify generator specification to allow ALL (`*` <default>) or NONE for outputs
+
+
 1.2
 ---
 
