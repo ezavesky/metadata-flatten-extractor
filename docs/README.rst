@@ -40,7 +40,7 @@ defined here.**
 -  ``extractor`` - *(string)* - specify one extractor to flatten,
    skipping nested module import (*default=all*, e.g. ``dsai_metadata``)
 -  ``generator`` - *(string)* - cify one generator for output,
-   skipping nested module import (*=all, empty=none), e.g. ``flattened_csv``)
+   skipping nested module import (``*``=all, empty=none), e.g. ``flattened_csv``)
 
 generated schema
 ----------------
@@ -74,6 +74,8 @@ For programatic callers of the function the dictionary object contains a
 `data` property (all of the flattened data as a list) and a `generated` property 
 which contains a list of nested dictionaries indicating generated outptu (if enabled).
 An example output below demonstrates the flattened results as well as two enabled generators.
+
+.. code:: shell
 
    {'data': [
       {'tag': 'Clock', 'time_begin': 0, 'time_end': 1, 'time_event': 0, 'score': 0.08157, 'details': '{"model": "/m/01x3z"}', 'source_event': 'audio', 'tag_type': 'tag', 'extractor': 'example_extractor'}, 

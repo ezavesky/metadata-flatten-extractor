@@ -11,7 +11,7 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.3.0
 ~~~~~
 - update output of main parse function to return a dict instead of file listing
-- modify generator specification to allow ALL (`*` <default>) or NONE for outputs
+- modify generator specification to allow ALL (``*`` **default**) or NONE for outputs
 
 
 1.2

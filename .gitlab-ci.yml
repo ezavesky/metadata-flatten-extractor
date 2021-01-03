@@ -191,7 +191,7 @@ publish_pypi:
   image: python:3.7-slim
   script:
     - pip install twine
-    - TWINE_USERNAME="__token__" TWINE_PASSWORD="$TWINE_API" python -m twine upload dist/*
+    - TWINE_USERNAME="__token__" TWINE_PASSWORD="$TWINE_API" python -m twine upload --verbose dist/*
   dependencies:
     - testscr
   only:

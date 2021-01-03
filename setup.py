@@ -33,7 +33,7 @@ with open(os.path.join(setup_dir, 'contentai_metadata_flatten', '_version.py')) 
 doc_string = ''
 for doc_files in ["README.rst", "CHANGES.rst"]:
     with open(os.path.join(setup_dir, 'docs', doc_files), 'rt') as file:
-       doc_string += file.read()  + "\n"
+       doc_string += file.read() + "\n"
 
 # get the dependencies and installs
 print(setup_dir)
@@ -60,7 +60,7 @@ setup(
     long_description_content_type="text/x-rst",
     url='https://gitlab.research.att.com/turnercode/metadata-flatten-extractor',
     license="Apache",
-    package_data={globals_dict['__package__']: list_data },
+    package_data={globals_dict['__package__']: list_data},
     # setup_requires=['pytest-runner'],
     entry_points="""
     [console_scripts]
@@ -70,5 +70,5 @@ setup(
     install_requires=requirement_list,
     tests_require=test_requirement_list,
     # cmdclass={'install': new_install},
-    include_package_data=True,
+    include_package_data=True
 )
