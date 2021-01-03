@@ -53,18 +53,3 @@ def test_subdirs():
                 config_default = parser_instance.default_config()
                 input_df = parser_instance.parse(config_default)
                 assert len(input_df) > 0
-    logger.critical("STOP!")
-
-    # config['extractor'] = content_extractor_name
-    # list_parser_modules = parsers.get_by_name(config['extractor'])
-    # for parser_obj in list_parser_modules:  # iterate through auto-discovered packages
-    #     parser_instance = parser_obj['obj'](rootPath, logger=logger)
-    #     input_df = parser_instance.parse(config)
-
-
-    # # test bad input or output
-    # list_result = flatten(args=["--path_result", str(path_temp)])
-    # assert len(list_result) == 0
-    # list_result = flatten(args=["--path_content", str(PATH_TEST_ALT.joinpath("test.mp4").resolve())])
-    # assert len(list_result) == 0
-

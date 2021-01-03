@@ -46,6 +46,8 @@ def flatten(input_params=None, args=None, logger=None):
         epilog="""
         Launch to parse a set of downloaded and flattened assets... 
             python main.py --path_content=path/to/dir --path_result results
+
+        Returns a dictionary of files and output data (`data` and `generated`)
     """, formatter_class=argparse.RawTextHelpFormatter)
     submain = parser.add_argument_group('main execution and evaluation functionality')
     submain.add_argument('--path_content', dest='path_content', type=str, default=contentai.content_path, 
@@ -62,8 +64,8 @@ def flatten(input_params=None, args=None, logger=None):
     submain.add_argument('--all_frames', dest='all_frames', default=False, action='store_true', 
                             help='for video-based events, log all instances in box or just the center')
     submain = parser.add_argument_group('output modulation')
-    submain.add_argument('--generator', dest='generator', type=str, default="", 
-                            help='specify one generator for output, skipping nested module import (*default=all*)')
+    submain.add_argument('--generator', dest='generator', type=str, default="*", 
+                            help='specify one generator for output, skipping nested module import (*=all, empty=none, e.g. `flattened_csv`)')
     submain.add_argument('--no_compression', dest='compressed', default=True, action='store_false', 
                             help="compress output CSVs instead of raw write (*default=True*, e.g. append ‘.gz’)")
     submain.add_argument('--force_overwrite', dest='force_overwrite', default=False, action='store_true', 
@@ -75,6 +77,7 @@ def flatten(input_params=None, args=None, logger=None):
         config = vars(parser.parse_args())
     if input_params is not None:
         config.update(input_params)
+    result_dict = {}
 
     # allow injection of parameters from environment
     contentai_metadata = contentai.metadata()
@@ -84,22 +87,24 @@ def flatten(input_params=None, args=None, logger=None):
     if not config['path_content'] or not config['path_result']:
         logger.critical(f"Missing content path ({config['path_content']}) or result path ({config['path_result']})")
         parser.print_help(sys.stderr)
-        return []
+        return result_dict
 
     path_result = Path(config['path_result'])
     if not path_result.exists():
         path_result.mkdir(parents=True)
 
     list_parser_modules = parsers.get_by_name(config['extractor'] if len(config['extractor']) else None)
-    list_generator_modules = generators.get_by_name(config['generator'] if len(config['generator']) else None)
+    list_generator_modules = generators.get_by_name(config['generator'] if (config['generator'] and config['generator'] != "*") else None)
     path_source = Path(config['path_content'])
     if not path_source.is_dir():
         path_source = path_source.parent
     path_source = str(path_source.resolve())
 
-    need_generation = False
+    need_generation = False if list_generator_modules else True  # allow empty generator list
     map_outputs = {}
     set_results = set()
+    result_files = {}
+
     for parser_obj in list_parser_modules:  # iterate through auto-discovered packages
         for generator_obj in list_generator_modules:  # iterate through auto-discovered packages
             generator_instance = generator_obj['obj'](str(path_result), logger=logger)   # create instance
@@ -130,6 +135,7 @@ def flatten(input_params=None, args=None, logger=None):
                 for col_name in ['time_begin', 'time_end', 'time_event']:
                     df[col_name] += config['time_offset']
             df.drop(df[df["time_begin"] < 0].index, inplace=True)  # drop rows if trimmed from front
+            result_dict['data'] = df.to_dict(orient='records')
 
             for generator_name in map_outputs:  # iterate through auto-discovered packages
                 if map_outputs[generator_name]['module'].is_universal or not Path(map_outputs[generator_name]["path"]).exists():
@@ -137,14 +143,17 @@ def flatten(input_params=None, args=None, logger=None):
                     logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
                 else:
                     logger.info(f"Skipping re-generate of {generator_name} to file '{map_outputs[generator_name]['path']}''...")
-                set_results.add(map_outputs[generator_name]["path"])
+                result_files[map_outputs[generator_name]["path"]] = {"generator": generator_name, "path": map_outputs[generator_name]["path"]}
+    
+    if result_files:  # if valid output files, add them here...
+        result_dict['generated'] = list(result_files.values())
 
     # resolve and return fully qualified path
-    return [str(Path(config['path_result']).joinpath(k).resolve()) for k in set_results]
+    return result_dict
 
 def main():
     """Helper wrapper for CLI return status"""
-    flatten()
+    return -1 if not flatten() else 0
 
 if __name__ == "__main__":
     flatten()
