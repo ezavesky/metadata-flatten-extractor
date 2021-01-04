@@ -56,6 +56,10 @@ def test_programmatic():
     assert "data" in dict_result and num_results_long == len(dict_result['data'])
     shutil.rmtree(str(path_temp))   # cleanup
 
+
+def test_generator():
+    path_temp = Path(tempfile.mkdtemp()).resolve()
+
     # test only single input (extractor)
     dict_result = flatten(args=["--path_content", str(PATH_TEST.resolve()), "--extractor", "azure_videoindexer",
                                 "--verbose", "--path_result", str(path_temp)])
@@ -63,10 +67,29 @@ def test_programmatic():
     assert 2 == len(dict_result['generated'])
     shutil.rmtree(str(path_temp))   # cleanup
 
+    # with no output (v1.3.0+)
+    dict_result = flatten({"path_content": str(PATH_TEST.resolve()), "extractor": "azure_videoindexer",
+                           "generator": "", "verbose": True, "path_result": str(path_temp)}, args=[])
+    assert "generated" not in dict_result
+    assert not [x for x in path_temp.rglob("*") if not x.is_dir()]
+
+    # with no output (v1.3.0+)
+    dict_result = flatten(args=["--path_content", str(PATH_TEST.resolve()), "--extractor", "azure_videoindexer",
+                                "--generator", None, "--verbose", "--path_result", str(path_temp)])
+    assert "generated" not in dict_result
+    assert not [x for x in path_temp.rglob("*") if not x.is_dir()]
+
+    # with no output (v1.3.0+)
+    dict_result = flatten(args=["--path_content", str(PATH_TEST.resolve()), "--extractor", "azure_videoindexer",
+                                "--generator", " ", "--verbose", "--path_result", str(path_temp)])
+    assert "generated" not in dict_result
+    assert not [x for x in path_temp.rglob("*") if not x.is_dir()]
+
     # test only single input and output (extractor + generator)
     dict_result = flatten(args=["--path_content", str(PATH_TEST.resolve()), "--extractor", "azure_videoindexer",
                                 "--generator", "flattened_csv", "--path_result", str(path_temp)])
     assert "generated" in dict_result and 1 == len(dict_result['generated'])
+    assert len([x for x in path_temp.rglob("*") if not x.is_dir()]) == 1
     df_single = pd.read_csv(dict_result['generated'][0]['path']).sort_values(["time_begin", "tag"])
     shutil.rmtree(str(path_temp))   # cleanup
     assert len(df_single) > 0
@@ -106,8 +129,8 @@ def test_cli():
     assert len(list_result_cli) > 0
 
     # test straight result parse
-    dict_result = flatten(args=["--path_content", str(PATH_TEST.joinpath("test.mp4").resolve()), 
-                                 "--path_result", str(path_temp)])
+    dict_result = flatten({"path_content": str(PATH_TEST.joinpath("test.mp4").resolve()), 
+                           "path_result": str(path_temp)}, args=[])
     assert "generated" in dict_result and len(dict_result['generated'])
     print(dict_result['generated'])
     assert len(list_result_cli) == len(dict_result['generated'])

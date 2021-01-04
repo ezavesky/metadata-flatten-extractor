@@ -65,7 +65,7 @@ def flatten(input_params=None, args=None, logger=None):
                             help='for video-based events, log all instances in box or just the center')
     submain = parser.add_argument_group('output modulation')
     submain.add_argument('--generator', dest='generator', type=str, default="*", 
-                            help='specify one generator for output, skipping nested module import (*=all, empty=none, e.g. `flattened_csv`)')
+                            help='specify one generator for output (*=all, empty/''=none, e.g. `flattened_csv`)')
     submain.add_argument('--no_compression', dest='compressed', default=True, action='store_false', 
                             help="compress output CSVs instead of raw write (*default=True*, e.g. append ‘.gz’)")
     submain.add_argument('--force_overwrite', dest='force_overwrite', default=False, action='store_true', 
@@ -94,7 +94,9 @@ def flatten(input_params=None, args=None, logger=None):
         path_result.mkdir(parents=True)
 
     list_parser_modules = parsers.get_by_name(config['extractor'] if len(config['extractor']) else None)
-    list_generator_modules = generators.get_by_name(config['generator'] if (config['generator'] and config['generator'] != "*") else None)
+    list_generator_modules = []
+    if config['generator'] is not None and config['generator']:  # valid string
+        list_generator_modules = generators.get_by_name(config['generator'] if config['generator'] != "*" else None)
     path_source = Path(config['path_content'])
     if not path_source.is_dir():
         path_source = path_source.parent
@@ -103,7 +105,9 @@ def flatten(input_params=None, args=None, logger=None):
     need_generation = False if list_generator_modules else True  # allow empty generator list
     map_outputs = {}
     set_results = set()
+
     result_files = {}
+    result_data = []
 
     for parser_obj in list_parser_modules:  # iterate through auto-discovered packages
         for generator_obj in list_generator_modules:  # iterate through auto-discovered packages
@@ -135,7 +139,7 @@ def flatten(input_params=None, args=None, logger=None):
                 for col_name in ['time_begin', 'time_end', 'time_event']:
                     df[col_name] += config['time_offset']
             df.drop(df[df["time_begin"] < 0].index, inplace=True)  # drop rows if trimmed from front
-            result_dict['data'] = df.to_dict(orient='records')
+            result_data += df.to_dict(orient='records')
 
             for generator_name in map_outputs:  # iterate through auto-discovered packages
                 if map_outputs[generator_name]['module'].is_universal or not Path(map_outputs[generator_name]["path"]).exists():
@@ -147,6 +151,8 @@ def flatten(input_params=None, args=None, logger=None):
     
     if result_files:  # if valid output files, add them here...
         result_dict['generated'] = list(result_files.values())
+    if result_data:  # if valid data, add them here...
+        result_dict['data'] = result_data
 
     # resolve and return fully qualified path
     return result_dict
