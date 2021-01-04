@@ -42,8 +42,9 @@ defined here.**
 -  ``generator`` - *(string)* - cify one generator for output,
    skipping nested module import (``*``=all, empty=none), e.g. ``flattened_csv``)
 
-generated schema
-----------------
+
+Generated Schema (CSV)
+----------------------
 
 One output of this flattening will be a set of CSV files if the ``flattened_csv``
 is enabled as a generator.  One file is created for each discovered/input parser/extractor. 
@@ -65,6 +66,71 @@ The standard schema for these CSV files has the following fields.
 -  ``details`` = possible bounding box or other long-form (JSON-encoded)
    details
 -  ``extractor`` = name of extractor for insight
+
+
+Example Programmatic Use
+------------------------
+
+While this library is primarily used as an extractor in ContentAI, it can 
+be programmatically called within another extractor to simplify incoming 
+data into a simple list for analysis.  Several of these examples are available
+as code examples in the testing scripts.
+
+1. This dictionary-based call example will parse output of the `azure_videoindexer` 
+   and return it as a dictionary only (do not generate CSV or JSON output).
+
+.. code:: python
+
+   from contentai_metadata_flatten.main import flatten
+
+   dict_result = flatten({"path_content": "content/jobs", "extractor": "azure_videoindexer",
+                          "generator": "", "verbose": True, "path_result": ".", args=[])
+
+
+2. This argument call example will parse all extractor outputs and generate a CSV.
+
+.. code:: python
+
+   from contentai_metadata_flatten.main import flatten
+
+   dict_result = flatten(args=["--path_content", "content/jobs/example.mp4", 
+                               "--generator", "flattened_csv", "--path_result": "content/flattened")
+
+3. This low-level access to a parser allows more control over which file or directory
+   is parsed by the library and no generators are called.  This call example is the same as
+   the first example except that it returns a `DataFrame` instead of a dictionary and may 
+   be slightly faster.
+
+.. code:: python
+
+   from contentai_metadata_flatten import parsers
+   import logging
+
+   logger = logging.getLogger()
+   logger.setLevel(logging.INFO)
+
+   list_parser = parsers.get_by_name("azure_videoindexer")
+   parser_instance = list_parser[0]['obj']("content/jobs", logger=logger)
+   config_default = parser_instance.default_config()
+   result_df = parser_instance.parse(config_default)
+
+4. Another low-level access to parsers for only certain tag types.  This call example allows
+   the parsing of only certain tag types (below only those of type `identity` and `face`).
+
+.. code:: python
+
+   from contentai_metadata_flatten import parsers
+   import logging
+
+   logger = logging.getLogger()
+   logger.setLevel(logging.INFO)
+
+   list_parser = parsers.get_by_type(["face", "identity"])
+   for parser_obj in list_parser:
+      parser_instance = parser_obj['obj']("content/jobs", logger=logger)
+      config_default = parser_instance.default_config()
+      result_df = parser_instance.parse(config_default)
+
 
 Return Value
 ------------

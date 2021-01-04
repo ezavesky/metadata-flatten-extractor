@@ -8,6 +8,12 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.3
 ---
 
+1.3.1
+~~~~~
+- fix for no-output generators
+- fix complete output for returned dictionary of data
+- add richer documentation for library/api usage
+
 1.3.0
 ~~~~~
 - update output of main parse function to return a dict instead of file listing
