@@ -79,7 +79,7 @@ class Parser(Flatten):
                                 for vertex_obj in letter_obj["rotatedBoundingBox"]["vertices"]:
                                     x_max = max(x_max, vertex_obj["x"])
                                     x_min = min(x_min, vertex_obj["x"])
-                                    y_max = max(x_max, vertex_obj["y"])
+                                    y_max = max(y_max, vertex_obj["y"])
                                     y_min = min(y_min, vertex_obj["y"])
                         details_obj['box'] = {'w': round(x_max - x_min, self.ROUND_DIGITS), 
                             'h': round(y_max - y_min, self.ROUND_DIGITS),
