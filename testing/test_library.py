@@ -30,6 +30,7 @@ import logging
 
 PATH_TEST = Path(__file__).parent.joinpath('data', 'results-hbomax', 'job-default')
 PATH_TEST_ALT = Path(__file__).parent.joinpath('data', 'results-friends', 'job-default')
+PATH_TEST_TROUBLE = Path(__file__).parent.joinpath('data', 'results-trouble', 'job-default')
 
 from contentai_metadata_flatten import parsers
 
@@ -38,7 +39,7 @@ def test_subdirs():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
-    for asset_active in [PATH_TEST, PATH_TEST_ALT]:
+    for asset_active in [PATH_TEST_TROUBLE, PATH_TEST, PATH_TEST_ALT]:
         path_asset_str = str(asset_active.resolve())
         for path_sub in asset_active.rglob("*"):
             if path_sub.is_dir():
