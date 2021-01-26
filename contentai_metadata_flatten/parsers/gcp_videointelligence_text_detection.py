@@ -77,10 +77,11 @@ class Parser(Flatten):
                         for letter_obj in instance_obj["frames"]:   # we're crunching down to a bounding box over all frames, not outline
                             if "rotatedBoundingBox" in letter_obj and "vertices" in letter_obj["rotatedBoundingBox"]:
                                 for vertex_obj in letter_obj["rotatedBoundingBox"]["vertices"]:
-                                    x_max = max(x_max, vertex_obj["x"])
-                                    x_min = min(x_min, vertex_obj["x"])
-                                    y_max = max(y_max, vertex_obj["y"])
-                                    y_min = min(y_min, vertex_obj["y"])
+                                    if "x" in vertex_obj and "y" in vertex_obj:  # bug where "y" was not defined!?
+                                        x_max = max(x_max, vertex_obj["x"])
+                                        x_min = min(x_min, vertex_obj["x"])
+                                        y_max = max(y_max, vertex_obj["y"])
+                                        y_min = min(y_min, vertex_obj["y"])
                         details_obj['box'] = {'w': round(x_max - x_min, self.ROUND_DIGITS), 
                             'h': round(y_max - y_min, self.ROUND_DIGITS),
                             'l': round(x_min, self.ROUND_DIGITS), 't': round(y_min, self.ROUND_DIGITS) }
