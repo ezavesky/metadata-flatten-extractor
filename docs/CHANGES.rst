@@ -8,6 +8,10 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.3
 ---
 
+1.3.2
+~~~~~
+- minor fix for `gcp_videointelligence_text_detection` parsing
+
 1.3.1
 ~~~~~
 - fix for no-output generators
