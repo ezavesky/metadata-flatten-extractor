@@ -258,7 +258,7 @@ class Parser(Flatten):
                                 details_obj['shot_type'] = local_obj['tags']
 
                             time_event = None
-                            if 'keyFrames' in local_obj:   # try to get a specific keyframe
+                            if 'keyFrames' in local_obj and local_obj['keyFrames']:   # try to get a specific keyframe
                                 key_frame_obj = local_obj['keyFrames'][0]   # grab first frame
                                 if "instances" in key_frame_obj:
                                     time_event = pt_parse(key_frame_obj['instances'][0]['start'])                            

@@ -8,6 +8,11 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 1.3
 ---
 
+1.3.3
+~~~~~
+- minor fix for `azure_videoindexer` parsing, now first video shot can *not* contain a keyframe ? 
+
+
 1.3.2
 ~~~~~
 - minor fix for `gcp_videointelligence_text_detection` parsing
