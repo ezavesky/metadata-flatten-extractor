@@ -11,6 +11,7 @@ if [ $# -lt 1 ]; then
     exit -1
 fi
 
+DIR_FILE=$(dirname ${BASH_SOURCE[0]})
 RUNARGS="{}"
 if [ $# -gt 2 ]; then
     RUNARGS="$3"
@@ -25,4 +26,4 @@ fi
 
 EXTRACTOR_METADATA="$RUNARGS" EXTRACTOR_NAME=dsai_metadata_flatten EXTRACTOR_JOB_ID=1 \
     EXTRACTOR_CONTENT_PATH=$1 EXTRACTOR_CONTENT_URL=file://$1 EXTRACTOR_RESULT_PATH=$2 \
-    python -u contentai_metadata_flatten/main.py
+    python -u ${DIR_FILE}/contentai_metadata_flatten/main.py
