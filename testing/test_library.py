@@ -32,10 +32,12 @@ PATH_TEST = Path(__file__).parent.joinpath('data', 'results-hbomax', 'job-defaul
 PATH_TEST_ALT = Path(__file__).parent.joinpath('data', 'results-friends', 'job-default')
 PATH_TEST_TROUBLE = Path(__file__).parent.joinpath('data', 'results-trouble', 'job-default')
 
+PATH_TEST_SPLIT = Path(__file__).parent.joinpath('data', 'results-split')
+
 from contentai_metadata_flatten import parsers
+from contentai_metadata_flatten.main import flatten
 
 def test_subdirs():
-
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
@@ -49,8 +51,32 @@ def test_subdirs():
                     continue
                 # assert len(list_parser) > 1   # at least one member
                 logger.info(f"Processing extractor '{path_sub.name}', from {str(path_sub)}")
-
                 parser_instance = list_parser[0]['obj'](path_asset_str, logger=logger)
                 config_default = parser_instance.default_config()
                 input_df = parser_instance.parse(config_default)
                 assert len(input_df) > 0
+
+
+def test_split_timing():
+    # goal is to check the assembly of multiple parts using a 'timing' file
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    path_temp = Path(tempfile.mkdtemp())
+
+    for asset_dir in PATH_TEST_SPLIT.rglob("part*"):
+        if asset_dir.is_dir():
+            # test straight result parse
+            dict_result = flatten({"path_content": str(asset_dir.joinpath("test.mp4").resolve()), 
+                                "path_result": str(path_temp), 
+                                "time_offset_source":str(asset_dir.joinpath("timing.txt"))}, args=[])
+
+    for path_gen_csv in path_temp.rglob("*comskip*csv*"):
+        df = pd.read_csv(str(path_gen_csv))
+        # want to confirm that events exist in times from at least 0-59m, 60-119m, 120m+
+        assert len(df[df["time_begin"] < 3600])
+        assert len(df[(df["time_begin"] > 3600) & (df["time_begin"] < 7200)])
+        assert len(df[df["time_begin"] > 7200])
+
+    shutil.rmtree(path_temp)   # cleanup

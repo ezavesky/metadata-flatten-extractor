@@ -61,6 +61,8 @@ def flatten(input_params=None, args=None, logger=None):
                             help='specify one extractor to flatten, skipping nested module import (*default=all*, e.g. ``dsai_metadata``)')
     submain.add_argument('--time_offset', dest='time_offset', type=int, default=0, 
                             help='when merging events for an asset split into multiple parts, time in seconds (*default=0*); negative numbers will cause a truncation (skip) of events happening before the zero time mark *(added v0.7.1)*')
+    submain.add_argument('--time_offset_source', dest='time_offset_source', type=str, default="", 
+                            help='check for this one-line file path with number of seconds offset according to `time_offset` rules; *(added v1.4.0)*')
     submain.add_argument('--all_frames', dest='all_frames', default=False, action='store_true', 
                             help='for video-based events, log all instances in box or just the center')
     submain = parser.add_argument_group('output modulation')
@@ -88,6 +90,15 @@ def flatten(input_params=None, args=None, logger=None):
         logger.critical(f"Missing content path ({config['path_content']}) or result path ({config['path_result']})")
         parser.print_help(sys.stderr)
         return result_dict
+
+    if config['time_offset_source']:
+        path_offset = Path(config['time_offset_source'])
+        if path_offset.exists():
+            with path_offset.open('r') as f:
+                try:
+                    config['time_offset'] = int(f.read())
+                except Exception as e:
+                    logger.warning(f"Unable to parse time file '{str(path_offset)}' (error: {e})")
 
     path_result = Path(config['path_result'])
     if not path_result.exists():
@@ -142,7 +153,7 @@ def flatten(input_params=None, args=None, logger=None):
             result_data += df.to_dict(orient='records')
 
             for generator_name in map_outputs:  # iterate through auto-discovered packages
-                if map_outputs[generator_name]['module'].is_universal or not Path(map_outputs[generator_name]["path"]).exists():
+                if need_generation or not Path(map_outputs[generator_name]["path"]).exists():
                     num_items = map_outputs[generator_name]['module'].generate(map_outputs[generator_name]["path"], config, df)  # attempt to process
                     logger.info(f"Wrote {num_items} items as '{generator_name}' to result file '{map_outputs[generator_name]['path']}'")
                 else:

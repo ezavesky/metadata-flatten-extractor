@@ -4,6 +4,13 @@ Changes
 A method to flatten generated JSON data into timed CSV events in support
 of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`__.
 
+1.4
+---
+
+1.4.0
+~~~~~
+- fix for timing offsets; don't overwrite any output if timing offset indicator
+
 
 1.3
 ---

@@ -31,10 +31,12 @@ defined here.**
    (*default=True*, e.g. append ‘.gz’)
 -  ``all_frames`` - *(bool)* - for video-based events, log all instances
    in box or just the center (*default=False*)
--  ``time_offset`` - *(int)* - when merging events for an asset split
-   into multiple parts, time in seconds (*default=0*); negative numbers
-   will cause a truncation (skip) of events happening before the zero
-   time mark *(added v0.7.1)*
+- ``time_offset`` - *(int)* - when merging events for an asset split into 
+   multiple parts, time in seconds (*default=0*); negative numbers will 
+   cause a truncation (skip) of events happening before the zero time 
+   mark *(added v0.7.1)*
+- ``time_offset_source`` - *(str)* - check for this one-line file path with 
+   number of seconds offset according to `time_offset` rules; *(added v1.4.0)*
 -  ``verbose`` - *(bool)* - verbose input/output configuration printing
    (*default=False*)
 -  ``extractor`` - *(string)* - specify one extractor to flatten,
@@ -43,8 +45,11 @@ defined here.**
    skipping nested module import (``*``=all, empty=none), e.g. ``flattened_csv``)
 
 
-Generated Schema (CSV)
-----------------------
+Generators
+==========
+
+CSV Schema (CSV)
+----------------
 
 One output of this flattening will be a set of CSV files if the ``flattened_csv``
 is enabled as a generator.  One file is created for each discovered/input parser/extractor. 
