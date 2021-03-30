@@ -52,15 +52,15 @@ class Parser(Flatten):
         re_time_clean = re.compile(r"s$")
         list_items = []
 
-        # "ad_scenes": [
+        # "ads_scenes": [
         #     {
         #         "time_begin": 0,
         #         "time_end": 1.5,
         #         "score": 0.6567,
         #     },
 
-        if "ad_scenes" in dict_data:  # overall validation
-            scenes = dict_data["ad_scenes"] or {}
+        if "ads_scenes" in dict_data:  # overall validation
+            scenes = dict_data["ads_scenes"] or {}
 
         if len(scenes) > 0:   # return the whole thing as dataframe
             return DataFrame(scenes)
