@@ -51,6 +51,7 @@ class Parser(Flatten):
         dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
         re_time_clean = re.compile(r"s$")
         list_items = []
+        scenes = []
 
         # "ads_scenes": [
         #     {
@@ -59,8 +60,9 @@ class Parser(Flatten):
         #         "score": 0.6567,
         #     },
 
+
         if "ads_scenes" in dict_data:  # overall validation
-            scenes = dict_data["ads_scenes"] or {}
+            scenes = dict_data["ads_scenes"]
 
         if len(scenes) > 0:   # return the whole thing as dataframe
             return DataFrame(scenes)
