@@ -31,16 +31,14 @@ class Parser(Flatten):
     def __init__(self, path_content, logger=None):
         super().__init__(path_content, logger=logger)
         self.EXTRACTOR = "dsai_ads_detector"
-
+        self.TAG_TYPE = "commercial_lead"
 
     @staticmethod
     def known_types():
         """Return the output types for this generator
         :return: list.  List of output types (file types) for this generator
         """
-        return ['ad_scenes']
-
-
+        return ['scene']
 
     def parse(self, run_options):
         """dsai_ads_detector
@@ -49,9 +47,6 @@ class Parser(Flatten):
         :returns: (DataFrame): DataFrame on successful decoding and export, None (or exception) otherwise
         """
         dict_data = self.get_extractor_results(self.EXTRACTOR, "data.json")
-        re_time_clean = re.compile(r"s$")
-        list_items = []
-        scenes = []
 
         # "ads_scenes": [
         #     {
@@ -62,11 +57,19 @@ class Parser(Flatten):
 
 
         if "ads_scenes" in dict_data:  # overall validation
-            scenes = dict_data["ads_scenes"]
+            list_items = []
+            base_obj = {"source_event": "video", "tag_type": self.TAG_TYPE, "details": "",
+                        "tag": "scene", "extractor": self.EXTRACTOR}
 
-        if len(scenes) > 0:   # return the whole thing as dataframe
-            return DataFrame(scenes)
+            for scene_obj in dict_data["ads_scenes"]:
+                scene_obj.update(base_obj)
+                scene_obj['time_event'] = scene_obj['time_end']   # indicating an ad should go here!
+                scene_obj['score'] = round(scene_obj['score'], self.ROUND_DIGITS)
+                list_items.append(scene_obj)
+
+            if len(list_items) > 0:   # return the whole thing as dataframe
+                return DataFrame(list_items)
 
         if run_options["verbose"]:
-            self.logger.critical(f"Missing ad_scenes from source dsai_ads_detector")
+            self.logger.critical(f"Missing ad_scenes from source {self.EXTRACTOR}")
         return None
