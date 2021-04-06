@@ -4,7 +4,7 @@ description: Flattens input metadata into a common format for CSV or JSON readin
 
 url: "https://gitlab.research.att.com/turnercode/metadata-flatten-extractor"
 
-contact: acquire@research.att.com
+contact: DSAIR-ContentAI@list.att.com
 
 cpu: 1024
 memory: 8192
