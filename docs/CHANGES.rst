@@ -11,6 +11,10 @@ of analytic workflows within the `ContentAI Platform <https://www.contentai.io>`
 ~~~~~
 - fix for timing offsets; don't overwrite any output if timing offset indicator
 
+1.4.1
+~~~~~
+- add new `dsai_ads_detector` parser for predictive ad locations
+
 
 1.3
 ---
